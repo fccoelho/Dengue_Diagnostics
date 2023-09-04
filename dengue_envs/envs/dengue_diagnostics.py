@@ -16,10 +16,14 @@ class DengueDiagnosticEnv(gym.Env):
 
         # Observations are dictionaries with the dengue and chikungunya cases locations.
         # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
+        world = World()
+        self._dengue_location, self._chik_location = world.get_grids()
         self.observation_space = spaces.Dict(
             {
-                "dengue": spaces.Box(0, size - 1, shape=(2,), dtype=int),
-                "chik": spaces.Box(0, size - 1, shape=(2,), dtype=int),
+                "clinical": spaces.Discrete(2),
+                "testd": spaces.Discrete(4), # 0: not tested, 1: negative, 2: positive, 3: inconclusive
+                "testc": spaces.Discrete(4), # 0: not tested, 1: negative, 2: positive, 3: inconclusive
+                "pos": spaces.MultiDiscrete([size, size]),
             }
         )
 
