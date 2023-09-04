@@ -1,7 +1,7 @@
 import gymnasium as gym
 import numpy as np
 from gymnasium import Env, spaces, utils
-from scipy.stats.qmc import Halton
+import scipy.stats as st
 import pygame
 from typing import List, Optional, Tuple
 
@@ -9,17 +9,17 @@ from typing import List, Optional, Tuple
 class DengueDiagnosticEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode: Optional[str]=None, size: int=5, render_freq=1):
+    def __init__(self, render_mode: Optional[str]=None, size: int=50, render_freq=1):
         self.render_mode = render_mode
         self.size = size  # The size of the square grid
         self.window_size = 512  # The size of the PyGame window
 
-        # Observations are dictionaries with the agent's and the target's location.
+        # Observations are dictionaries with the dengue and chikungunya cases locations.
         # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
         self.observation_space = spaces.Dict(
             {
-                "agent": spaces.Box(0, size - 1, shape=(2,), dtype=int),
-                "target": spaces.Box(0, size - 1, shape=(2,), dtype=int),
+                "dengue": spaces.Box(0, size - 1, shape=(2,), dtype=int),
+                "chik": spaces.Box(0, size - 1, shape=(2,), dtype=int),
             }
         )
 
@@ -52,7 +52,7 @@ class DengueDiagnosticEnv(gym.Env):
         self.clock = None
 
     def _get_obs(self):
-        return {"agent": self._agent_location, "target": self._target_location}
+        return {"dengue": self._dengue_location, "chik": self._chik_location}
 
     def _get_info(self):
         return {
@@ -174,13 +174,30 @@ class DengueDiagnosticEnv(gym.Env):
 
 
 class World:
+    "Initialize random but concentrated distribution od dengue and Chikungunya cases"
     def __init__(self, size:int=200):
         self.size = size
-        self.pos = 2 * Halton(2).random(size) - 1
-        self.probs = np.sum(self.pos, axis=1)*np.exp(-6*np.sum(self.pos**2, axis=1))
+        self.dpos, self.cpos = self._generate_outbreak()
 
+    def _generate_outbreak(self, dengue_center=(30, 30), chik_center=(90, 110), dengue_radius=10, chik_radius=10):
+        xd = st.distributions.norm(dengue_center[0],dengue_radius).rvs(5000)
+        yd = st.distributions.norm(dengue_center[1],dengue_radius).rvs(5000)
+        dpos, _, _ = np.histogram2d(xd,yd,bins=(range(self.size),range(self.size)))
+        xc = st.distributions.norm(chik_center[0],chik_radius).rvs(5000)
+        yc = st.distributions.norm(chik_center[1],chik_radius).rvs(5000)
+        cpos, _, _ = np.histogram2d(xc,yc,bins=(range(self.size),range(self.size)))
+        return dpos, cpos
+
+    def get_grids(self):
+        return self.dpos, self.cpos
     def viewer(self):
-        import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
-        ax.scatter(self.pos[:,0], self.pos[:,1], c=self.probs)
+        ax.pcolor(self.dpos, cmap='Greens', alpha=0.5)
+        ax.pcolor(self.cpos, cmap='Blues', alpha=0.5)
         return fig, ax
+
+if __name__== "__main__":
+    import matplotlib.pyplot as plt
+    w=World()
+    fig, ax = w.viewer()
+    plt.show()
