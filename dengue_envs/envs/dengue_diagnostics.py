@@ -1,13 +1,16 @@
-import gym
-from gym import spaces
-import pygame
+import gymnasium as gym
 import numpy as np
+from gymnasium import Env, spaces, utils
+from scipy.stats.qmc import Halton
+import pygame
+from typing import List, Optional, Tuple
 
 
-class GridWorldEnv(gym.Env):
+class DengueDiagnosticEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode=None, size=5):
+    def __init__(self, render_mode: Optional[str]=None, size: int=5, render_freq=1):
+        self.render_mode = render_mode
         self.size = size  # The size of the square grid
         self.window_size = 512  # The size of the PyGame window
 
@@ -168,3 +171,16 @@ class GridWorldEnv(gym.Env):
         if self.window is not None:
             pygame.display.quit()
             pygame.quit()
+
+
+class World:
+    def __init__(self, size:int=200):
+        self.size = size
+        self.pos = 2 * Halton(2).random(size) - 1
+        self.probs = np.sum(self.pos, axis=1)*np.exp(-6*np.sum(self.pos**2, axis=1))
+
+    def viewer(self):
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        ax.scatter(self.pos[:,0], self.pos[:,1], c=self.probs)
+        return fig, ax

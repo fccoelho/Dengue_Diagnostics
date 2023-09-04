@@ -1,1 +1,1 @@
-from gym_examples.envs.grid_world import GridWorldEnv
+from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv

@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "dengue-diagnostics-env"
+version = "0.1.0"
+description = "This is a Gymnasium environment for learning optimal policies for acurately detecting dengue cases in the presence of other arbovirus cases such as chikungunya."
+authors = ["Flavio Codeço Coelho <fccoelho@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "dengue_envs"}]
+
+[tool.poetry.dependencies]
+python = "<3.13,>=3.9"
+gymnasium = "^0.29.1"
+pygame = "^2.5.1"
+scipy = "^1.11.2"
+matplotlib = "^3.7.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
