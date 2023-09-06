@@ -3,6 +3,7 @@ import numpy as np
 from gymnasium import Env, spaces, utils
 from gymnasium.spaces import Box, Dict, Discrete, MultiDiscrete
 import scipy.stats as st
+from scipy.integrate import odeint
 import pygame
 from typing import List, Optional, Tuple
 
@@ -79,6 +80,10 @@ class DengueDiagnosticEnv(gym.Env):
         return observation, info
 
     def step(self, action):
+        """
+        Based on the action, does the testing or epidemiological confirmation
+        action: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing
+        """
         # Map the action (element of {0,1,2,3}) to the direction we walk in
         direction = self._action_to_direction[action]
         # We use `np.clip` to make sure we don't leave the grid
@@ -170,25 +175,72 @@ class DengueDiagnosticEnv(gym.Env):
 
 class World:
     "Initialize random but concentrated distribution od dengue and Chikungunya cases"
-    def __init__(self, size:int=200):
-        self.size = size
-        self.dpos, self.cpos = self._generate_outbreak()
+    def __init__(self, size:int=200, episize:int=50, epilength:int=60, dengue_center=(30, 30), chik_center=(90, 110), dengue_radius=10, chik_radius=10):
+        """
+        size: size of the world
+        """
+        self.size = size # World size
+        self.episize = episize # Size of the epidemic
+        self.epilength = epilength # Length of the epidemic in days
+        self.dengue_center = dengue_center
+        self.dengue_radius = dengue_radius
+        self.chik_center = chik_center
+        self.chik_radius = chik_radius
+        self.dengue_dist = st.distributions.norm(dengue_center[0],dengue_radius)
+        self.chik_dist = st.distributions.norm(chik_center[0],chik_radius)
+        self.dengue_curve = self._get_epi_curve()
+        self.dengue_series = {} # Dengue cases per day as a list of tuples {1: [(x1,y1), (x2,y2), ...], 2: [(x1,y1), (x2,y2), ...], ...)]}
+        self.chik_curve = self._get_epi_curve(R0=1.5)
+        self.chik_series = {} # Chikungunya cases per day as a list of tuples {1: [(x1,y1), (x2,y2), ...], 2: [(x1,y1), (x2,y2), ...], ...)]}
+        self.dsnapshots = {} # Dengue spatial distribution on the world grid
+        self.csnapshots = {} # Chikungunya spatial distribution on the world grid
+        self.get_daily_cases()
 
-    def _generate_outbreak(self, dengue_center=(30, 30), chik_center=(90, 110), dengue_radius=10, chik_radius=10):
-        xd = st.distributions.norm(dengue_center[0],dengue_radius).rvs(5000)
-        yd = st.distributions.norm(dengue_center[1],dengue_radius).rvs(5000)
+        
+
+    def _generate_full_outbreak(self):
+        xd = self.dengue_dist.rvs(self.episize)
+        yd = self.chik_dist.rvs(self.episize)
         dpos, _, _ = np.histogram2d(xd,yd,bins=(range(self.size),range(self.size)))
-        xc = st.distributions.norm(chik_center[0],chik_radius).rvs(5000)
-        yc = st.distributions.norm(chik_center[1],chik_radius).rvs(5000)
+        xc = st.distributions.norm(self.chik_center[0],self.chik_radius).rvs(self.episize)
+        yc = st.distributions.norm(self.chik_center[1],self.chik_radius).rvs(self.episize)
         cpos, _, _ = np.histogram2d(xc,yc,bins=(range(self.size),range(self.size)))
         return dpos, cpos
-
-    def get_grids(self):
-        return self.dpos, self.cpos
+    
+    def _get_epi_curve(self, R0=2.5):
+        """
+        Generate an epidemic curve
+        returns the Infectious numbers per day
+        """
+        def SIR(y, t, beta, gamma):
+            S, I, R = y
+            return [-beta*S*I, beta*S*I-gamma*I, gamma*I]
+        beta, gamma = 0.25, 0.1
+        y = odeint(SIR, [self.episize, 1, 0], np.arange(0, self.epilength), args=(beta, gamma))
+        return y[:,1]
+    
+    def get_daily_cases(self):
+        """
+        Generate the daily cases based on an epidemic curve
+        """
+        for t in range(self.epilength):
+            dcases_x = self.dengue_dist.rvs(int(self.dengue_curve[t]))
+            dcases_y = self.dengue_dist.rvs(int(self.dengue_curve[t]))
+            dpos, _, _ = np.histogram2d(dcases_x,dcases_y,bins=(range(self.size),range(self.size)))
+            ccases_x = self.chik_dist.rvs(int(self.chik_curve[t]))
+            ccases_y = self.chik_dist.rvs(int(self.chik_curve[t]))
+            cpos, _, _ = np.histogram2d(ccases_x,ccases_y,bins=(range(self.size),range(self.size)))
+            self.dengue_series[t] = [(int(x),int(y)) for x, y in zip(dcases_x, dcases_y)]
+            self.chik_series[t] = [(int(x),int(y)) for x, y in zip(ccases_x, ccases_y)]
+            self.dsnapshots[t] = dpos
+            self.csnapshots[t] = cpos
+    
+        
     def viewer(self):
+        dpos, cpos = self._generate_full_outbreak()
         fig, ax = plt.subplots()
-        ax.pcolor(self.dpos, cmap='Greens', alpha=0.5)
-        ax.pcolor(self.cpos, cmap='Blues', alpha=0.5)
+        ax.pcolor(dpos, cmap='Greens', alpha=0.5)
+        ax.pcolor(cpos, cmap='Blues', alpha=0.5)
         return fig, ax
 
 if __name__== "__main__":
