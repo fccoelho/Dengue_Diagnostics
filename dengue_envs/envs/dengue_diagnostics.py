@@ -15,10 +15,11 @@ class DengueDiagnosticEnv(gym.Env):
         self.render_mode = render_mode
         self.size = size  # The size of the square grid
         self.window_size = 512  # The size of the PyGame window
+        self.t = 0 # timestep
 
         # Observations are dictionaries with the dengue and chikungunya cases locations on a grid.
         # Data are represented as a 2D array of size (size, size) with the number of cases in each cell.
-        world = World()
+        self.world = World()
         self._dengue_location, self._chik_location = world.get_grids()
         self.observation_space = spaces.Dict(
             {
@@ -48,7 +49,10 @@ class DengueDiagnosticEnv(gym.Env):
         self.clock = None
 
     def _get_obs(self):
-        return {"dengue": self._dengue_location, "chik": self._chik_location}
+        """
+        Returns the current observation.
+        """
+        return {"dengue": self.world.dengue_series[self.t], "chik": self.world.chik_series[self.t]}
 
     def _get_info(self):
         return {
@@ -84,14 +88,12 @@ class DengueDiagnosticEnv(gym.Env):
         Based on the action, does the testing or epidemiological confirmation
         action: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing
         """
-        # Map the action (element of {0,1,2,3}) to the direction we walk in
-        direction = self._action_to_direction[action]
-        # We use `np.clip` to make sure we don't leave the grid
-        self._agent_location = np.clip(
-            self._agent_location + direction, 0, self.size - 1
-        )
-        # An episode is done iff the agent has reached the target
-        terminated = np.array_equal(self._agent_location, self._target_location)
+        # get the current state
+        dengue_cases = self.world.dengue_series[self.t]
+        chik_cases = self.world.chik_series[self.t]
+        
+        # An episode is done if timestep is greter than 120
+        terminated = self.t > 120
         reward = 1 if terminated else 0  # Binary sparse rewards
         observation = self._get_obs()
         info = self._get_info()
