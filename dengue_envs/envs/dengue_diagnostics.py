@@ -1,6 +1,7 @@
 import gymnasium as gym
 import numpy as np
 from gymnasium import Env, spaces, utils
+from gymnasium.spaces import Box, Dict, Discrete, MultiDiscrete
 import scipy.stats as st
 import pygame
 from typing import List, Optional, Tuple
@@ -14,16 +15,16 @@ class DengueDiagnosticEnv(gym.Env):
         self.size = size  # The size of the square grid
         self.window_size = 512  # The size of the PyGame window
 
-        # Observations are dictionaries with the dengue and chikungunya cases locations.
-        # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
+        # Observations are dictionaries with the dengue and chikungunya cases locations on a grid.
+        # Data are represented as a 2D array of size (size, size) with the number of cases in each cell.
         world = World()
         self._dengue_location, self._chik_location = world.get_grids()
         self.observation_space = spaces.Dict(
             {
-                "clinical": spaces.Discrete(2),
-                "testd": spaces.Discrete(4), # 0: not tested, 1: negative, 2: positive, 3: inconclusive
-                "testc": spaces.Discrete(4), # 0: not tested, 1: negative, 2: positive, 3: inconclusive
-                "pos": spaces.MultiDiscrete([size, size]),
+                "clinical": Box(low=0, high=1, shape=(size, size), dtype=np.int16), # Clinical diagnosis: 0: dengue, 1: chik
+                "testd": Box(low=0, high=3, shape=(size,size), dtype=np.int8), # Dengue testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
+                "testc": Box(low=0, high=3, shape=(size,size), dtype=np.int8), # Chikungunya testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
+                "t" : Box(low=0, high=60, shape=(size,size), dtype=np.int8), # Days since clinical diagnosis
             }
         )
 
