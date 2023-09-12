@@ -9,10 +9,10 @@ import scipy.stats as st
 from scipy.integrate import odeint
 
 # Import simulation tools
-import gym
+import gymnasium as gym
 import pygame
 
-from gym import spaces
+from gymnasium import spaces
 
 
 class DengueDiagnosticEnv(gym.Env):
@@ -204,7 +204,8 @@ class DengueDiagnosticEnv(gym.Env):
         elif action == 1:  # Down
             self.testc.append(self._chik_lab_test())
         elif action == 2:  # Left
-            self.tcase.append([self.t, observation['clinical'][-1]])
+            new_pos[1] -= 1
+            self.tcase.append([self.t, 0 if not observation['clinical'] else observation['clinical'][-1]])
         elif action == 3:  # Right
             new_pos[1] += 1
         new_pos = np.array(action[:-1])
@@ -341,21 +342,16 @@ class World:
         Generate the daily cases based on an epidemic curve
         """
         for t in range(self.epilength):
-            # if t == 0:
-            #     dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]))
-            #     dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]))
-            #     ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]))
-            #     ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]))
-            # else:
-            #     dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]-self.dengue_curve[t-1]))
-            #     dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]-self.dengue_curve[t-1]))
-            #     ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]-self.chik_curve[t-1]))
-            #     ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]-self.chik_curve[t-1]))
-
-            dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]))
-            dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]))
-            ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]))
-            ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]))
+            if t == 0:
+                dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]))
+                dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]))
+                ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]))
+                ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]))
+            else:
+                dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]-self.dengue_curve[t-1]))
+                dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]-self.dengue_curve[t-1]))
+                ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]-self.chik_curve[t-1]))
+                ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]-self.chik_curve[t-1]))
 
             dpos, _, _ = np.histogram2d(dcases_x,dcases_y,bins=(range(self.size),range(self.size)))
             cpos, _, _ = np.histogram2d(ccases_x,ccases_y,bins=(range(self.size),range(self.size)))
