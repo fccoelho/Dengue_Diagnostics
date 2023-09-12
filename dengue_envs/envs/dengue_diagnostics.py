@@ -342,16 +342,21 @@ class World:
         Generate the daily cases based on an epidemic curve
         """
         for t in range(self.epilength):
-            if t == 0:
-                dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]))
-                dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]))
-                ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]))
-                ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]))
-            else:
-                dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]-self.dengue_curve[t-1]))
-                dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]-self.dengue_curve[t-1]))
-                ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]-self.chik_curve[t-1]))
-                ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]-self.chik_curve[t-1]))
+            # if t == 0:
+            #     dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]))
+            #     dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]))
+            #     ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]))
+            #     ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]))
+            # else:
+            #     dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]-self.dengue_curve[t-1]))
+            #     dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]-self.dengue_curve[t-1]))
+            #     ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]-self.chik_curve[t-1]))
+            #     ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]-self.chik_curve[t-1]))
+
+            dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]))
+            dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]))
+            ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]))
+            ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]))
 
             dpos, _, _ = np.histogram2d(dcases_x,dcases_y,bins=(range(self.size),range(self.size)))
             cpos, _, _ = np.histogram2d(ccases_x,ccases_y,bins=(range(self.size),range(self.size)))
