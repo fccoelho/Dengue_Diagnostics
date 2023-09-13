@@ -63,10 +63,10 @@ class DengueDiagnosticEnv(gym.Env):
                         (
                             spaces.Discrete(self.world.num_rows),
                             spaces.Discrete(self.world.num_cols),
-                            spaces.Discrete(2),
+                            spaces.Discrete(3),
                         )
                     )
-                ),  # Clinical diagnosis: 0: dengue, 1: chik
+                ),  # Clinical diagnosis: 0: dengue, 1: chik, 2: other
                 "testd": spaces.Sequence(
                     spaces.Discrete(4)
                 ),  # Dengue testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
@@ -82,19 +82,20 @@ class DengueDiagnosticEnv(gym.Env):
             }
         )
 
-        # We have 4 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "noop"
-        self.action_space = spaces.Tuple(
-            (spaces.Discrete(self.size), spaces.Discrete(self.size), spaces.Discrete(4))
-        )
-        self.costs = np.array([0.5, 0.5, 0.1, 0.0])
+        # We have 4 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "noop", confirm, discard
+        self.action_space = spaces.Sequence(spaces.Tuple(
+            (spaces.Discrete(self.size), spaces.Discrete(self.size), spaces.Discrete(6))
+        ))
+        self.costs = np.array([0.5, 0.5, 0.1, 0.0, 0.0, 0.0])
 
         # The lists below will be populated by the step() method, as the cases are being generated
         self.cases = []  # True cases
         self.obs_cases = []  # Observed cases
 
-        self.testd = []
-        self.testc = []
-        self.epiconf = []
+        self.testd = np.zeros(len(self.world.case_series))-1 # Dengue test results -1: not tested, 0: negative, 1: positive, 2: inconclusive
+        self.testc = np.zeros(len(self.world.case_series))-1 # Chikungunya test results -1: not tested, 0: negative, 1: positive, 2: inconclusive
+        self.epiconf = np.zeros(len(self.world.case_series))-1 # Epidemiological confirmation -1: not checked, 0: not confirmed 1: confirmed
+        self.final = np.zeros(len(self.world.case_series)) # Final decision: 0: discarded , 1: confirmed
 
         self.tcase = []
         self.rewards = []
@@ -145,6 +146,9 @@ class DengueDiagnosticEnv(gym.Env):
         """
         obs_case_series = self.world.case_series[t][:]
         for i, case in enumerate(self.world.case_series[t]):
+            if self.np_random.uniform()<0.01:
+                obs_case_series[i][2] = 2
+                continue
             if case[2] == 0:
                 if self.np_random.uniform() > self.clinical_specificity:
                     obs_case_series[i][2] = 1
@@ -176,10 +180,15 @@ class DengueDiagnosticEnv(gym.Env):
             "chik_grid": self.cmap,
         }
 
-    def _dengue_lab_test(self):
+    def _dengue_lab_test(self, clinical_diag):
         """
         Returns the test result for a dengue case
+        1: Negative
+        2: Positive
+        3: Inconclusive
         """
+        if clinical_diag == 3:
+            return 1
         if self.np_random.uniform() < 0.1:
             return 3  # Inconclusive
         if self.np_random.uniform() >= 0.9:
@@ -187,10 +196,15 @@ class DengueDiagnosticEnv(gym.Env):
         else:
             return 2
 
-    def _chik_lab_test(self):
+    def _chik_lab_test(self, clinical_diag):
         """
         Returns the test result for a chikungunya case
+        1: Negative
+        2: Positive
+        3: Inconclusive
         """
+        if clinical_diag == 3:
+            return 1
         if self.np_random.uniform() < 0.1:
             return 3  # Inconclusive
         if self.np_random.uniform() >= 0.9:
@@ -241,7 +255,7 @@ class DengueDiagnosticEnv(gym.Env):
     def step(self, action):
         """
         Based on the action, does the testing or epidemiological confirmation
-        action: [list of decisions for all current cases]: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing
+        action: [list of decisions for all current cases]: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing, 4: Confirm, 5: Discard
         """
         # get the current true state
         cases_series = self.world.case_series[self.t]
@@ -250,21 +264,27 @@ class DengueDiagnosticEnv(gym.Env):
         # get the current observation
         observation = self._get_obs()
 
-        # Move the agent based on the selected action
-        if action[0] == 0:  # Up
-            self.testd.append(self._dengue_lab_test())
-        elif action == 1:  # Down
-            self.testc.append(self._chik_lab_test())
-        elif action == 2:  # Left
-            new_pos[1] -= 1
-            self.tcase.append(
-                [
-                    self.t,
-                    0 if not observation["clinical"] else observation["clinical"][-1],
-                ]
-            )
-        elif action == 3:  # Right
-            new_pos[1] += 1
+        # apply the actions
+        for i,a in enumerate(action):
+            if a == 0: # Dengue test
+                self.testd[i] = self._dengue_lab_test()
+            elif a == 1: # Chik test
+                self.testc[i] = self._chik_lab_test()
+            elif a == 2: # Epi confirm
+                self.epiconf[i] = self._epi_confirm()
+                self.tcase.append(
+                    [
+                        self.t,
+                        0 if not observation["clinical"] else observation["clinical"][-1],
+                    ]
+                )
+            elif a == 3:   # Do nothing
+                pass
+
+            elif a == 4:   # Confirm
+                self.final[i] = 1
+            elif a == 5:   # Discard
+                self.final[i] = 0
         new_pos = np.array(action[:-1])
 
         # Check if the new position is valid
@@ -433,7 +453,7 @@ class World:
             return [
                 -beta * S * I / N,
                 beta * S * I / N - gamma * I,
-                beta * S * I / N,
+                beta * S * I / N, # Cumulative Incidence
                 gamma * I,
             ]
 
@@ -445,8 +465,8 @@ class World:
             np.arange(0, self.epilength),
             args=(beta, gamma, self.episize),
         )
-        incidence = np.diff(y[:, 1])  # Daily incidence
-        return list(incidence)+[0] # Add a zero at the end to make the length equal to epilength
+
+        return y[:,2]
 
     def get_daily_cases(self):
         """
