@@ -55,15 +55,12 @@ class DengueDiagnosticEnv(gym.Env):
         )
 
         # We have 4 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "noop"
-        self.action_space = spaces.Discrete(4)
+        self.action_space = spaces.Tuple((spaces.Discrete(self.size), spaces.Discrete(self.size), spaces.Discrete(4)))
         self.costs = np.array([0.5, 0.5, 0.1, 0.0])
 
         # The lists below will be populated by the step() method, as the cases are being generated
         self.cases = [] # True cases
         self.obs_cases = [] # Observed cases
-        # self.testd = np.zeros(self.world.epilength)
-        # self.testc = np.zeros(self.world.epilength)
-        # self.epiconf = np.zeros(self.world.epilength)
 
         self.testd = []
         self.testc = []
@@ -121,7 +118,7 @@ class DengueDiagnosticEnv(gym.Env):
         """
         errorrate = (len(estimated)- np.sum(estimated == true))/len(estimated)
         accuracy_reward = 1 if errorrate < 0.15 else 0
-        reward = accuracy_reward - 0.1*self.costs[action]
+        reward = accuracy_reward - 0.1*self.costs[action[-1]]
         return reward
         
     def _get_info(self):
@@ -202,18 +199,16 @@ class DengueDiagnosticEnv(gym.Env):
         observation = self._get_obs()
 
         # Move the agent based on the selected action
-        new_pos = np.array(self.current_pos)
-        if action == 0:  # Up
-            new_pos[0] -= 1
+        if action[0] == 0:  # Up
             self.testd.append(self._dengue_lab_test())
         elif action == 1:  # Down
-            new_pos[0] += 1
             self.testc.append(self._chik_lab_test())
         elif action == 2:  # Left
             new_pos[1] -= 1
             self.tcase.append([self.t, 0 if not observation['clinical'] else observation['clinical'][-1]])
         elif action == 3:  # Right
             new_pos[1] += 1
+        new_pos = np.array(action[:-1])
 
         # Check if the new position is valid
         if self._is_valid_position(new_pos):
@@ -347,16 +342,21 @@ class World:
         Generate the daily cases based on an epidemic curve
         """
         for t in range(self.epilength):
-            if t == 0:
-                dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]))
-                dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]))
-                ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]))
-                ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]))
-            else:
-                dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]-self.dengue_curve[t-1]))
-                dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]-self.dengue_curve[t-1]))
-                ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]-self.chik_curve[t-1]))
-                ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]-self.chik_curve[t-1]))
+            # if t == 0:
+            #     dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]))
+            #     dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]))
+            #     ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]))
+            #     ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]))
+            # else:
+            #     dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]-self.dengue_curve[t-1]))
+            #     dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]-self.dengue_curve[t-1]))
+            #     ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]-self.chik_curve[t-1]))
+            #     ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]-self.chik_curve[t-1]))
+
+            dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]))
+            dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]))
+            ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]))
+            ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]))
 
             dpos, _, _ = np.histogram2d(dcases_x,dcases_y,bins=(range(self.size),range(self.size)))
             cpos, _, _ = np.histogram2d(ccases_x,ccases_y,bins=(range(self.size),range(self.size)))
@@ -364,8 +364,12 @@ class World:
             self.case_series[t].extend([[int(x),int(y),0] for x, y in zip(dcases_x, dcases_y)])
             self.case_series[t].extend([[int(x),int(y),1] for x, y in zip(ccases_x, ccases_y)])
             
-            self.dsnapshots[t] = dpos
-            self.csnapshots[t] = cpos
+            if t == 0:
+                self.dsnapshots[t] = dpos
+                self.csnapshots[t] = cpos
+            else:
+                self.dsnapshots[t] = dpos + self.dsnapshots[t-1]
+                self.csnapshots[t] = cpos + self.csnapshots[t-1]
     
     def viewer(self):
         dpos, cpos = self._generate_full_outbreak()
