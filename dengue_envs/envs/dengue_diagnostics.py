@@ -329,13 +329,18 @@ class World:
         Generate an epidemic curve
         returns the Infectious numbers per day
         """
-        def SIR(y, t, beta, gamma):
-            S, I, R = y
-            return [-beta*S*I, beta*S*I-gamma*I, gamma*I]
+        def SIR(y, t, beta, gamma, N):
+            S, I, Inc, R = y
+            return [-beta*S*I/N,
+                    beta*S*I/N-gamma*I,
+                    beta*S*I/N
+                    gamma*I
+                    ]
         gamma = 0.004
         beta = R0*gamma
-        y = odeint(SIR, [self.episize, 1, 0], np.arange(0, self.epilength), args=(beta, gamma))
-        return y[:,1]
+        y = odeint(SIR, [self.episize, 1,0, 0], np.arange(0, self.epilength), args=(beta, gamma, self.episize))
+        incidence = np.diff(y[:,1]) # Daily incidence
+        return incidence
     
     def get_daily_cases(self):
         """
