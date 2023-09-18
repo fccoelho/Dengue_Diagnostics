@@ -54,9 +54,6 @@ class DengueDiagnosticEnv(gym.Env):
         self.current_pos = (
             self.start_pos
         )  
-        
-        # Starting position is current positon of agent
-        self.hist_pos = [self.current_pos]
 
         # Observations are dictionaries as defined below.
         # Data are represented as sequences of cases.
@@ -258,8 +255,6 @@ class DengueDiagnosticEnv(gym.Env):
         self.current_pos = (
             self.start_pos
         )  
-        # Starting position is current positon of agent
-        self.hist_pos = [self.current_pos]
 
         return self.current_pos
 
@@ -296,13 +291,6 @@ class DengueDiagnosticEnv(gym.Env):
                 self.final[i] = 1
             elif a == 5:   # Discard
                 self.final[i] = 0
-        new_pos = np.array(action[0][0:2])
-
-        # Check if the new position is valid
-        if self._is_valid_position(new_pos):
-            self.current_pos = new_pos
-            self.hist_pos.append(list(new_pos))
-            self.hist_pos = list(map(list, set(map(tuple, self.hist_pos))))
 
         self.dengue_positive = self._extract_case_xy(self.world.case_series, disease_code = 0)
         self.chik_positive = self._extract_case_xy(self.world.case_series, disease_code = 1)
