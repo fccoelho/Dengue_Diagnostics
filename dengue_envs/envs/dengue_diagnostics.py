@@ -1,4 +1,5 @@
 # Basic packages
+import copy
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -37,6 +38,7 @@ class DengueDiagnosticEnv(gym.Env):
         self.dengue_radius = dengue_radius
         self.chik_radius = chik_radius
         self.clinical_specificity = clinical_specificity
+    
 
         self.world = World(
             self.size,
@@ -51,8 +53,7 @@ class DengueDiagnosticEnv(gym.Env):
         self.start_pos = self.world.chik_center  # Starting position
         self.current_pos = (
             self.start_pos
-        )  # Starting position is current positon of agent
-        self.hist_pos = []
+        )  
 
         # Observations are dictionaries as defined below.
         # Data are represented as sequences of cases.
@@ -63,10 +64,10 @@ class DengueDiagnosticEnv(gym.Env):
                         (
                             spaces.Discrete(self.world.num_rows),
                             spaces.Discrete(self.world.num_cols),
-                            spaces.Discrete(2),
+                            spaces.Discrete(3),
                         )
                     )
-                ),  # Clinical diagnosis: 0: dengue, 1: chik
+                ),  # Clinical diagnosis: 0: dengue, 1: chik, 2: other
                 "testd": spaces.Sequence(
                     spaces.Discrete(4)
                 ),  # Dengue testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
@@ -82,35 +83,43 @@ class DengueDiagnosticEnv(gym.Env):
             }
         )
 
-        # We have 4 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "noop"
-        self.action_space = spaces.Tuple(
-            (spaces.Discrete(self.size), spaces.Discrete(self.size), spaces.Discrete(4))
-        )
-        self.costs = np.array([0.5, 0.5, 0.1, 0.0])
+        # We have 4 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "noop", confirm, discard
+        self.action_space = spaces.Sequence(spaces.Tuple(
+            (spaces.Discrete(self.size), spaces.Discrete(self.size), spaces.Discrete(6))
+        ))
+        self.costs = np.array([0.5, 0.5, 0.1, 0.0, 0.0, 0.0])
 
         # The lists below will be populated by the step() method, as the cases are being generated
         self.cases = []  # True cases
         self.obs_cases = []  # Observed cases
 
-        self.testd = []
-        self.testc = []
-        self.epiconf = []
+        self.testd = np.zeros(len(self.world.case_series))-1 # Dengue test results -1: not tested, 0: negative, 1: positive, 2: inconclusive
+        self.testc = np.zeros(len(self.world.case_series))-1 # Chikungunya test results -1: not tested, 0: negative, 1: positive, 2: inconclusive
+        self.epiconf = np.zeros(len(self.world.case_series))-1 # Epidemiological confirmation -1: not checked, 0: not confirmed 1: confirmed
+        self.final = np.zeros(len(self.world.case_series)) # Final decision: 0: discarded , 1: confirmed
 
         self.tcase = []
         self.rewards = []
 
         # cumulative map of cases up to self.t
-        self.dmap = self.world.dsnapshots[0]
-        self.cmap = self.world.csnapshots[0]
+        self.dmap = self._extract_case_xy(self.world.case_series, disease_code = 0, index = 0)
+        self.cmap = self._extract_case_xy(self.world.case_series, disease_code = 1, index = 0)
 
         # Initialize Pygame
         pygame.init()
-        self.cell_size = 1000 / self.world.size
+        self.nb_pixels = 1000
+        self.cell_size = self.nb_pixels / self.world.size
 
         # Setting display size
         self.screen = pygame.display.set_mode(
             (self.world.num_cols * self.cell_size, self.world.num_rows * self.cell_size)
         )
+
+    def _extract_case_xy(self, series, disease_code, index = None):
+        if not index:
+            return [case[:2] for cases in series[:self.t] for case in cases if case[-1] == disease_code]
+        else:
+            return [case[:2] for case in series[index] if case[-1] == disease_code]
 
     def _is_valid_position(self, pos):
         row, col = pos
@@ -143,8 +152,11 @@ class DengueDiagnosticEnv(gym.Env):
         """
         Apply clinical uncertainty to the observations: Observations are subject to misdiagnosis based on the clinical specificity
         """
-        obs_case_series = self.world.case_series[t][:]
-        for i, case in enumerate(self.world.case_series[t]):
+        obs_case_series = copy.deepcopy(self.world.case_series[t])
+        for i, case in enumerate(obs_case_series):
+            if self.np_random.uniform()<0.01:
+                obs_case_series[i][2] = 2
+                continue
             if case[2] == 0:
                 if self.np_random.uniform() > self.clinical_specificity:
                     obs_case_series[i][2] = 1
@@ -158,28 +170,32 @@ class DengueDiagnosticEnv(gym.Env):
         """
         Calculate the reward based on the true count and the actions taken
         """
+        if len(estimated) == 0:
+            return 0
         errorrate = (len(estimated) - np.sum(estimated == true)) / len(estimated)
         accuracy_reward = 1 if errorrate < 0.15 else 0
-        reward = accuracy_reward - 0.1 * self.costs[action[-1]]
+        reward = accuracy_reward - 0.1 * self.costs[action[0][-1]]
         return reward
 
     def _get_info(self):
         """
         Returns the current map of cases for each disease"""
-        self.dmap = self.world.dsnapshots[0]
-        self.cmap = self.world.csnapshots[0]
-        for t in range(1, self.t):
-            self.dmap += self.world.dsnapshots[t]
-            self.cmap += self.world.csnapshots[t]
+        self.dmap = self._extract_case_xy(self.world.case_series, disease_code = 0)
+        self.cmap = self._extract_case_xy(self.world.case_series, disease_code = 1)
         return {
             "dengue_grid": self.dmap,
             "chik_grid": self.cmap,
         }
 
-    def _dengue_lab_test(self):
+    def _dengue_lab_test(self, clinical_diag):
         """
         Returns the test result for a dengue case
+        1: Negative
+        2: Positive
+        3: Inconclusive
         """
+        if clinical_diag == 3:
+            return 1
         if self.np_random.uniform() < 0.1:
             return 3  # Inconclusive
         if self.np_random.uniform() >= 0.9:
@@ -187,10 +203,15 @@ class DengueDiagnosticEnv(gym.Env):
         else:
             return 2
 
-    def _chik_lab_test(self):
+    def _chik_lab_test(self, clinical_diag):
         """
         Returns the test result for a chikungunya case
+        1: Negative
+        2: Positive
+        3: Inconclusive
         """
+        if clinical_diag == 3:
+            return 1
         if self.np_random.uniform() < 0.1:
             return 3  # Inconclusive
         if self.np_random.uniform() >= 0.9:
@@ -233,15 +254,14 @@ class DengueDiagnosticEnv(gym.Env):
 
         self.current_pos = (
             self.start_pos
-        )  # Starting position is current positon of agent
-        self.hist_pos = []
+        )  
 
         return self.current_pos
 
     def step(self, action):
         """
         Based on the action, does the testing or epidemiological confirmation
-        action: [list of decisions for all current cases]: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing
+        action: [list of decisions for all current cases]: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing, 4: Confirm, 5: Discard
         """
         # get the current true state
         cases_series = self.world.case_series[self.t]
@@ -250,38 +270,33 @@ class DengueDiagnosticEnv(gym.Env):
         # get the current observation
         observation = self._get_obs()
 
-        # Move the agent based on the selected action
-        if action[0] == 0:  # Up
-            self.testd.append(self._dengue_lab_test())
-        elif action == 1:  # Down
-            self.testc.append(self._chik_lab_test())
-        elif action == 2:  # Left
-            new_pos[1] -= 1
-            self.tcase.append(
-                [
-                    self.t,
-                    0 if not observation["clinical"] else observation["clinical"][-1],
-                ]
-            )
-        elif action == 3:  # Right
-            new_pos[1] += 1
-        new_pos = np.array(action[:-1])
+        # apply the actions
+        for i,a in enumerate(action):
+            if a == 0: # Dengue test
+                self.testd[i] = self._dengue_lab_test()
+            elif a == 1: # Chik test
+                self.testc[i] = self._chik_lab_test()
+            elif a == 2: # Epi confirm
+                self.epiconf[i] = self._epi_confirm()
+                self.tcase.append(
+                    [
+                        self.t,
+                        0 if not observation["clinical"] else observation["clinical"][-1],
+                    ]
+                )
+            elif a == 3:   # Do nothing
+                pass
 
-        # Check if the new position is valid
-        if self._is_valid_position(new_pos):
-            self.current_pos = new_pos
-            self.hist_pos.append(list(new_pos))
-            self.hist_pos = list(map(list, set(map(tuple, self.hist_pos))))
+            elif a == 4:   # Confirm
+                self.final[i] = 1
+            elif a == 5:   # Discard
+                self.final[i] = 0
 
-        self.world.current_time += 1
-        dengue_positive = np.where(self.world.dsnapshots[self.world.current_time])
-        self.dengue_positive = [
-            list(arg) for arg in list(zip(dengue_positive[0], dengue_positive[1]))
-        ]
-        chik_positive = np.where(self.world.csnapshots[self.world.current_time])
-        self.chik_positive = [
-            list(arg) for arg in list(zip(chik_positive[0], chik_positive[1]))
-        ]
+        self.dengue_positive = self._extract_case_xy(self.world.case_series, disease_code = 0)
+        self.chik_positive = self._extract_case_xy(self.world.case_series, disease_code = 1)
+        
+        self.dengue_suspicion = self._extract_case_xy(self.world.medical_suspicion_series, disease_code = 0)
+        self.chik_suspicion = self._extract_case_xy(self.world.medical_suspicion_series, disease_code = 1)
 
         # An episode is done if timestep is greter than 120
         terminated = self.t > 120
@@ -316,42 +331,13 @@ class DengueDiagnosticEnv(gym.Env):
         self.screen.fill((255, 255, 255))
         draw_rectangles(grid=self.dengue_positive, color=(200, 255, 200))
         draw_rectangles(grid=self.chik_positive, color=(200, 200, 255))
-        draw_rectangles(grid=self.hist_pos, color=(127, 127, 127))
+        
+        draw_rectangles(grid=self.dengue_suspicion, color=(50, 180, 50))
+        draw_rectangles(grid=self.chik_suspicion, color=(50, 50, 180))
 
-        inspected_dengue = set(map(tuple, self.dengue_positive))
-        inspected_dengue = list(
-            inspected_dengue.intersection(set(map(tuple, self.hist_pos)))
-        )
-
-        inspected_chik = set(map(tuple, self.chik_positive))
-        inspected_chik = list(
-            inspected_chik.intersection(set(map(tuple, self.hist_pos)))
-        )
-
-        draw_rectangles(grid=inspected_dengue, color=(0, 255, 0))
-        draw_rectangles(grid=inspected_chik, color=(0, 0, 255))
-
-        pygame.draw.rect(
-            self.screen,
-            (200, 0, 0),
-            (
-                self.start_pos[0] * self.cell_size,
-                self.start_pos[1] * self.cell_size,
-                self.cell_size,
-                self.cell_size,
-            ),
-        )
-
-        pygame.draw.rect(
-            self.screen,
-            (0, 0, 0),
-            (
-                self.current_pos[0] * self.cell_size,
-                self.current_pos[1] * self.cell_size,
-                self.cell_size,
-                self.cell_size,
-            ),
-        )
+        number_font = pygame.font.SysFont( None, 32 )
+        number_image = number_font.render(f'Step {self.t}', True, (0,0,0), (255, 255, 255))
+        self.screen.blit( number_image, (int((self.nb_pixels - number_image.get_width())/2), 0) )
 
         pygame.display.update()  # Update the display
 
@@ -368,6 +354,8 @@ class World:
         chik_center=(90, 110),
         dengue_radius=10,
         chik_radius=10,
+        medical_specificity = 0.95,
+        medical_identification_rate = 0.05,
     ):
         """
         size: size of the world
@@ -395,31 +383,26 @@ class World:
         self.chik_dist_x = st.distributions.norm(self.chik_center[0], self.chik_radius)
         self.chik_dist_y = st.distributions.norm(self.chik_center[1], self.chik_radius)
 
+        self.medical_specificity = medical_specificity
+        self.medical_identification_rate = medical_identification_rate
+
         self.dengue_curve = self._get_epi_curve(R0=2.5)
         self.chik_curve = self._get_epi_curve(R0=1.5)
-        self.case_series = defaultdict(list)
+        
+        self.case_series = []
         # Cases per day as a list of lists
-        # {1: [[x1,y1,0], [x2,y2,0], ...], 2: [[x1,y1,0], [x2,y2,0], ...], ...}
+        # [[[x1,y1,0], [x2,y2,0], ...], [[x1,y1,0], [x2,y2,0], ...], ...]
 
-        self.dsnapshots = {}  # Dengue spatial distribution on the world grid
-        self.csnapshots = {}  # Chikungunya spatial distribution on the world grid
+        self.medical_suspicion_series = []
+        # Cases identified by physicians with possibility for misdiagnosis
+        # For self.case_series, an example could be
+        # [[[x1,y1,1], [x2,y2,0]], [[x1,y1,0], [x2,y2,1]], ...]
+
         self.get_daily_cases()
 
-        self.current_time = 0  # Starting time
-
-        dengue_positive = np.where(self.dsnapshots[self.current_time])
-        self.dengue_positive = [
-            list(arg) for arg in list(zip(dengue_positive[0], dengue_positive[1]))
-        ]
-
-        chik_positive = np.where(self.csnapshots[self.current_time])
-        self.chik_positive = [
-            list(arg) for arg in list(zip(chik_positive[0], chik_positive[1]))
-        ]
-
     def _generate_full_outbreak(self):
-        dpos = self.dsnapshots[self.epilength - 1]
-        cpos = self.csnapshots[self.epilength - 1]
+        dpos = list(map(list, set(map(tuple, self._extract_case_xy(self.case_series, disease_code = 0)))))
+        cpos = list(map(list, set(map(tuple, self._extract_case_xy(self.case_series, disease_code = 1)))))
         return dpos, cpos
 
     def _get_epi_curve(self, R0=2.5):
@@ -433,7 +416,7 @@ class World:
             return [
                 -beta * S * I / N,
                 beta * S * I / N - gamma * I,
-                beta * S * I / N,
+                beta * S * I / N, # Cumulative Incidence
                 gamma * I,
             ]
 
@@ -445,39 +428,46 @@ class World:
             np.arange(0, self.epilength),
             args=(beta, gamma, self.episize),
         )
-        incidence = np.diff(y[:, 1])  # Daily incidence
-        return list(incidence)+[0] # Add a zero at the end to make the length equal to epilength
+
+        return y[:,2]
 
     def get_daily_cases(self):
         """
         Generate the daily cases based on an epidemic curve
         """
         for t in range(self.epilength):
+            total_cases = [case[:-1] for cases in self.case_series for case in cases]
             dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]))
             dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]))
             ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]))
             ccases_y = self.chik_dist_y.rvs(int(self.chik_curve[t]))
 
-            dpos, _, _ = np.histogram2d(
-                dcases_x, dcases_y, bins=(range(self.size), range(self.size))
-            )
-            cpos, _, _ = np.histogram2d(
-                ccases_x, ccases_y, bins=(range(self.size), range(self.size))
-            )
+            cases_of_t_day  = [[int(x), int(y), 0] for x, y in zip(dcases_x, dcases_y)]
+            cases_of_t_day += [[int(x), int(y), 1] for x, y in zip(ccases_x, ccases_y)]
 
-            self.case_series[t].extend(
-                [[int(x), int(y), 0] for x, y in zip(dcases_x, dcases_y)]
-            )
-            self.case_series[t].extend(
-                [[int(x), int(y), 1] for x, y in zip(ccases_x, ccases_y)]
-            )
+            for case in cases_of_t_day:
+                if case[:-1] in total_cases:
+                    cases_of_t_day.remove(case)
 
-            if t == 0:
-                self.dsnapshots[t] = dpos
-                self.csnapshots[t] = cpos
-            else:
-                self.dsnapshots[t] = dpos + self.dsnapshots[t - 1]
-                self.csnapshots[t] = cpos + self.csnapshots[t - 1]
+            self.case_series.append(cases_of_t_day)
+
+            suspected_cases = []
+            if np.random.uniform() < self.medical_identification_rate:
+                nb_cases_of_t_day = range(len(cases_of_t_day))
+                nb_selected_cases_of_t_day = int(np.ceil(np.random.uniform()*len(cases_of_t_day)))
+                selected_cases_nbs = list(np.random.choice(nb_cases_of_t_day, nb_selected_cases_of_t_day, replace=False))
+                for selected_cases_nb in selected_cases_nbs:
+                    case = copy.deepcopy(cases_of_t_day[selected_cases_nb])
+                    if np.random.uniform() < self.medical_specificity:
+                        suspected_cases.append(case)
+                    else:
+                        if case[-1] == 1:
+                            case[-1] = 0
+                        else:
+                            case[-1] = 1
+                        suspected_cases.append(case)
+                        
+            self.medical_suspicion_series.append(suspected_cases)
 
     def viewer(self):
         dpos, cpos = self._generate_full_outbreak()
@@ -494,7 +484,7 @@ if __name__ == "__main__":
     env = DengueDiagnosticEnv(epilength=total_time)
     obs = env.reset()
 
-    for t in range(total_time - 1):
+    for t in range(total_time):
         pygame.event.get()
         action = env.action_space.sample()  # Random action selection
         obs, reward, done, _ = env.step(action)
