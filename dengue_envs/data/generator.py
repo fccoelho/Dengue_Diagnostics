@@ -121,10 +121,10 @@ class World:
         casedf = pd.DataFrame.from_records([c for c in chain(*self.case_series)])
 
         dengue_map = np.histogram2d(
-            casedf[casedf.v == 0].x, casedf[casedf.v == 0].y, bins=self.size
+            casedf[casedf.v == 0].x, casedf[casedf.v == 0].y, bins=self.size, range=[[0, self.size], [0, self.size]]
         )[0]
         chik_map = np.histogram2d(
-            casedf[casedf.v == 1].x, casedf[casedf.v == 1].y, bins=self.size
+            casedf[casedf.v == 1].x, casedf[casedf.v == 1].y, bins=self.size,range=[[0, self.size], [0, self.size]]
         )[0]
 
         fig, ax = plt.subplots()
