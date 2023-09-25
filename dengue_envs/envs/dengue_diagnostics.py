@@ -1,19 +1,14 @@
 # Basic packages
 import copy
 import numpy as np
-import matplotlib.pyplot as plt
 from itertools import chain
-
 from collections import defaultdict
-
-# Statistics tools
-import scipy.stats as st
-from scipy.integrate import odeint
 
 # Import simulation tools
 import gymnasium as gym
 import pygame
 
+from dengue_envs.data.generator import World
 from gymnasium import spaces
 
 
@@ -384,135 +379,13 @@ class DengueDiagnosticsEnv(gym.Env):
         pygame.display.update()  # Update the display
 
 
-class World:
-    """
-    Initialize random but concentrated distribution of dengue and Chikungunya cases
-    """
 
-    def __init__(
-        self,
-        size: int = 200,
-        popsize: int = 150,
-        epilength: int = 60,
-        dengue_center=(30, 30),
-        chik_center=(90, 110),
-        dengue_radius=10,
-        chik_radius=10,
-        medical_specificity=0.95,
-        medical_identification_rate=0.05,
-    ):
-        """
-        size: size of the world
-        """
-        self.size = size  # World size
-
-        self.num_rows = size  # World represented as a 2D numpy array
-        self.num_cols = size
-
-        self.popsize = popsize  # Size of the epidemic
-        self.epilength = epilength  # Length of the epidemic in days
-
-        self.dengue_center = dengue_center
-        self.dengue_radius = dengue_radius
-        self.chik_center = chik_center
-        self.chik_radius = chik_radius
-
-        self.dengue_dist_x = st.distributions.norm(
-            self.dengue_center[0], self.dengue_radius
-        )
-        self.dengue_dist_y = st.distributions.norm(
-            self.dengue_center[1], self.dengue_radius
-        )
-
-        self.chik_dist_x = st.distributions.norm(self.chik_center[0], self.chik_radius)
-        self.chik_dist_y = st.distributions.norm(self.chik_center[1], self.chik_radius)
-
-        # Cumulative Incidence curves
-        self.dengue_curve = self._get_epi_curve(R0=2.5)
-        self.chik_curve = self._get_epi_curve(R0=1.5)
-
-
-
-        self.case_series = []
-        # Cases per day as a list of lists
-        # [[[x1,y1,0], [x2,y2,0], ...], [[x1,y1,0], [x2,y2,0], ...], ...]
-
-        self.get_daily_cases()
-
-        # Total cases per disease (last value of cumulative incidence curve).
-        self.dengue_total = int(np.round(self.dengue_curve[-1]))
-        self.chik_total = int(np.round(self.chik_curve[-1]))
-
-    def _get_epi_curve(self, I0=10, R0=2.5):
-        """
-        Generate an epidemic curve
-        returns the Infectious numbers per day
-        """
-
-        def SIR(Y, t, beta, gamma, N):
-            S, I, Inc, R = Y
-            return [
-                -beta * S * I,
-                beta * S * I - gamma * I,
-                beta * S * I,  # Cumulative Incidence
-                gamma * I,
-            ]
-
-        gamma = 0.004
-        beta = R0 * gamma
-        y = odeint(
-            SIR,
-            [self.popsize - I0, I0, 0, 0],
-            np.arange(0, self.epilength),
-            args=(beta, gamma, self.popsize),
-        )
-
-        return y[:, 2]
-
-    def get_daily_cases(self):
-        """
-        Generate the daily cases based on an epidemic curve
-        """
-        for t in range(self.epilength):
-            dcases_t = int(np.round(self.dengue_curve[t]))
-            ccases_t = int(np.round(self.chik_curve[t]))
-
-            if t < 1:
-                dcases_x = self.dengue_dist_x.rvs(dcases_t)
-                dcases_y = self.dengue_dist_y.rvs(dcases_t)
-                ccases_x = self.chik_dist_x.rvs(ccases_t)
-                ccases_y = self.chik_dist_y.rvs(ccases_t)
-            else:
-                dcases_x = self.dengue_dist_x.rvs(
-                    int(np.round(dcases_t - self.dengue_curve[t - 1]) # New cases on day t, because curve is cumulative
-                ))
-                dcases_y = self.dengue_dist_y.rvs(
-                    int(np.round(dcases_t - self.dengue_curve[t - 1])
-                ))
-                ccases_x = self.chik_dist_x.rvs(
-                    int(np.round(ccases_t - self.chik_curve[t - 1])
-                ))
-                ccases_y = self.chik_dist_y.rvs(
-                    int(np.round(ccases_t - self.chik_curve[t - 1])
-                ))
-
-            dengue_cases = [[int(x), int(y), 0] for x, y in zip(dcases_x, dcases_y)]
-            chik_cases = [[int(x), int(y), 1] for x, y in zip(ccases_x, ccases_y)]
-            self.case_series.append(dengue_cases + chik_cases)
-
-    def viewer(self):
-        dpos, cpos = self._generate_full_outbreak()
-
-        fig, ax = plt.subplots()
-        ax.pcolor(dpos, cmap="Greens", alpha=0.5)
-        ax.pcolor(cpos, cmap="Blues", alpha=0.5)
-        return fig, ax
 
 
 if __name__ == "__main__":
     # Test the environment
     total_time = 1000
-    env = DengueDiagnosticEnv(epilength=total_time)
+    env = DengueDiagnosticsEnv(epilength=total_time)
     obs = env.reset()
 
     for t in range(total_time):

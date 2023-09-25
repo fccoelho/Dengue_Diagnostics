@@ -1,11 +1,12 @@
 import unittest
 from dengue_envs.envs.dengue_diagnostics import World
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class WorldTestCase(unittest.TestCase):
     def setUp(self):
-        self.world = World()
+        self.world = World(popsize=1000, epilength=100)
 
     def test_instantiate(self):
         self.assertIsInstance(self.world, World)
@@ -18,15 +19,17 @@ class WorldTestCase(unittest.TestCase):
         Some deviation in total number of cases from the model are expected because of rounding errors
         """
         total_cases = self.world.dengue_total + self.world.chik_total
-        self.assertLess(
-            abs(sum([len(d) for d in self.world.case_series]) - total_cases),
-            10,
+        self.assertEqual(sum([len(d) for d in self.world.case_series]), total_cases,
             f"Number of cases in case_series deviates from total number of cases by more than 10. Total cases: {total_cases}, number of cases in case_series: {sum([len(d) for d in self.world.case_series])}",
         )
 
     def test_epicurve(self):
         curve = self.world._get_epi_curve()
         self.assertIsInstance(curve, np.ndarray)
+
+    def test_viewer(self):
+        self.world.view()
+        plt.show()
 
 
 
