@@ -16,7 +16,7 @@ import pygame
 from gymnasium import spaces
 
 
-class DengueDiagnosticEnv(gym.Env):
+class DengueDiagnosticsEnv(gym.Env):
     def __init__(
         self,
         size: int = 200,
@@ -139,11 +139,11 @@ class DengueDiagnosticEnv(gym.Env):
 
         return True
 
-    def _get_obs(self, selected_indexes):
+    def _get_obs(self):
         """
         Returns the current observation.
         """
-        obs_cases = self._apply_clinical_uncertainty(self.t, selected_indexes)
+        obs_cases = self._apply_clinical_uncertainty(self.t)
 
         return {
             "clinical": obs_cases,
@@ -152,24 +152,21 @@ class DengueDiagnosticEnv(gym.Env):
             "t": [np.nan] * len(obs_cases),
         }
 
-    def _apply_clinical_uncertainty(self, t, selected_indexes):
+    def _apply_clinical_uncertainty(self, t):
         """
         Apply clinical uncertainty to the observations: Observations are subject to misdiagnosis based on the clinical specificity
         """
-        if max(selected_indexes) < len(self.world.case_series[t]):
-            obs_case_series = [self.world.case_series[t][index] for index in selected_indexes]
-        else:
-            obs_case_series = copy.deepcopy(self.world.case_series[t])
+        obs_case_series = copy.deepcopy(self.world.case_series[t])
         for i, case in enumerate(obs_case_series):
             if self.np_random.uniform()<0.01:
-                obs_case_series[i][-1] = 2
+                obs_case_series[i][2] = 2
                 continue
-            if case[-1] == 0:
+            if case[2] == 0:
                 if self.np_random.uniform() > self.clinical_specificity:
-                    obs_case_series[i][-1] = 1
+                    obs_case_series[i][2] = 1
             else:
                 if self.np_random.uniform() > self.clinical_specificity:
-                    obs_case_series[i][-1] = 0
+                    obs_case_series[i][2] = 0
 
         return obs_case_series
 
@@ -248,7 +245,7 @@ class DengueDiagnosticEnv(gym.Env):
         )
 
         self.cases = self.world.case_series[0]
-        self.obs_cases = self._apply_clinical_uncertainty(t=0, selected_indexes=[0, -1])
+        self.obs_cases = self._apply_clinical_uncertainty(0)
 
         observation = {
             "clinical": self.obs_cases,
@@ -275,10 +272,10 @@ class DengueDiagnosticEnv(gym.Env):
         self.cases.extend(cases_series)
 
         # get the current observation
-        observation = self._get_obs(selected_indexes=[0, -1])
+        observation = self._get_obs()
 
         # apply the actions
-        for i, a in enumerate(action):
+        for i,a in enumerate(action):
             if a == 0: # Dengue test
                 self.testd[i] = self._dengue_lab_test()
             elif a == 1: # Chik test
@@ -293,19 +290,18 @@ class DengueDiagnosticEnv(gym.Env):
                 )
             elif a == 3:   # Do nothing
                 pass
+
             elif a == 4:   # Confirm
                 self.final[i] = 1
             elif a == 5:   # Discard
                 self.final[i] = 0
 
-        self.dengue_spread = self._extract_case_xy(self.world.case_series, disease_code = 0)
-        self.chik_spread = self._extract_case_xy(self.world.case_series, disease_code = 1)
-
-        self.dengue_suspicion += [obs_case[:-1] for obs_case in observation["clinical"] if obs_case[-1] == 0]
-        self.chik_suspicion += [obs_case[:-1] for obs_case in observation["clinical"] if obs_case[-1] == 1]
-
-        self.other_disease_suspicion = self._extract_case_xy(self.world.case_series, disease_code = 2)
+        self.dengue_positive = self._extract_case_xy(self.world.case_series, disease_code = 0)
+        self.chik_positive = self._extract_case_xy(self.world.case_series, disease_code = 1)
         
+        self.dengue_suspicion = self._extract_case_xy(self.world.medical_suspicion_series, disease_code = 0)
+        self.chik_suspicion = self._extract_case_xy(self.world.medical_suspicion_series, disease_code = 1)
+
         # An episode is done if timestep is greter than 120
         terminated = self.t > 120
         reward = self._calc_reward(self.cases, observation["clinical"], action)
@@ -337,15 +333,13 @@ class DengueDiagnosticEnv(gym.Env):
 
         # Clear the screen
         self.screen.fill((255, 255, 255))
-        draw_rectangles(grid=self.dengue_spread, color=(200, 255, 200))
-        draw_rectangles(grid=self.chik_spread, color=(200, 200, 255))
+        draw_rectangles(grid=self.dengue_positive, color=(200, 255, 200))
+        draw_rectangles(grid=self.chik_positive, color=(200, 200, 255))
         
         draw_rectangles(grid=self.dengue_suspicion, color=(50, 180, 50))
         draw_rectangles(grid=self.chik_suspicion, color=(50, 50, 180))
 
-        draw_rectangles(grid=self.other_disease_suspicion, color=(100, 100, 100))
-
-        number_font = pygame.font.SysFont(None, 32)
+        number_font = pygame.font.SysFont( None, 32 )
         number_image = number_font.render(f'Step {self.t}', True, (0,0,0), (255, 255, 255))
         self.screen.blit( number_image, (int((self.nb_pixels - number_image.get_width())/2), 0) )
 
@@ -353,8 +347,9 @@ class DengueDiagnosticEnv(gym.Env):
 
 
 class World:
-    "Initialize random but concentrated distribution od dengue and Chikungunya cases"
-
+    """
+    Initialize random but concentrated distribution of dengue and Chikungunya cases
+    """
     def __init__(
         self,
         size: int = 200,
@@ -364,6 +359,8 @@ class World:
         chik_center=(90, 110),
         dengue_radius=10,
         chik_radius=10,
+        medical_specificity = 0.95,
+        medical_identification_rate = 0.05,
     ):
         """
         size: size of the world
@@ -391,12 +388,20 @@ class World:
         self.chik_dist_x = st.distributions.norm(self.chik_center[0], self.chik_radius)
         self.chik_dist_y = st.distributions.norm(self.chik_center[1], self.chik_radius)
 
+        self.medical_specificity = medical_specificity
+        self.medical_identification_rate = medical_identification_rate
+
         self.dengue_curve = self._get_epi_curve(R0=2.5)
         self.chik_curve = self._get_epi_curve(R0=1.5)
         
-        self.case_series = {}
-        # Cases per day as a dictionary of lists
-        # {1: [[x1,y1,0], [x2,y2,0], ...], 2: [[x1,y1,0], [x2,y2,0], ...], ..., n: [[xn,yn,0], [xn,yn,0], ...]}
+        self.case_series = []
+        # Cases per day as a list of lists
+        # [[[x1,y1,0], [x2,y2,0], ...], [[x1,y1,0], [x2,y2,0], ...], ...]
+
+        self.medical_suspicion_series = []
+        # Cases identified by physicians with possibility for misdiagnosis
+        # For self.case_series, an example could be
+        # [[[x1,y1,1], [x2,y2,0]], [[x1,y1,0], [x2,y2,1]], ...]
 
         self.get_daily_cases()
 
@@ -424,7 +429,7 @@ class World:
         beta = R0 * gamma
         y = odeint(
             SIR,
-            [self.episize, 10, 0, 0],
+            [self.episize, 1, 0, 0],
             np.arange(0, self.epilength),
             args=(beta, gamma, self.episize),
         )
@@ -436,7 +441,7 @@ class World:
         Generate the daily cases based on an epidemic curve
         """
         for t in range(self.epilength):
-            total_cases = [case[:-1] for cases in sorted(self.case_series.items()) for case in cases[1]]
+            total_cases = [case[:-1] for cases in self.case_series for case in cases]
             dcases_x = self.dengue_dist_x.rvs(int(self.dengue_curve[t]))
             dcases_y = self.dengue_dist_y.rvs(int(self.dengue_curve[t]))
             ccases_x = self.chik_dist_x.rvs(int(self.chik_curve[t]))
@@ -449,7 +454,25 @@ class World:
                 if case[:-1] in total_cases:
                     cases_of_t_day.remove(case)
 
-            self.case_series[t] = cases_of_t_day
+            self.case_series.append(cases_of_t_day)
+
+            suspected_cases = []
+            if np.random.uniform() < self.medical_identification_rate:
+                nb_cases_of_t_day = range(len(cases_of_t_day))
+                nb_selected_cases_of_t_day = int(np.ceil(np.random.uniform()*len(cases_of_t_day)))
+                selected_cases_nbs = list(np.random.choice(nb_cases_of_t_day, nb_selected_cases_of_t_day, replace=False))
+                for selected_cases_nb in selected_cases_nbs:
+                    case = copy.deepcopy(cases_of_t_day[selected_cases_nb])
+                    if np.random.uniform() < self.medical_specificity:
+                        suspected_cases.append(case)
+                    else:
+                        if case[-1] == 1:
+                            case[-1] = 0
+                        else:
+                            case[-1] = 1
+                        suspected_cases.append(case)
+                        
+            self.medical_suspicion_series.append(suspected_cases)
 
     def viewer(self):
         dpos, cpos = self._generate_full_outbreak()
