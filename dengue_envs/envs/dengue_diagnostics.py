@@ -13,6 +13,7 @@ from gymnasium import spaces
 
 
 class DengueDiagnosticsEnv(gym.Env):
+    metadata = {"render_modes": ["human", "console"], "render_fps": 4}
     def __init__(
         self,
         size: int = 200,
@@ -23,6 +24,7 @@ class DengueDiagnosticsEnv(gym.Env):
         dengue_radius=10,
         chik_radius=10,
         clinical_specificity=0.8,
+        render_mode=None
     ):
         self.t = 0  # timestep
 
@@ -76,7 +78,7 @@ class DengueDiagnosticsEnv(gym.Env):
             }
         )
 
-        # We have 4 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "noop", confirm, discard
+        # We have 4 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "Do nothing", confirm, discard
         self.action_space = spaces.Sequence(
             spaces.Tuple(
                 (
@@ -113,52 +115,31 @@ class DengueDiagnosticsEnv(gym.Env):
         self.chik_suspicion = []
 
         # cumulative map of cases up to self.t
-        self.dmap = self._extract_case_xy(
-            self.world.case_series, disease_code=0, index=0
-        )
-        self.cmap = self._extract_case_xy(
-            self.world.case_series, disease_code=1, index=0
-        )
+        self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
+        
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        self.render_mode = render_mode
+        self.clock = self.metadata['render_fps']
+        # Initialize rendering
+        if self.render_mode is not None:
+            self._render_init(mode=self.render_mode)
 
-        # Initialize Pygame
+        
+
+    def _render_init(self, mode="human"):
+        """
+        Initialize rendering
+        """
         pygame.init()
-        self.nb_pixels = 1000
-        self.cell_size = self.nb_pixels / self.world.size
+        pygame.display.init()
 
         # Setting display size
         self.screen = pygame.display.set_mode(
-            (self.world.num_cols * self.cell_size, self.world.num_rows * self.cell_size)
+            size=(self.world.size, self.world.size),
+            depth=32,
         )
-
-    def _extract_case_xy(self, series, disease_code, index=None):
-        if not index:
-            return [
-                case[:-1]
-                for cases in sorted(series.items())[: self.t]
-                for case in cases[1]
-                if case[-1] == disease_code
-            ]
-        else:
-            return [
-                case[:-1]
-                for cases in sorted(series.items())[index]
-                for case in cases[1]
-                if case[-1] == disease_code
-            ]
-
-    def _is_valid_position(self, pos):
-        row, col = pos
-
-        # If agent goes out of the grid
-        if (
-            row < 0
-            or col < 0
-            or row >= self.world.num_rows
-            or col >= self.world.num_cols
-        ):
-            return False
-
-        return True
+        if self.clock is None and self.render_mode == "human":
+            self.clock = pygame.time.Clock()
 
     def _get_obs(self):
         """
@@ -177,17 +158,18 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Apply clinical uncertainty to the observations: Observations are subject to misdiagnosis based on the clinical specificity
         """
-        obs_case_series = copy.deepcopy(self.world.case_series[t])
+        obs_case_series = copy.deepcopy(self.world.case_series[t]) # Copy of the true cases
         for i, case in enumerate(obs_case_series):
             if self.np_random.uniform() < 0.01:
-                obs_case_series[i][2] = 2
+                obs_case_series[i]['disease'] = 2 # Other disease
                 continue
-            if case[2] == 0:
-                if self.np_random.uniform() > self.clinical_specificity:
-                    obs_case_series[i][2] = 1
-            else:
-                if self.np_random.uniform() > self.clinical_specificity:
-                    obs_case_series[i][2] = 0
+            if case['disease'] == 0:
+                if self.np_random.uniform() > self.clinical_specificity:  # Misdiagnosed as chik
+                    obs_case_series[i]['disease'] = 1
+            elif case['disease'] == 1:
+                if self.np_random.uniform() > self.clinical_specificity: # Misdiagnosed as dengue
+                    obs_case_series[i]['disease'] = 0
+
 
         return obs_case_series
 
@@ -204,9 +186,9 @@ class DengueDiagnosticsEnv(gym.Env):
 
     def _get_info(self):
         """
-        Returns the current map of cases for each disease"""
-        self.dmap = self._extract_case_xy(self.world.case_series, disease_code=0)
-        self.cmap = self._extract_case_xy(self.world.case_series, disease_code=1)
+        Returns the current map of cases for each disease
+        """
+        
         return {
             "dengue_grid": self.dmap,
             "chik_grid": self.cmap,
@@ -317,19 +299,10 @@ class DengueDiagnosticsEnv(gym.Env):
             elif a == 5:  # Discard
                 self.final[i] = 0
 
-        self.dengue_positive = self._extract_case_xy(
-            self.world.case_series, disease_code=0
-        )
-        self.chik_positive = self._extract_case_xy(
-            self.world.case_series, disease_code=1
-        )
+        self.dengue_positive = self.dmap # Array of number of dengue cases per cell
+        self.chik_positive = self.cmap # Array of number of chikungunya cases per cell
 
-        self.dengue_suspicion = self._extract_case_xy(
-            self.world.medical_suspicion_series, disease_code=0
-        )
-        self.chik_suspicion = self._extract_case_xy(
-            self.world.medical_suspicion_series, disease_code=1
-        )
+        
 
         # An episode is done if timestep is greter than 120
         terminated = self.t > 120
@@ -350,32 +323,27 @@ class DengueDiagnosticsEnv(gym.Env):
         return self.current_pos, reward, done, info
 
     def render(self):
-        def draw_rectangles(grid, color):
-            for row, col in grid:
-                cell_left = row * self.cell_size
-                cell_top = col * self.cell_size
-                pygame.draw.rect(
-                    self.screen,
-                    color,
-                    (cell_left, cell_top, self.cell_size, self.cell_size),
-                )
-
+        dmap, cmap = self.world.get_maps_up_to_t(self.t)
+        dsurf = pygame.surfarray.make_surface(dmap*255/dmap.max())
+        dsurf.set_palette([(0,x,0) for x in range(0,256)]) # green pallete
+        dsurf.set_colorkey((0,0,0)) # Makes surface where the color black is transparent
+        csurf = pygame.surfarray.make_surface(cmap*255/cmap.max())
+        csurf.set_palette([(x,0,0) for x in range(0,256)]) # red pallete
+        csurf.set_colorkey((0,0,0))
+        
         # Clear the screen
         self.screen.fill((255, 255, 255))
-        draw_rectangles(grid=self.dengue_positive, color=(200, 255, 200))
-        draw_rectangles(grid=self.chik_positive, color=(200, 200, 255))
-
-        draw_rectangles(grid=self.dengue_suspicion, color=(50, 180, 50))
-        draw_rectangles(grid=self.chik_suspicion, color=(50, 50, 180))
+        
 
         number_font = pygame.font.SysFont(None, 32)
         number_image = number_font.render(
             f"Step {self.t}", True, (0, 0, 0), (255, 255, 255)
         )
         self.screen.blit(
-            number_image, (int((self.nb_pixels - number_image.get_width()) / 2), 0)
+            number_image, (int((self.size - number_image.get_width()) / 2), 0)
         )
-
+        self.screen.blit(dsurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
+        self.screen.blit(csurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
         pygame.display.update()  # Update the display
 
 
@@ -385,7 +353,7 @@ class DengueDiagnosticsEnv(gym.Env):
 if __name__ == "__main__":
     # Test the environment
     total_time = 1000
-    env = DengueDiagnosticsEnv(epilength=total_time)
+    env = DengueDiagnosticsEnv(epilength=total_time, size=500, render_mode="human")
     obs = env.reset()
 
     for t in range(total_time):
