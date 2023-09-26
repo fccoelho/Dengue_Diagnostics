@@ -13,9 +13,11 @@ gymnasium = "^0.29.1"
 pygame = "^2.5.1"
 scipy = "^1.11.2"
 matplotlib = "^3.7.2"
+pandas = "^2.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.1"
+ipykernel = "^6.25.2"
 
 [build-system]
 requires = ["poetry-core"]
