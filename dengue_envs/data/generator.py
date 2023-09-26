@@ -20,11 +20,15 @@ class World:
         chik_center=(90, 110),
         dengue_radius=10,
         chik_radius=10,
-        medical_specificity=0.95,
-        medical_identification_rate=0.05,
     ):
         """
         size: size of the world
+        popsize: population size
+        epilength: length of the epidemic in days
+        dengue_center: center of the dengue outbreak
+        chik_center: center of the chikungunya outbreak
+        dengue_radius: radius of the dengue outbreak
+        chik_radius: radius of the chikungunya outbreak
         """
         self.size = size  # World size
 
@@ -58,7 +62,9 @@ class World:
         # [[[x1,y1,0], [x2,y2,0], ...], [[x1,y1,0], [x2,y2,0], ...], ...]
         self.dengue_total = 0
         self.chik_total = 0
+        self.casedf = None # Case dataframe with incremental id numeric ids
         self.get_daily_cases()
+        self.build_case_dataframe()
 
 
 
@@ -67,6 +73,8 @@ class World:
         """
         Generate an epidemic curve
         returns the Infectious numbers per day
+        :param I0: Initial number of infectious
+        :param R0: Basic Reproductive Number
         """
 
         def SIR(Y, t, beta, gamma, N):
@@ -113,18 +121,26 @@ class World:
                 ccases_y = self.chik_dist_y.rvs(new_c)
                 self.dengue_total += new_d
                 self.chik_total += new_c
-            dengue_cases = [{'t': t, 'x':x, 'y':y, 'v':0} for x, y in zip(dcases_x, dcases_y)]
-            chik_cases = [{'t': t, 'x':x, 'y':y, 'v':1} for x, y in zip(ccases_x, ccases_y)]
+            dengue_cases = [{'t': t, 'x':x, 'y':y, 'disease':0} for x, y in zip(dcases_x, dcases_y)]
+            chik_cases = [{'t': t, 'x':x, 'y':y, 'disease':1} for x, y in zip(ccases_x, ccases_y)]
             self.case_series.append(dengue_cases + chik_cases)
 
-    def view(self):
-        casedf = pd.DataFrame.from_records([c for c in chain(*self.case_series)])
+    def build_case_dataframe(self):
+        """
+        Build a dataframe of cases
+        """
+        self.casedf = pd.DataFrame.from_records([c for c in chain(*self.case_series)])
 
+    def view(self):
+        if self.casedf is None:
+            self.build_case_dataframe()
+        
+        casedf = self.casedf
         dengue_map = np.histogram2d(
-            casedf[casedf.v == 0].x, casedf[casedf.v == 0].y, bins=self.size, range=[[0, self.size], [0, self.size]]
+            casedf[casedf.disease == 0].x, casedf[casedf.disease == 0].y, bins=self.size, range=[[0, self.size], [0, self.size]]
         )[0]
         chik_map = np.histogram2d(
-            casedf[casedf.v == 1].x, casedf[casedf.v == 1].y, bins=self.size,range=[[0, self.size], [0, self.size]]
+            casedf[casedf.disease == 1].x, casedf[casedf.disease == 1].y, bins=self.size,range=[[0, self.size], [0, self.size]]
         )[0]
 
         fig, ax = plt.subplots()

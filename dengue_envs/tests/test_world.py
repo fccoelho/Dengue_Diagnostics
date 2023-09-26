@@ -1,5 +1,5 @@
 import unittest
-from dengue_envs.envs.dengue_diagnostics import World
+from dengue_envs.data.generator import World
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -26,6 +26,11 @@ class WorldTestCase(unittest.TestCase):
     def test_epicurve(self):
         curve = self.world._get_epi_curve()
         self.assertIsInstance(curve, np.ndarray)
+
+    def test_case_dataframe(self):
+        df = self.world.casedf
+        self.assertListEqual(list(df.index), list(range(len(df))))
+        self.assertListEqual(list(df.columns), ["t", "x", "y", "disease"])
 
     def test_viewer(self):
         self.world.view()
