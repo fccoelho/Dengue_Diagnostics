@@ -1,3 +1,6 @@
+import sys
+sys.path.append('..\..')
+
 # Basic packages
 import copy
 import numpy as np
@@ -124,8 +127,6 @@ class DengueDiagnosticsEnv(gym.Env):
         if self.render_mode is not None:
             self._render_init(mode=self.render_mode)
 
-        
-
     def _render_init(self, mode="human"):
         """
         Initialize rendering
@@ -136,10 +137,13 @@ class DengueDiagnosticsEnv(gym.Env):
         # Setting display size
         self.screen = pygame.display.set_mode(
             size=(self.world.size, self.world.size),
-            depth=32,
+            flags=pygame.SCALED,
         )
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
+
+        w, h = pygame.display.get_surface().get_size()
+        self.image_size = (2*w, 2*h)
 
     def _get_obs(self):
         """
@@ -324,16 +328,15 @@ class DengueDiagnosticsEnv(gym.Env):
 
     def render(self):
         dmap, cmap = self.world.get_maps_up_to_t(self.t)
-        dsurf = pygame.surfarray.make_surface(dmap*255/dmap.max())
+        dsurf = pygame.transform.scale(pygame.surfarray.make_surface(dmap*255/dmap.max()), self.image_size)
         dsurf.set_palette([(0,x,0) for x in range(0,256)]) # green pallete
         dsurf.set_colorkey((0,0,0)) # Makes surface where the color black is transparent
-        csurf = pygame.surfarray.make_surface(cmap*255/cmap.max())
+        csurf = pygame.transform.scale(pygame.surfarray.make_surface(cmap*255/cmap.max()), self.image_size)
         csurf.set_palette([(x,0,0) for x in range(0,256)]) # red pallete
         csurf.set_colorkey((0,0,0))
         
         # Clear the screen
         self.screen.fill((255, 255, 255))
-        
 
         number_font = pygame.font.SysFont(None, 32)
         number_image = number_font.render(
@@ -346,13 +349,9 @@ class DengueDiagnosticsEnv(gym.Env):
         self.screen.blit(csurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
         pygame.display.update()  # Update the display
 
-
-
-
-
 if __name__ == "__main__":
     # Test the environment
-    total_time = 1000
+    total_time = 120
     env = DengueDiagnosticsEnv(epilength=total_time, size=500, render_mode="human")
     obs = env.reset()
 
