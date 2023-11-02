@@ -16,16 +16,29 @@ class DengueDiagnosticsEnv(gym.Env):
     metadata = {"render_modes": ["human", "console"], "render_fps": 4}
     def __init__(
         self,
-        size: int = 200,
+        size: int = 400,
         episize: int = 150,
         epilength: int = 60,
-        dengue_center=(30, 30),
-        chik_center=(90, 110),
-        dengue_radius=10,
-        chik_radius=10,
+        dengue_center=(100, 100),
+        chik_center=(300, 300),
+        dengue_radius=90,
+        chik_radius=90,
         clinical_specificity=0.8,
         render_mode=None
     ):
+        """
+
+        Args:
+            size: Size of the world
+            episize: total number of cases in the epidemic
+            epilength: length of the epidemic in days
+            dengue_center: center of the dengue outbreak
+            chik_center: center of the chikungunya outbreak
+            dengue_radius: radius of the dengue outbreak
+            chik_radius: radius of the chikungunya outbreak
+            clinical_specificity: specificity of the clinical diagnosis
+            render_mode: render mode
+        """
         self.t = 0  # timestep
 
         self.size = size
@@ -134,10 +147,16 @@ class DengueDiagnosticsEnv(gym.Env):
         pygame.display.init()
 
         # Setting display size
+        self.scaling_factor = 800/self.world.size  # Scaling factor for the display
         self.screen = pygame.display.set_mode(
-            size=(self.world.size, self.world.size),
+            size=(800, 800),
             depth=32,
         )
+        self.world_surface = pygame.Surface((self.world.size, self.world.size))
+        self.world_surface.set_colorkey((0,0,0))
+        self.dengue_group = CaseGroup('dengue', self.scaling_factor)
+        self.chik_group = CaseGroup('chik', self.scaling_factor)
+
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
@@ -323,36 +342,83 @@ class DengueDiagnosticsEnv(gym.Env):
         return self.current_pos, reward, done, info
 
     def render(self):
-        dmap, cmap = self.world.get_maps_up_to_t(self.t)
-        dsurf = pygame.surfarray.make_surface(dmap*255/dmap.max())
-        dsurf.set_palette([(0,x,0) for x in range(0,256)]) # green pallete
-        dsurf.set_colorkey((0,0,0)) # Makes surface where the color black is transparent
-        csurf = pygame.surfarray.make_surface(cmap*255/cmap.max())
-        csurf.set_palette([(x,0,0) for x in range(0,256)]) # red pallete
-        csurf.set_colorkey((0,0,0))
+        dmap, cmap = self.world.get_maps_at_t(self.t)
+        for (x,y),c in np.ndenumerate(dmap):
+            for i in range(int(c)):
+                spr = CaseSprite(x, y, 'dengue', (0, 255, 0), 2, 1)#self.scaling_factor)
+                spr.add(self.dengue_group)
+        self.dengue_group.draw(self.world_surface)
+        for (x,y),c in np.ndenumerate(cmap):
+            for i in range(int(c)):
+                spr = CaseSprite(x, y, 'chik', (255, 0, 0), 2, 1)#self.scaling_factor)
+                spr.add(self.chik_group)
+        self.chik_group.draw(self.world_surface)
+
+        # dsurf = pygame.surfarray.make_surface(dmap*255/dmap.max())
+        # dsurf.set_palette([(0,x,0) for x in range(0,256)]) # green pallete
+        # dsurf.set_colorkey((0,0,0)) # Makes surface where the color black is transparent
+        # csurf = pygame.surfarray.make_surface(cmap*255/cmap.max())
+        # csurf.set_palette([(x,0,0) for x in range(0,256)]) # red pallete
+        # csurf.set_colorkey((0,0,0))
         
         # Clear the screen
         self.screen.fill((255, 255, 255))
         
 
         number_font = pygame.font.SysFont(None, 32)
-        number_image = number_font.render(
+        timestep_display = number_font.render(
             f"Step {self.t}", True, (0, 0, 0), (255, 255, 255)
         )
         self.screen.blit(
-            number_image, (int((self.size - number_image.get_width()) / 2), 0)
+            timestep_display, (int((self.screen.get_width() - timestep_display.get_width()) / 2), 0)
         )
-        self.screen.blit(dsurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
-        self.screen.blit(csurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
+        # self.screen.blit(dsurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
+        # self.screen.blit(csurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
+        self.screen.blit(pygame.transform.scale(self.world_surface, self.screen.get_rect().size), (0,0))
         pygame.display.update()  # Update the display
 
 
+class CaseSprite(pygame.sprite.Sprite):
+    def __init__(self, x: int, y: int, name: str, color: tuple, size: int, scaling_factor: float):
+        super().__init__()
+        self.image = pygame.Surface((size, size))
+        self.position = (x, y)
+        self.image.fill(color)
+        self.rect = self.image.get_rect()
+        self.rect.center = (x * scaling_factor, y * scaling_factor)
 
+
+    def mark_as_tested(self, status: int):
+        """
+        Mark the case as tested
+        """
+        if status == 0:  #dengue
+            self.image = pygame.image.load("dengue-checked.png")
+        elif status == 1:  #chik
+            self.image = pygame.image.load("chik-checked.png")
+        elif status == 2:  #inconclusive
+            self.image = pygame.image.load("inconclusive.png")
+
+    def update(self, *args, **kwargs):
+        pass
+
+class CaseGroup(pygame.sprite.RenderPlain):
+    def __init__(self, name, scaling_factor):
+        super().__init__()
+        self.scaling_factor = scaling_factor
+        self.name = name # Name of the disease
+
+    @property
+    def cases(self):
+        return self.sprites()
+
+    def update(self, *args, **kwargs):
+        pass
 
 
 if __name__ == "__main__":
     # Test the environment
-    total_time = 1000
+    total_time = 360
     env = DengueDiagnosticsEnv(epilength=total_time, size=500, render_mode="human")
     obs = env.reset()
 
@@ -365,3 +431,4 @@ if __name__ == "__main__":
         # print('Done:', done)
 
         pygame.time.wait(60)
+    pygame.quit()

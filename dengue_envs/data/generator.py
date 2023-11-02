@@ -147,6 +147,22 @@ class World:
         )[0]
         return dengue_map, chik_map
 
+    def get_maps_at_t(self, t):
+        """
+        Get a dengue and chik maps of the world at time t represented as an array with the number of cases per cell of the spatial grid
+        """
+        if self.casedf is None:
+            self.build_case_dataframe()
+        casedf = self.casedf
+        casedf = casedf[casedf.t == t]
+        dengue_map = np.histogram2d(
+            casedf[casedf.disease == 0].x, casedf[casedf.disease == 0].y, bins=self.size, range=[[0, self.size], [0, self.size]]
+        )[0]
+        chik_map = np.histogram2d(
+            casedf[casedf.disease == 1].x, casedf[casedf.disease == 1].y, bins=self.size,range=[[0, self.size], [0, self.size]]
+        )[0]
+        return dengue_map, chik_map
+
     def view(self):
         if self.casedf is None:
             self.build_case_dataframe()
