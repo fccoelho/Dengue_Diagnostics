@@ -113,6 +113,9 @@ class DengueDiagnosticsEnv(gym.Env):
         self.tcase = []
         self.rewards = []
 
+        # actions history for each amount of observed cases
+        self.action_history = []
+
         # cumulative cases of dengue suspicion
         self.dengue_suspicion = []
         self.chik_suspicion = []
@@ -123,6 +126,7 @@ class DengueDiagnosticsEnv(gym.Env):
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
         self.clock = self.metadata['render_fps']
+
         # Initialize rendering
         if self.render_mode is not None:
             self._render_init(mode=self.render_mode)
@@ -185,7 +189,8 @@ class DengueDiagnosticsEnv(gym.Env):
             return 0
         errorrate = (len(estimated) - np.sum(estimated == true)) / len(estimated)
         accuracy_reward = 1 if errorrate < 0.15 else 0
-        reward = accuracy_reward - 0.1 * self.costs[action[0][-1]]
+        actions_cost = np.sum([self.costs[a[-1]] for a in action])
+        reward = accuracy_reward - 0.1 * actions_cost
         return reward
 
     def _get_info(self):
@@ -306,7 +311,8 @@ class DengueDiagnosticsEnv(gym.Env):
         self.dengue_positive = self.dmap # Array of number of dengue cases per cell
         self.chik_positive = self.cmap # Array of number of chikungunya cases per cell
 
-        
+        self.action_history.append(action) # Registering list of actions done for the 
+                                           # new observations 
 
         # An episode is done if timestep is greter than 120
         terminated = self.t > 120
@@ -338,21 +344,49 @@ class DengueDiagnosticsEnv(gym.Env):
         # Clear the screen
         self.screen.fill((255, 255, 255))
 
-        number_font = pygame.font.SysFont(None, 32)
-        number_image = number_font.render(
-            f"Step {self.t}", True, (0, 0, 0), (255, 255, 255)
-        )
-        self.screen.blit(
-            number_image, (int((self.size - number_image.get_width()) / 2), 0)
-        )
-        self.screen.blit(dsurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
-        self.screen.blit(csurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
+        # Create legend feature
+
+        def create_legend(feature_name, feature, position, font_size = 32):
+            font = pygame.font.SysFont(None, font_size)
+            image = font.render(
+            f"{feature_name} {feature}", True, (0, 0, 0), (255, 255, 255)
+            )
+            if type(position) != tuple:
+                self.screen.blit(
+                image, (int((self.size)*(position)), 0)
+                )
+            else:
+                blank_background = pygame.Surface((int((self.size)*0.9), 
+                                                   int((self.size)*0.05)))
+                
+                blank_background.fill((255, 255, 255))
+                
+                self.screen.blit(
+                blank_background, (int((self.size)*(position[0])), 
+                        int((self.size)*(position[1])))
+                )
+                self.screen.blit(
+                image, (int((self.size)*(position[0])), 
+                        int((self.size)*(position[1])))
+                )
+        total_rewards = np.round(np.sum(self.rewards), 2)
+        action_translation = {0: 'Dengue Test', 1:'Chik Test', 2: 'Epi Confirm',
+                              3: 'Do nothing', 4: 'Confirm', 5: 'Discard'}
+        create_legend(feature_name = 'Step', feature = self.t, position = 0.07)
+        create_legend(feature_name = 'Reward', feature = total_rewards, position = 0.4)
+        for a in self.action_history[self.t - 1]:
+            create_legend(feature_name = 'Action', feature = action_translation[a[-1]], position = (0.07, 0.1))
+            self.screen.blit(dsurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
+            self.screen.blit(csurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
+            pygame.display.update()
+            pygame.time.wait(300)
         pygame.display.update()  # Update the display
 
 if __name__ == "__main__":
     # Test the environment
     total_time = 120
-    env = DengueDiagnosticsEnv(epilength=total_time, size=500, render_mode="human")
+    env = DengueDiagnosticsEnv(epilength=total_time, size=500, render_mode="human", 
+                               dengue_center=(80, 100), chik_center=(140, 180),)
     obs = env.reset()
 
     for t in range(total_time):
