@@ -63,7 +63,7 @@ class World:
         self.dengue_total = 0
         self.chik_total = 0
         self.casedf = None # Case dataframe with incremental id numeric ids
-        self.get_daily_cases()
+        self.build_case_series()
         self.build_case_dataframe()
 
 
@@ -97,7 +97,7 @@ class World:
 
         return y[:, 2]
 
-    def get_daily_cases(self):
+    def build_case_series(self):
         """
         Generate the daily cases based on an epidemic curve
         """

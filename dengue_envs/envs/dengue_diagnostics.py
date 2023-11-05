@@ -92,13 +92,13 @@ class DengueDiagnosticsEnv(gym.Env):
             }
         )
 
-        # We have 4 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "Do nothing", confirm, discard
+        # We have 6 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "Do nothing", confirm, discard
         self.action_space = spaces.Sequence(
             spaces.Tuple(
                 (
-                    spaces.Discrete(self.size),
-                    spaces.Discrete(self.size),
-                    spaces.Discrete(6),
+                    spaces.Discrete(self.size), # x coordinate
+                    spaces.Discrete(self.size), # y coordinate
+                    spaces.Discrete(6), # Action: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Do nothing, 4: confirm, 5: discard
                 )
             )
         )
@@ -169,7 +169,7 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Returns the current observation.
         """
-        obs_cases = self._apply_clinical_uncertainty(self.t)
+        obs_cases = tuple(self._apply_clinical_uncertainty(self.t))
 
         return {
             "clinical_diagnostic": obs_cases,
@@ -177,8 +177,7 @@ class DengueDiagnosticsEnv(gym.Env):
             "testc": [0] * len(obs_cases),
             "t": [np.nan] * len(obs_cases),
         }
-    def _get_info(self):
-        pass
+
     def _apply_clinical_uncertainty(self, t):
         """
         Apply clinical uncertainty to the observations: Observations are subject to misdiagnosis based on the clinical specificity
@@ -275,32 +274,29 @@ class DengueDiagnosticsEnv(gym.Env):
         self.cases = self.world.case_series[0]
         self.obs_cases = self._apply_clinical_uncertainty(0)
 
-        observation = {
-            "clinical": self.obs_cases,
-            "testd": [0] * len(self.obs_cases),
-            "testc": [0] * len(self.obs_cases),
-            "t": [np.nan] * len(self.obs_cases),
-        }
+        observation = self._get_obs()
 
         info = self._get_info()
 
-        self.current_pos = self.start_pos
+        self.t = 1
 
-        return self.current_pos
+        return observation, info
 
     def step(self, action):
         """
-        Based on the action, does the testing or epidemiological confirmation
+        Apply the actions for every case at the current timestep (t)
+        and the returns the observation(state at t+1), reward, termination status and info
         action: [list of decisions for all current cases]: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing, 4: Confirm, 5: Discard
         """
         # get the current true state
         cases_series = self.world.case_series[self.t]
         self.cases.extend(cases_series)
 
-        # get the current observation
-        observation = self._get_obs()
+
 
         # apply the actions
+        # todo: check if the actions are valid. Hint: use self.action_space.contains(action)
+        # Fixme: The recording of the actions are not correct.
         for i, a in enumerate(action):
             if a == 0:  # Dengue test
                 self.testd[i] = self._dengue_lab_test()
@@ -312,8 +308,8 @@ class DengueDiagnosticsEnv(gym.Env):
                     [
                         self.t,
                         0
-                        if not observation["clinical"]
-                        else observation["clinical"][-1],
+                        if not observation["clinical_diagnostic"]
+                        else observation["clinical_diagnostic"][-1],
                     ]
                 )
             elif a == 3:  # Do nothing
@@ -330,22 +326,19 @@ class DengueDiagnosticsEnv(gym.Env):
         
 
         # An episode is done if timestep is greter than 120
-        terminated = self.t > 120
-        reward = self._calc_reward(self.cases, observation["clinical"], action)
+        terminated = self.t >= self.epilength + 60
+        reward = self._calc_reward(self.cases, observation["clinical_diagnostic"], action)
         self.rewards.append(reward)
-        info = self._get_info()
 
         self.t += 1
+        # get the next observation
+        observation = self._get_obs()
+        info = self._get_info()
 
-        # Reward function
-        if np.array_equal(self.current_pos, self.world.dengue_center):
-            reward = 1.0
-            done = True
-        else:
-            reward = 0.0
-            done = False
 
-        return self.current_pos, reward, done, info
+
+
+        return observation, reward, terminated, False, info
 
     def render(self):
         dmap, cmap = self.world.get_maps_at_t(self.t)

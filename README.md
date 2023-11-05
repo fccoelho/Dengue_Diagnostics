@@ -9,6 +9,9 @@ accepting the clinical diagnosis of the Doctor that reported the case.
 The agent receives a reward of -1 for every test performed, and a reward of episize (total number of cases reported) - the
 number of cases misdiagnosed. The agent receives a reward of -10 (?) for every case that is not tested and is misdiagnosed.
 
+At every time step, the agent receives aa list of the cases reported up to that time, and has to decide on an action for 
+every new case reported at time step $t$. Assuming that the agent has already decide on an action for the cases reported before time $t$.
+
 ### Observation Space
 The observation space is comprised of 4 arrays:
 ```python
@@ -26,6 +29,13 @@ where disease is either 0 (dengue), 1 (chikungunya) or 2 (other).
 - `testc` is a tuple of 0s and 1s, where 1 means that the case was tested for chikungunya.
 - `t` is a tuple of the time at which each case was reported.
 ### Action Space
+There are 6 possible actions: 
+- Test for dengue (0): test the case for dengue,
+- Test for chik (1): test the case for chikungunya,
+- Epi confirm (2): confirm the case based on epidemiological evidence 
+- Do nothing (3): do not test the case and accept the clinical diagnosis
+- Confirm (4): confirm the case as a true positive
+- Discard (5): discard the case as a false positive.
 
 ## Installation
 To install the environment, run the following command in the root directory of the repository:
