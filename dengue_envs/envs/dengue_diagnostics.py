@@ -9,6 +9,7 @@ import gymnasium as gym
 import pygame
 
 from dengue_envs.data.generator import World
+from dengue_envs.viz import lineplot
 from gymnasium import spaces
 
 
@@ -151,11 +152,15 @@ class DengueDiagnosticsEnv(gym.Env):
         self.screen = pygame.display.set_mode(
             size=(800, 800),
             depth=32,
+            flags= pygame.SCALED,
         )
         self.world_surface = pygame.Surface((self.world.size, self.world.size))
         self.world_surface.set_colorkey((0,0,0))
         self.dengue_group = CaseGroup('dengue', self.scaling_factor)
         self.chik_group = CaseGroup('chik', self.scaling_factor)
+
+        self.plot_surface1 = pygame.Surface((400, 300))
+        self.plot_surface2 = pygame.Surface((400, 300))
 
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
@@ -353,13 +358,6 @@ class DengueDiagnosticsEnv(gym.Env):
                 spr = CaseSprite(x, y, 'chik', (255, 0, 0), 2, 1)#self.scaling_factor)
                 spr.add(self.chik_group)
         self.chik_group.draw(self.world_surface)
-
-        # dsurf = pygame.surfarray.make_surface(dmap*255/dmap.max())
-        # dsurf.set_palette([(0,x,0) for x in range(0,256)]) # green pallete
-        # dsurf.set_colorkey((0,0,0)) # Makes surface where the color black is transparent
-        # csurf = pygame.surfarray.make_surface(cmap*255/cmap.max())
-        # csurf.set_palette([(x,0,0) for x in range(0,256)]) # red pallete
-        # csurf.set_colorkey((0,0,0))
         
         # Clear the screen
         self.screen.fill((255, 255, 255))
@@ -372,9 +370,19 @@ class DengueDiagnosticsEnv(gym.Env):
         self.screen.blit(
             timestep_display, (int((self.screen.get_width() - timestep_display.get_width()) / 2), 0)
         )
-        # self.screen.blit(dsurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
+        # Plot learning metrics
+        plot1 = lineplot([1,2,3],[1,2,3], 'x', 'y', 'Total Reward')
+        plot2 = lineplot([1,2,3],[1,2,3], 'x', 'y', 'Accuracy')
+        self.plot_surface1.blit(pygame.transform.scale(pygame.image.load(plot1, 'PNG'),
+                                                       self.plot_surface1.get_rect().size), (0,0))
+        self.plot_surface2.blit(pygame.transform.scale(pygame.image.load(plot2, 'PNG'),
+                                                         self.plot_surface2.get_rect().size), (0,0))
+        self.screen.blit(self.plot_surface1,(0, 500), special_flags=pygame.BLEND_ALPHA_SDL2)
+        self.screen.blit(self.plot_surface2,(400, 500), special_flags=pygame.BLEND_ALPHA_SDL2)
+
         # self.screen.blit(csurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
-        self.screen.blit(pygame.transform.scale(self.world_surface, self.screen.get_rect().size), (0,0))
+        self.screen.blit(self.world_surface, (0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
+        # self.screen.blit(pygame.transform.scale(self.world_surface, self.screen.get_rect().size), (0,0))
         pygame.display.update()  # Update the display
 
 

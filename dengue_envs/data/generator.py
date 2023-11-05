@@ -54,8 +54,8 @@ class World:
         self.chik_dist_y = st.distributions.norm(self.chik_center[1], self.chik_radius)
 
         # Cumulative Incidence curves
-        self.dengue_curve = self._get_epi_curve(R0=2.5)
-        self.chik_curve = self._get_epi_curve(R0=1.5)
+        self.dengue_curve = self._get_epi_curve(R0=1.5)
+        self.chik_curve = self._get_epi_curve(R0=1.2)
 
         self.case_series = []
         # Cases per day as a list of lists
@@ -69,7 +69,7 @@ class World:
 
 
 
-    def _get_epi_curve(self, I0=10, R0=2.5):
+    def _get_epi_curve(self, I0=10, R0=1.5):
         """
         Generate an epidemic curve
         returns the Infectious numbers per day
