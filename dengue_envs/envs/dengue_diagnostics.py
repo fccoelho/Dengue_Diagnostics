@@ -68,12 +68,12 @@ class DengueDiagnosticsEnv(gym.Env):
         # Data are represented as sequences of cases.
         self.observation_space = spaces.Dict(
             {
-                "clinical": spaces.Sequence(
+                "clinical_diagnostic": spaces.Sequence(
                     spaces.Tuple(
                         (
-                            spaces.Discrete(self.world.num_rows),
-                            spaces.Discrete(self.world.num_cols),
-                            spaces.Discrete(3),
+                            spaces.Discrete(self.world.num_cols),  # x coordinate
+                            spaces.Discrete(self.world.num_rows),   # y coordinate
+                            spaces.Discrete(3), # Diagnostic: 0: dengue, 1: chik, 2: other
                         )
                     )
                 ),  # Clinical diagnosis: 0: dengue, 1: chik, 2: other
@@ -87,7 +87,7 @@ class DengueDiagnosticsEnv(gym.Env):
                     spaces.Discrete(2)
                 ),  # Epidemiological confirmation: 0: no, 1: yes
                 "tcase": spaces.Sequence(
-                    spaces.Discrete(60)
+                    spaces.Discrete(self.epilength)
                 ),  # Day of the clinical diagnosis
             }
         )
@@ -172,12 +172,13 @@ class DengueDiagnosticsEnv(gym.Env):
         obs_cases = self._apply_clinical_uncertainty(self.t)
 
         return {
-            "clinical": obs_cases,
+            "clinical_diagnostic": obs_cases,
             "testd": [0] * len(obs_cases),
             "testc": [0] * len(obs_cases),
             "t": [np.nan] * len(obs_cases),
         }
-
+    def _get_info(self):
+        pass
     def _apply_clinical_uncertainty(self, t):
         """
         Apply clinical uncertainty to the observations: Observations are subject to misdiagnosis based on the clinical specificity
