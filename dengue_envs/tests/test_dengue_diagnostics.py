@@ -36,7 +36,12 @@ class MyEnvTestCase(unittest.TestCase):
     def test_step(self):
         obs, info = self.Env.reset()
         observation, reward, terminated, _, info = self.Env.step([])
-        print(observation)
+
+
+    def test_number_of_sprites(self):
+        obs, info = self.Env.reset()
+        observation, reward, terminated, _, info = self.Env.step(self.Env.action_space.sample())
+        self.assertLess(len(self.Env.dengue_group.sprites()), self.Env.episize)
 
 
 

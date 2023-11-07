@@ -43,15 +43,15 @@ class World:
         self.chik_center = chik_center
         self.chik_radius = chik_radius
 
-        self.dengue_dist_x = st.distributions.norm(
+        self.dengue_dist_x = st.distributions.truncnorm(0,size-1,
             self.dengue_center[0], self.dengue_radius
         )
-        self.dengue_dist_y = st.distributions.norm(
+        self.dengue_dist_y = st.distributions.truncnorm(0,size-1,
             self.dengue_center[1], self.dengue_radius
         )
 
-        self.chik_dist_x = st.distributions.norm(self.chik_center[0], self.chik_radius)
-        self.chik_dist_y = st.distributions.norm(self.chik_center[1], self.chik_radius)
+        self.chik_dist_x = st.distributions.truncnorm(0,size-1,self.chik_center[0], self.chik_radius)
+        self.chik_dist_y = st.distributions.truncnorm(0,size-1,self.chik_center[1], self.chik_radius)
 
         # Cumulative Incidence curves
         self.dengue_curve = self._get_epi_curve(R0=1.5)
@@ -121,8 +121,8 @@ class World:
                 ccases_y = self.chik_dist_y.rvs(new_c)
                 self.dengue_total += new_d
                 self.chik_total += new_c
-            dengue_cases = [{'t': t, 'x':x, 'y':y, 'disease':0} for x, y in zip(dcases_x, dcases_y)]
-            chik_cases = [{'t': t, 'x':x, 'y':y, 'disease':1} for x, y in zip(ccases_x, ccases_y)]
+            dengue_cases = [{'t': t, 'x':int(x), 'y':int(y), 'disease':0} for x, y in zip(dcases_x, dcases_y)]
+            chik_cases = [{'t': t, 'x':int(x), 'y':int(y), 'disease':1} for x, y in zip(ccases_x, ccases_y)]
             self.case_series.append(dengue_cases + chik_cases)
 
     def build_case_dataframe(self):
@@ -130,6 +130,16 @@ class World:
         Build a dataframe of cases
         """
         self.casedf = pd.DataFrame.from_records([c for c in chain(*self.case_series)])
+
+    def get_series_up_to_t(self, t):
+        """
+        Get a list of cases up to time t as a dataframe
+        """
+        # if t > self.casedf['t'].max():
+        self.build_case_dataframe()
+        casedf = self.casedf
+        casedf = casedf[casedf.t <= t]
+        return casedf
 
     def get_maps_up_to_t(self, t):
         """

@@ -104,9 +104,9 @@ class DengueDiagnosticsEnv(gym.Env):
         )
         self.costs = np.array([0.5, 0.5, 0.1, 0.0, 0.0, 0.0])
 
-        # The lists below will be populated by the step() method, as the cases are being generated
-        self.cases = []  # True cases
-        self.obs_cases = []  # Observed cases
+        # The lists below will be populated by the step() method, as the cases are being "generated"
+        self.cases = self.world.get_series_up_to_t(self.t)  # True cases
+        self.obs_cases = []  # Observed cases (for simulations with underreporting)
 
         self.testd = (
             np.zeros(len(self.world.case_series)) - 1
@@ -194,7 +194,6 @@ class DengueDiagnosticsEnv(gym.Env):
                 if self.np_random.uniform() > self.clinical_specificity: # Misdiagnosed as dengue
                     obs_case_series[i]['disease'] = 0
 
-
         return obs_case_series
 
     def _calc_reward(self, true, estimated, action):
@@ -203,8 +202,11 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         if len(estimated) == 0:
             return 0
-        errorrate = (len(estimated) - np.sum(estimated == true)) / len(estimated)
-        accuracy_reward = 1 if errorrate < 0.15 else 0
+        true_numdengue = len([c for c in true if c["disease"] == 0])
+        estimated_numdengue = len([c for c in estimated if c["disease"] == 0])
+        # Mean absolute percentage error
+        mape = np.abs(true_numdengue - estimated_numdengue) / max(1,true_numdengue)
+        accuracy_reward = 1 if mape < 0.15 else 0
         reward = accuracy_reward - 0.1 * self.costs[action[0][-1]]
         return reward
 
@@ -227,9 +229,9 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         if clinical_diag == 3:
             return 1
-        if self.np_random.uniform() < 0.1:
+        if self.np_random.uniform() < 0.1:  # 90% sensitivity
             return 3  # Inconclusive
-        if self.np_random.uniform() >= 0.9:
+        if self.np_random.uniform() >= 0.9: # 90% specificity
             return 1
         else:
             return 2
@@ -243,13 +245,15 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         if clinical_diag == 3:
             return 1
-        if self.np_random.uniform() < 0.1:
+        if self.np_random.uniform() < 0.1: # 90% sensitivity
             return 3  # Inconclusive
-        if self.np_random.uniform() >= 0.9:
+        if self.np_random.uniform() >= 0.9: # 90% specificity
             return 1
         else:
             return 2
 
+    def _update_case_status(self, action):
+        pass
     def _epi_confirm(self, case):
         """
         Returns the epidemiological confirmation for a case
@@ -288,22 +292,21 @@ class DengueDiagnosticsEnv(gym.Env):
         and the returns the observation(state at t+1), reward, termination status and info
         action: [list of decisions for all current cases]: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing, 4: Confirm, 5: Discard
         """
+        if not self.action_space.contains(action):
+            raise ValueError(f"Invalid action {action} for {self.action_space}")
         # get the current true state
-        cases_series = self.world.case_series[self.t]
-        self.cases.extend(cases_series)
-
-
+        self.cases = self.world.get_series_up_to_t(self.t)
+        observation = self._get_obs()
 
         # apply the actions
-        # todo: check if the actions are valid. Hint: use self.action_space.contains(action)
         # Fixme: The recording of the actions are not correct.
-        for i, a in enumerate(action):
+        for a, o in zip(action, observation):
             if a == 0:  # Dengue test
-                self.testd[i] = self._dengue_lab_test()
+                self.testd[i] = self._dengue_lab_test(a)
             elif a == 1:  # Chik test
-                self.testc[i] = self._chik_lab_test()
+                self.testc[i] = self._chik_lab_test(a)
             elif a == 2:  # Epi confirm
-                self.epiconf[i] = self._epi_confirm()
+                self.epiconf[i] = self._epi_confirm(a)
                 self.tcase.append(
                     [
                         self.t,
@@ -320,37 +323,26 @@ class DengueDiagnosticsEnv(gym.Env):
             elif a == 5:  # Discard
                 self.final[i] = 0
 
-        self.dengue_positive = self.dmap # Array of number of dengue cases per cell
-        self.chik_positive = self.cmap # Array of number of chikungunya cases per cell
-
-        
 
         # An episode is done if timestep is greter than 120
         terminated = self.t >= self.epilength + 60
-        reward = self._calc_reward(self.cases, observation["clinical_diagnostic"], action)
+        reward = self._calc_reward(self.cases.to_dict(orient='records'), observation["clinical_diagnostic"], action)
         self.rewards.append(reward)
-
+        if self.render_mode == 'human':
+            self.render()
         self.t += 1
+        self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
         # get the next observation
         observation = self._get_obs()
         info = self._get_info()
-
-
-
 
         return observation, reward, terminated, False, info
 
     def render(self):
         dmap, cmap = self.world.get_maps_at_t(self.t)
-        for (x,y),c in np.ndenumerate(dmap):
-            for i in range(int(c)):
-                spr = CaseSprite(x, y, 'dengue', (0, 255, 0), 2, 1)#self.scaling_factor)
-                spr.add(self.dengue_group)
+        self._create_sprites(cmap, dmap)
+        print(len(self.dengue_group.sprites()))
         self.dengue_group.draw(self.world_surface)
-        for (x,y),c in np.ndenumerate(cmap):
-            for i in range(int(c)):
-                spr = CaseSprite(x, y, 'chik', (255, 0, 0), 2, 1)#self.scaling_factor)
-                spr.add(self.chik_group)
         self.chik_group.draw(self.world_surface)
         
         # Clear the screen
@@ -379,12 +371,24 @@ class DengueDiagnosticsEnv(gym.Env):
         # self.screen.blit(pygame.transform.scale(self.world_surface, self.screen.get_rect().size), (0,0))
         pygame.display.update()  # Update the display
 
+    def _create_sprites(self, cmap: object, dmap: object) -> object:
+        for case in self.cases[self.cases.t==self.t].itertuples():
+            disease = 'dengue' if case.disease == 0 else 'chik'
+            clr = (0, 255, 0) if disease == 'dengue' else (255, 0, 0)
+            spr = CaseSprite(case.x, case.y, case.t, disease, clr, 2, 1)
+            if disease == 'dengue':
+                spr.add(self.dengue_group)
+            else:
+                spr.add(self.chik_group)
+
+
 
 class CaseSprite(pygame.sprite.Sprite):
-    def __init__(self, x: int, y: int, name: str, color: tuple, size: int, scaling_factor: float):
+    def __init__(self, x: int, y: int,t: int, disease_name: str, color: tuple, size: int, scaling_factor: float):
         super().__init__()
         self.image = pygame.Surface((size, size))
         self.position = (x, y)
+        self.disease_name = disease_name
         self.image.fill(color)
         self.rect = self.image.get_rect()
         self.rect.center = (x * scaling_factor, y * scaling_factor)
@@ -427,10 +431,8 @@ if __name__ == "__main__":
     for t in range(total_time):
         pygame.event.get()
         action = env.action_space.sample()  # Random action selection
-        obs, reward, done, _ = env.step(action)
-        env.render()
-        # print('Reward:', reward)
-        # print('Done:', done)
+        obs, reward, done, _, info = env.step(action)
+        print(f'Reward: {reward}', end='\r')
 
-        pygame.time.wait(60)
+        # pygame.time.wait(60)
     pygame.quit()
