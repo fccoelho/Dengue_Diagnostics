@@ -1,6 +1,7 @@
 # Basic packages
 import copy
 import numpy as np
+import pandas as pd
 from itertools import chain
 from collections import defaultdict
 
@@ -15,6 +16,7 @@ from gymnasium import spaces
 
 class DengueDiagnosticsEnv(gym.Env):
     metadata = {"render_modes": ["human", "console"], "render_fps": 4}
+
     def __init__(
         self,
         size: int = 400,
@@ -25,7 +27,7 @@ class DengueDiagnosticsEnv(gym.Env):
         dengue_radius=90,
         chik_radius=90,
         clinical_specificity=0.8,
-        render_mode=None
+        render_mode=None,
     ):
         """
 
@@ -61,9 +63,6 @@ class DengueDiagnosticsEnv(gym.Env):
             self.chik_radius,
         )
 
-        self.start_pos = self.world.chik_center  # Starting position
-        self.current_pos = self.start_pos
-
         # Observations are dictionaries as defined below.
         # Data are represented as sequences of cases.
         self.observation_space = spaces.Dict(
@@ -72,8 +71,10 @@ class DengueDiagnosticsEnv(gym.Env):
                     spaces.Tuple(
                         (
                             spaces.Discrete(self.world.num_cols),  # x coordinate
-                            spaces.Discrete(self.world.num_rows),   # y coordinate
-                            spaces.Discrete(3), # Diagnostic: 0: dengue, 1: chik, 2: other
+                            spaces.Discrete(self.world.num_rows),  # y coordinate
+                            spaces.Discrete(
+                                3
+                            ),  # Diagnostic: 0: dengue, 1: chik, 2: other
                         )
                     )
                 ),  # Clinical diagnosis: 0: dengue, 1: chik, 2: other
@@ -96,16 +97,18 @@ class DengueDiagnosticsEnv(gym.Env):
         self.action_space = spaces.Sequence(
             spaces.Tuple(
                 (
-                    spaces.Discrete(self.size), # x coordinate
-                    spaces.Discrete(self.size), # y coordinate
-                    spaces.Discrete(6), # Action: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Do nothing, 4: confirm, 5: discard
+                    spaces.Discrete(self.size),  # x coordinate
+                    spaces.Discrete(self.size),  # y coordinate
+                    spaces.Discrete(
+                        6
+                    ),  # Action: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Do nothing, 4: confirm, 5: discard
                 )
             )
         )
         self.costs = np.array([0.5, 0.5, 0.1, 0.0, 0.0, 0.0])
 
         # The lists below will be populated by the step() method, as the cases are being "generated"
-        self.cases = self.world.get_series_up_to_t(self.t)  # True cases
+        self.cases: pd.DataFrame = self.world.get_series_up_to_t(self.t)  # True cases
         self.obs_cases = []  # Observed cases (for simulations with underreporting)
 
         self.testd = (
@@ -130,15 +133,13 @@ class DengueDiagnosticsEnv(gym.Env):
 
         # cumulative map of cases up to self.t
         self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
-        
+
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
-        self.clock = self.metadata['render_fps']
+        self.clock = self.metadata["render_fps"]
         # Initialize rendering
         if self.render_mode is not None:
             self._render_init(mode=self.render_mode)
-
-        
 
     def _render_init(self, mode="human"):
         """
@@ -148,16 +149,16 @@ class DengueDiagnosticsEnv(gym.Env):
         pygame.display.init()
 
         # Setting display size
-        self.scaling_factor = 800/self.world.size  # Scaling factor for the display
+        self.scaling_factor = 800 / self.world.size  # Scaling factor for the display
         self.screen = pygame.display.set_mode(
             size=(800, 800),
             depth=32,
-            flags= pygame.SCALED,
+            flags=pygame.SCALED,
         )
         self.world_surface = pygame.Surface((self.world.size, self.world.size))
-        self.world_surface.set_colorkey((0,0,0))
-        self.dengue_group = CaseGroup('dengue', self.scaling_factor)
-        self.chik_group = CaseGroup('chik', self.scaling_factor)
+        self.world_surface.set_colorkey((0, 0, 0))
+        self.dengue_group = CaseGroup("dengue", self.scaling_factor)
+        self.chik_group = CaseGroup("chik", self.scaling_factor)
 
         self.plot_surface1 = pygame.Surface((400, 300))
         self.plot_surface2 = pygame.Surface((400, 300))
@@ -182,17 +183,23 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Apply clinical uncertainty to the observations: Observations are subject to misdiagnosis based on the clinical specificity
         """
-        obs_case_series = copy.deepcopy(self.world.case_series[t]) # Copy of the true cases
+        obs_case_series = copy.deepcopy(
+            self.world.case_series[t]
+        )  # Copy of the true cases
         for i, case in enumerate(obs_case_series):
             if self.np_random.uniform() < 0.01:
-                obs_case_series[i]['disease'] = 2 # Other disease
+                obs_case_series[i]["disease"] = 2  # Other disease
                 continue
-            if case['disease'] == 0:
-                if self.np_random.uniform() > self.clinical_specificity:  # Misdiagnosed as chik
-                    obs_case_series[i]['disease'] = 1
-            elif case['disease'] == 1:
-                if self.np_random.uniform() > self.clinical_specificity: # Misdiagnosed as dengue
-                    obs_case_series[i]['disease'] = 0
+            if case["disease"] == 0:
+                if (
+                    self.np_random.uniform() > self.clinical_specificity
+                ):  # Misdiagnosed as chik
+                    obs_case_series[i]["disease"] = 1
+            elif case["disease"] == 1:
+                if (
+                    self.np_random.uniform() > self.clinical_specificity
+                ):  # Misdiagnosed as dengue
+                    obs_case_series[i]["disease"] = 0
 
         return obs_case_series
 
@@ -205,7 +212,7 @@ class DengueDiagnosticsEnv(gym.Env):
         true_numdengue = len([c for c in true if c["disease"] == 0])
         estimated_numdengue = len([c for c in estimated if c["disease"] == 0])
         # Mean absolute percentage error
-        mape = np.abs(true_numdengue - estimated_numdengue) / max(1,true_numdengue)
+        mape = np.abs(true_numdengue - estimated_numdengue) / max(1, true_numdengue)
         accuracy_reward = 1 if mape < 0.15 else 0
         reward = accuracy_reward - 0.1 * self.costs[action[0][-1]]
         return reward
@@ -214,7 +221,7 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Returns the current map of cases for each disease
         """
-        
+
         return {
             "dengue_grid": self.dmap,
             "chik_grid": self.cmap,
@@ -231,7 +238,7 @@ class DengueDiagnosticsEnv(gym.Env):
             return 1
         if self.np_random.uniform() < 0.1:  # 90% sensitivity
             return 3  # Inconclusive
-        if self.np_random.uniform() >= 0.9: # 90% specificity
+        if self.np_random.uniform() >= 0.9:  # 90% specificity
             return 1
         else:
             return 2
@@ -245,15 +252,16 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         if clinical_diag == 3:
             return 1
-        if self.np_random.uniform() < 0.1: # 90% sensitivity
+        if self.np_random.uniform() < 0.1:  # 90% sensitivity
             return 3  # Inconclusive
-        if self.np_random.uniform() >= 0.9: # 90% specificity
+        if self.np_random.uniform() >= 0.9:  # 90% specificity
             return 1
         else:
             return 2
 
     def _update_case_status(self, action):
         pass
+
     def _epi_confirm(self, case):
         """
         Returns the epidemiological confirmation for a case
@@ -275,7 +283,7 @@ class DengueDiagnosticsEnv(gym.Env):
             self.chik_radius,
         )
 
-        self.cases = self.world.case_series[0]
+        self.cases = self.world.get_series_up_to_t(0)
         self.obs_cases = self._apply_clinical_uncertainty(0)
 
         observation = self._get_obs()
@@ -302,11 +310,11 @@ class DengueDiagnosticsEnv(gym.Env):
         # Fixme: The recording of the actions are not correct.
         for a, o in zip(action, observation):
             if a == 0:  # Dengue test
-                self.testd[i] = self._dengue_lab_test(a)
+                self.testd.append(self._dengue_lab_test(a))
             elif a == 1:  # Chik test
-                self.testc[i] = self._chik_lab_test(a)
+                self.testc.append(self._chik_lab_test(a))
             elif a == 2:  # Epi confirm
-                self.epiconf[i] = self._epi_confirm(a)
+                self.epiconf.append(self._epi_confirm(a))
                 self.tcase.append(
                     [
                         self.t,
@@ -319,19 +327,24 @@ class DengueDiagnosticsEnv(gym.Env):
                 pass
 
             elif a == 4:  # Confirm
-                self.final[i] = 1
+                self.final.append(1)
             elif a == 5:  # Discard
-                self.final[i] = 0
-
+                self.final.append(0)
 
         # An episode is done if timestep is greter than 120
         terminated = self.t >= self.epilength + 60
-        reward = self._calc_reward(self.cases.to_dict(orient='records'), observation["clinical_diagnostic"], action)
+        reward = self._calc_reward(
+            self.cases.to_dict(orient="records"),
+            observation["clinical_diagnostic"],
+            action,
+        )
         self.rewards.append(reward)
-        if self.render_mode == 'human':
+        if self.render_mode == "human":
             self.render()
+        # Update the timestep
         self.t += 1
         self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
+        self.cases = self.world.get_series_up_to_t(self.t)
         # get the next observation
         observation = self._get_obs()
         info = self._get_info()
@@ -339,52 +352,79 @@ class DengueDiagnosticsEnv(gym.Env):
         return observation, reward, terminated, False, info
 
     def render(self):
-        dmap, cmap = self.world.get_maps_at_t(self.t)
-        self._create_sprites(cmap, dmap)
+        """
+        Render the environment
+        """
+        self._create_sprites()
         print(len(self.dengue_group.sprites()))
         self.dengue_group.draw(self.world_surface)
         self.chik_group.draw(self.world_surface)
-        
+
         # Clear the screen
         self.screen.fill((255, 255, 255))
-        
 
         number_font = pygame.font.SysFont(None, 32)
         timestep_display = number_font.render(
             f"Step {self.t}", True, (0, 0, 0), (255, 255, 255)
         )
         self.screen.blit(
-            timestep_display, (int((self.screen.get_width() - timestep_display.get_width()) / 2), 0)
+            timestep_display,
+            (int((self.screen.get_width() - timestep_display.get_width()) / 2), 0),
         )
         # Plot learning metrics
-        plot1 = lineplot([1,2,3],[1,2,3], 'x', 'y', 'Total Reward')
-        plot2 = lineplot([1,2,3],[1,2,3], 'x', 'y', 'Accuracy')
-        self.plot_surface1.blit(pygame.transform.scale(pygame.image.load(plot1, 'PNG'),
-                                                       self.plot_surface1.get_rect().size), (0,0))
-        self.plot_surface2.blit(pygame.transform.scale(pygame.image.load(plot2, 'PNG'),
-                                                         self.plot_surface2.get_rect().size), (0,0))
-        self.screen.blit(self.plot_surface1,(0, 500), special_flags=pygame.BLEND_ALPHA_SDL2)
-        self.screen.blit(self.plot_surface2,(400, 500), special_flags=pygame.BLEND_ALPHA_SDL2)
+        plot1 = lineplot([1, 2, 3], [1, 2, 3], "x", "y", "Total Reward")
+        plot2 = lineplot([1, 2, 3], [1, 2, 3], "x", "y", "Accuracy")
+        self.plot_surface1.blit(
+            pygame.transform.scale(
+                pygame.image.load(plot1, "PNG"), self.plot_surface1.get_rect().size
+            ),
+            (0, 0),
+        )
+        self.plot_surface2.blit(
+            pygame.transform.scale(
+                pygame.image.load(plot2, "PNG"), self.plot_surface2.get_rect().size
+            ),
+            (0, 0),
+        )
+        self.screen.blit(
+            self.plot_surface1, (0, 500), special_flags=pygame.BLEND_ALPHA_SDL2
+        )
+        self.screen.blit(
+            self.plot_surface2, (400, 500), special_flags=pygame.BLEND_ALPHA_SDL2
+        )
 
         # self.screen.blit(csurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
-        self.screen.blit(self.world_surface, (0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
+        self.screen.blit(
+            self.world_surface, (0, 0), special_flags=pygame.BLEND_ALPHA_SDL2
+        )
         # self.screen.blit(pygame.transform.scale(self.world_surface, self.screen.get_rect().size), (0,0))
         pygame.display.update()  # Update the display
 
-    def _create_sprites(self, cmap: object, dmap: object) -> object:
-        for case in self.cases[self.cases.t==self.t].itertuples():
-            disease = 'dengue' if case.disease == 0 else 'chik'
-            clr = (0, 255, 0) if disease == 'dengue' else (255, 0, 0)
+    def _create_sprites(self) -> object:
+        """
+        Create sprites for the cases, based on the contents of self.cases
+        """
+        for case in self.cases[self.cases.t == self.t].itertuples():
+            disease = "dengue" if case.disease == 0 else "chik"
+            clr = (0, 255, 0) if disease == "dengue" else (255, 0, 0)
             spr = CaseSprite(case.x, case.y, case.t, disease, clr, 2, 1)
-            if disease == 'dengue':
+            if disease == "dengue":
                 spr.add(self.dengue_group)
             else:
                 spr.add(self.chik_group)
 
 
-
 class CaseSprite(pygame.sprite.Sprite):
-    def __init__(self, x: int, y: int,t: int, disease_name: str, color: tuple, size: int, scaling_factor: float):
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        t: int,
+        disease_name: str,
+        color: tuple,
+        size: int,
+        scaling_factor: float,
+    ):
         super().__init__()
         self.image = pygame.Surface((size, size))
         self.position = (x, y)
@@ -393,26 +433,26 @@ class CaseSprite(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = (x * scaling_factor, y * scaling_factor)
 
-
     def mark_as_tested(self, status: int):
         """
         Mark the case as tested
         """
-        if status == 0:  #dengue
+        if status == 0:  # dengue
             self.image = pygame.image.load("dengue-checked.png")
-        elif status == 1:  #chik
+        elif status == 1:  # chik
             self.image = pygame.image.load("chik-checked.png")
-        elif status == 2:  #inconclusive
+        elif status == 2:  # inconclusive
             self.image = pygame.image.load("inconclusive.png")
 
     def update(self, *args, **kwargs):
         pass
 
+
 class CaseGroup(pygame.sprite.RenderPlain):
     def __init__(self, name, scaling_factor):
         super().__init__()
         self.scaling_factor = scaling_factor
-        self.name = name # Name of the disease
+        self.name = name  # Name of the disease
 
     @property
     def cases(self):
@@ -432,7 +472,7 @@ if __name__ == "__main__":
         pygame.event.get()
         action = env.action_space.sample()  # Random action selection
         obs, reward, done, _, info = env.step(action)
-        print(f'Reward: {reward}', end='\r')
+        print(f"Reward: {reward}", end="\r")
 
         # pygame.time.wait(60)
     pygame.quit()

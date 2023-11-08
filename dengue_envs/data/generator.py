@@ -43,15 +43,19 @@ class World:
         self.chik_center = chik_center
         self.chik_radius = chik_radius
 
-        self.dengue_dist_x = st.distributions.truncnorm(0,size-1,
-            self.dengue_center[0], self.dengue_radius
+        self.dengue_dist_x = st.distributions.truncnorm(
+            0, size - 1, self.dengue_center[0], self.dengue_radius
         )
-        self.dengue_dist_y = st.distributions.truncnorm(0,size-1,
-            self.dengue_center[1], self.dengue_radius
+        self.dengue_dist_y = st.distributions.truncnorm(
+            0, size - 1, self.dengue_center[1], self.dengue_radius
         )
 
-        self.chik_dist_x = st.distributions.truncnorm(0,size-1,self.chik_center[0], self.chik_radius)
-        self.chik_dist_y = st.distributions.truncnorm(0,size-1,self.chik_center[1], self.chik_radius)
+        self.chik_dist_x = st.distributions.truncnorm(
+            0, size - 1, self.chik_center[0], self.chik_radius
+        )
+        self.chik_dist_y = st.distributions.truncnorm(
+            0, size - 1, self.chik_center[1], self.chik_radius
+        )
 
         # Cumulative Incidence curves
         self.dengue_curve = self._get_epi_curve(R0=1.5)
@@ -62,12 +66,9 @@ class World:
         # [[[x1,y1,0], [x2,y2,0], ...], [[x1,y1,0], [x2,y2,0], ...], ...]
         self.dengue_total = 0
         self.chik_total = 0
-        self.casedf = None # Case dataframe with incremental id numeric ids
+        self.casedf = None  # Case dataframe with incremental id numeric ids
         self.build_case_series()
         self.build_case_dataframe()
-
-
-
 
     def _get_epi_curve(self, I0=10, R0=1.5):
         """
@@ -115,14 +116,22 @@ class World:
             else:
                 new_d = int(np.round(dcases_t - self.dengue_curve[t - 1]))
                 new_c = int(np.round(ccases_t - self.chik_curve[t - 1]))
-                dcases_x = self.dengue_dist_x.rvs(new_d) # New cases on day t, because curve is cumulative
+                dcases_x = self.dengue_dist_x.rvs(
+                    new_d
+                )  # New cases on day t, because curve is cumulative
                 dcases_y = self.dengue_dist_y.rvs(new_d)
                 ccases_x = self.chik_dist_x.rvs(new_c)
                 ccases_y = self.chik_dist_y.rvs(new_c)
                 self.dengue_total += new_d
                 self.chik_total += new_c
-            dengue_cases = [{'t': t, 'x':int(x), 'y':int(y), 'disease':0} for x, y in zip(dcases_x, dcases_y)]
-            chik_cases = [{'t': t, 'x':int(x), 'y':int(y), 'disease':1} for x, y in zip(ccases_x, ccases_y)]
+            dengue_cases = [
+                {"t": t, "x": int(x), "y": int(y), "disease": 0}
+                for x, y in zip(dcases_x, dcases_y)
+            ]
+            chik_cases = [
+                {"t": t, "x": int(x), "y": int(y), "disease": 1}
+                for x, y in zip(ccases_x, ccases_y)
+            ]
             self.case_series.append(dengue_cases + chik_cases)
 
     def build_case_dataframe(self):
@@ -150,10 +159,16 @@ class World:
         casedf = self.casedf
         casedf = casedf[casedf.t <= t]
         dengue_map = np.histogram2d(
-            casedf[casedf.disease == 0].x, casedf[casedf.disease == 0].y, bins=self.size, range=[[0, self.size], [0, self.size]]
+            casedf[casedf.disease == 0].x,
+            casedf[casedf.disease == 0].y,
+            bins=self.size,
+            range=[[0, self.size], [0, self.size]],
         )[0]
         chik_map = np.histogram2d(
-            casedf[casedf.disease == 1].x, casedf[casedf.disease == 1].y, bins=self.size,range=[[0, self.size], [0, self.size]]
+            casedf[casedf.disease == 1].x,
+            casedf[casedf.disease == 1].y,
+            bins=self.size,
+            range=[[0, self.size], [0, self.size]],
         )[0]
         return dengue_map, chik_map
 
@@ -166,23 +181,35 @@ class World:
         casedf = self.casedf
         casedf = casedf[casedf.t == t]
         dengue_map = np.histogram2d(
-            casedf[casedf.disease == 0].x, casedf[casedf.disease == 0].y, bins=self.size, range=[[0, self.size], [0, self.size]]
+            casedf[casedf.disease == 0].x,
+            casedf[casedf.disease == 0].y,
+            bins=self.size,
+            range=[[0, self.size], [0, self.size]],
         )[0]
         chik_map = np.histogram2d(
-            casedf[casedf.disease == 1].x, casedf[casedf.disease == 1].y, bins=self.size,range=[[0, self.size], [0, self.size]]
+            casedf[casedf.disease == 1].x,
+            casedf[casedf.disease == 1].y,
+            bins=self.size,
+            range=[[0, self.size], [0, self.size]],
         )[0]
         return dengue_map, chik_map
 
     def view(self):
         if self.casedf is None:
             self.build_case_dataframe()
-        
+
         casedf = self.casedf
         dengue_map = np.histogram2d(
-            casedf[casedf.disease == 0].x, casedf[casedf.disease == 0].y, bins=self.size, range=[[0, self.size], [0, self.size]]
+            casedf[casedf.disease == 0].x,
+            casedf[casedf.disease == 0].y,
+            bins=self.size,
+            range=[[0, self.size], [0, self.size]],
         )[0]
         chik_map = np.histogram2d(
-            casedf[casedf.disease == 1].x, casedf[casedf.disease == 1].y, bins=self.size,range=[[0, self.size], [0, self.size]]
+            casedf[casedf.disease == 1].x,
+            casedf[casedf.disease == 1].y,
+            bins=self.size,
+            range=[[0, self.size], [0, self.size]],
         )[0]
 
         fig, ax = plt.subplots()
