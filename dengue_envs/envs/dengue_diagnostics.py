@@ -2,8 +2,7 @@
 import copy
 import numpy as np
 import pandas as pd
-from itertools import chain
-from collections import defaultdict
+from typing import List, Dict, Tuple, Union, Optional
 
 # Import simulation tools
 import gymnasium as gym
@@ -274,17 +273,25 @@ class DengueDiagnosticsEnv(gym.Env):
         else:
             return 1 if self.cmap[case[0][0], case[0][1]] > 1 else 0
 
-    def reset(self):
-        # Create the world
-        self.world = World(
-            self.size,
-            self.episize,
-            self.epilength,
-            self.dengue_center,
-            self.chik_center,
-            self.dengue_radius,
-            self.chik_radius,
-        )
+    def reset(self, reset_data: bool = False) -> Tuple[Dict, Dict]:
+        """
+        Resets the environment to the initial state
+        Args:
+            reset_data: If the world data is supposed to re-created as well. Default is False.
+
+        Returns:
+
+        """
+        if reset_data:   # Re-Creates the world if requested
+            self.world = World(
+                self.size,
+                self.episize,
+                self.epilength,
+                self.dengue_center,
+                self.chik_center,
+                self.dengue_radius,
+                self.chik_radius,
+            )
 
         self.cases = self.world.get_series_up_to_t(0)
         self.obs_cases = self._apply_clinical_uncertainty(0)

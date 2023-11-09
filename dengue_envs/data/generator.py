@@ -72,11 +72,13 @@ class World:
         self.case_series = []
         # Cases per day as a list of lists
         # [[[x1,y1,0], [x2,y2,0], ...], [[x1,y1,0], [x2,y2,0], ...], ...]
+        self.case_dict = {} # Cases per ID
         self.dengue_total = 0
         self.chik_total = 0
         self.casedf = None  # Case dataframe with incremental id numeric ids
         self.build_case_series()
         self.build_case_dataframe()
+        print(self.case_dict)
 
     def _get_epi_curve(self, I0=10, R0=1.5):
         """
@@ -147,6 +149,7 @@ class World:
         Build a dataframe of cases
         """
         self.casedf = pd.DataFrame.from_records([c for c in chain(*self.case_series)])
+        self.case_dict = self.casedf.to_dict(orient="index")
 
     def get_series_up_to_t(self, t):
         """
