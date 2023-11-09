@@ -136,7 +136,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
-        self.clock = self.metadata["render_fps"]
+        self.clock = None #self.metadata["render_fps"]
         # Initialize rendering
         if self.render_mode is not None:
             self._render_init(mode=self.render_mode)
@@ -145,6 +145,8 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Initialize rendering
         """
+        if mode == "console":
+            return
         pygame.init()
         pygame.display.init()
 
@@ -165,6 +167,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
+
 
     def _get_obs(self):
         """
@@ -356,7 +359,6 @@ class DengueDiagnosticsEnv(gym.Env):
         Render the environment
         """
         self._create_sprites()
-        print(len(self.dengue_group.sprites()))
         self.dengue_group.draw(self.world_surface)
         self.chik_group.draw(self.world_surface)
 
@@ -398,7 +400,8 @@ class DengueDiagnosticsEnv(gym.Env):
             self.world_surface, (0, 0), special_flags=pygame.BLEND_ALPHA_SDL2
         )
         # self.screen.blit(pygame.transform.scale(self.world_surface, self.screen.get_rect().size), (0,0))
-        pygame.display.update()  # Update the display
+        pygame.display.update()
+        self.clock.tick()# Update the elapsed time in the training
 
     def _create_sprites(self) -> object:
         """
@@ -407,7 +410,7 @@ class DengueDiagnosticsEnv(gym.Env):
         for case in self.cases[self.cases.t == self.t].itertuples():
             disease = "dengue" if case.disease == 0 else "chik"
             clr = (0, 255, 0) if disease == "dengue" else (255, 0, 0)
-            spr = CaseSprite(case.x, case.y, case.t, disease, clr, 2, 1)
+            spr = CaseSprite(case.Index, case.x, case.y, case.t, disease, clr, 2, 1)
             if disease == "dengue":
                 spr.add(self.dengue_group)
             else:
@@ -417,6 +420,7 @@ class DengueDiagnosticsEnv(gym.Env):
 class CaseSprite(pygame.sprite.Sprite):
     def __init__(
         self,
+            id: int,
         x: int,
         y: int,
         t: int,
@@ -426,6 +430,7 @@ class CaseSprite(pygame.sprite.Sprite):
         scaling_factor: float,
     ):
         super().__init__()
+        self.case_id = id
         self.image = pygame.Surface((size, size))
         self.position = (x, y)
         self.disease_name = disease_name

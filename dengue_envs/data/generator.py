@@ -42,19 +42,27 @@ class World:
         self.dengue_radius = dengue_radius
         self.chik_center = chik_center
         self.chik_radius = chik_radius
+        # a, b = (myclip_a - loc) / scale, (myclip_b - loc) / scale
+        self.dengue_dist_x = st.distributions.truncnorm(a=(0-self.dengue_center[0])/self.dengue_radius,
+                                                        b=(size-1 - self.dengue_center[0])/self.dengue_radius,
+                                                        loc=self.dengue_center[0],
+                                                        scale=self.dengue_radius
+        )
+        self.dengue_dist_y = st.distributions.truncnorm(a=(0-self.dengue_center[1])/self.dengue_radius,
+                                                        b=(size-1 - self.dengue_center[1])/self.dengue_radius,
+                                                        loc=self.dengue_center[1],
+                                                        scale=self.dengue_radius
+        )
 
-        self.dengue_dist_x = st.distributions.truncnorm(
-            0, size - 1, self.dengue_center[0], self.dengue_radius
+        self.chik_dist_x = st.distributions.truncnorm(a=(0-self.chik_center[0])/self.chik_radius,
+                                                      b=(size-1 - self.chik_center[0])/self.chik_radius,
+                                                      loc=self.chik_center[0],
+                                                      scale=self.chik_radius
         )
-        self.dengue_dist_y = st.distributions.truncnorm(
-            0, size - 1, self.dengue_center[1], self.dengue_radius
-        )
-
-        self.chik_dist_x = st.distributions.truncnorm(
-            0, size - 1, self.chik_center[0], self.chik_radius
-        )
-        self.chik_dist_y = st.distributions.truncnorm(
-            0, size - 1, self.chik_center[1], self.chik_radius
+        self.chik_dist_y = st.distributions.truncnorm(a=(0-self.chik_center[1])/self.chik_radius,
+                                                      b=(size-1 - self.chik_center[1])/self.chik_radius,
+                                                      loc=self.chik_center[1],
+                                                      scale=self.chik_radius
         )
 
         # Cumulative Incidence curves
