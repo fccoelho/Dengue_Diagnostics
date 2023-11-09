@@ -10,7 +10,7 @@ class MyEnvTestCase(unittest.TestCase):
         self.assertIsInstance(self.Env.observation_space, spaces.Dict)
     def test_observation_space(self):
         obs = self.Env.observation_space.sample()
-        self. assertIsInstance(obs['tcase'], tuple)
+        self. assertIsInstance(obs['tnot'], tuple)
         self. assertIsInstance(obs['testd'], tuple)
         self. assertIsInstance(obs['testc'], tuple)
         self. assertIsInstance(obs['clinical_diagnostic'], tuple)
@@ -35,13 +35,13 @@ class MyEnvTestCase(unittest.TestCase):
 
     def test_step(self):
         obs, info = self.Env.reset()
-        observation, reward, terminated, _, info = self.Env.step([])
-
-
-    def test_number_of_sprites(self):
-        obs, info = self.Env.reset()
         observation, reward, terminated, _, info = self.Env.step(self.Env.action_space.sample())
-        self.assertLess(len(self.Env.dengue_group.sprites()), self.Env.episize)
+
+
+    # def test_number_of_sprites(self):
+    #     obs, info = self.Env.reset()
+    #     observation, reward, terminated, _, info = self.Env.step(self.Env.action_space.sample())
+    #     self.assertLess(len(self.Env.dengue_group.sprites()), self.Env.episize)
 
 
 

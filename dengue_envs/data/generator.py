@@ -78,7 +78,7 @@ class World:
         self.casedf = None  # Case dataframe with incremental id numeric ids
         self.build_case_series()
         self.build_case_dataframe()
-        print(self.case_dict)
+        # print(self.case_dict)
 
     def _get_epi_curve(self, I0=10, R0=1.5):
         """
