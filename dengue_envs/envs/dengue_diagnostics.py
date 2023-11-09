@@ -78,17 +78,29 @@ class DengueDiagnosticsEnv(gym.Env):
                     )
                 ),  # Clinical diagnosis: 0: dengue, 1: chik, 2: other
                 "testd": spaces.Sequence(
-                    spaces.Discrete(4)
-                ),  # Dengue testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
+                    spaces.Tuple(
+                        spaces.Discrete(1),  # case id
+                        spaces.Discrete(4)  # Dengue testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
+                    )
+                ),
                 "testc": spaces.Sequence(
-                    spaces.Discrete(4)
-                ),  # Chikungunya testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
+                    spaces.Tuple(
+                        spaces.Discrete(1),  # case id
+                        spaces.Discrete(4)   # Chikungunya testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
+                    )
+                ),
                 "epiconf": spaces.Sequence(
-                    spaces.Discrete(2)
-                ),  # Epidemiological confirmation: 0: no, 1: yes
-                "tcase": spaces.Sequence(
-                    spaces.Discrete(self.epilength)
-                ),  # Day of the clinical diagnosis
+                    spaces.Tuple(
+                        spaces.Discrete(1),  # case id
+                        spaces.Discrete(2)  # Epidemiological confirmation: 0: no, 1: yes
+                    )
+                ),
+                "tnot": spaces.Sequence(
+                    spaces.Tuple(
+                        spaces.Discrete(1),  # case id
+                        spaces.Discrete(self.epilength)  # Day of the clinical diagnosis
+                    )
+                ),
             }
         )
 
