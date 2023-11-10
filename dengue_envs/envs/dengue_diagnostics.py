@@ -120,25 +120,15 @@ class DengueDiagnosticsEnv(gym.Env):
         self.cases: pd.DataFrame = self.world.get_series_up_to_t(self.t)  # True cases
         self.obs_cases = self._apply_clinical_uncertainty()  # Observed cases (after applying uncertainty)
 
-        self.testd = (
-                np.zeros(len(self.world.case_series)) - 1
-        )  # Dengue test results -1: not tested, 0: negative, 1: positive, 2: inconclusive
-        self.testc = (
-                np.zeros(len(self.world.case_series)) - 1
-        )  # Chikungunya test results -1: not tested, 0: negative, 1: positive, 2: inconclusive
-        self.epiconf = (
-                np.zeros(len(self.world.case_series)) - 1
-        )  # Epidemiological confirmation -1: not checked, 0: not confirmed 1: confirmed
-        self.final = np.zeros(
-            len(self.world.case_series)
-        )  # Final decision: 0: discarded , 1: confirmed
+        self.testd = []
+        self.testc = []
+        self.epiconf = []
+        self.final = []
 
         self.tcase = []
         self.rewards = []
 
-        # cumulative cases of dengue suspicion
-        self.dengue_suspicion = []
-        self.chik_suspicion = []
+
 
         # cumulative map of cases up to self.t
         self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
@@ -374,6 +364,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.t += 1
         self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
         self.cases = self.world.get_series_up_to_t(self.t)
+        self.obs_cases = self._apply_clinical_uncertainty()
         # get the next observation
         observation = self._get_obs()
         info = self._get_info()

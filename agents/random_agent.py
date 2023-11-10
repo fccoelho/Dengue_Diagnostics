@@ -114,9 +114,12 @@ if __name__ == "__main__":
     num_updates = args.total_timesteps // args.batch_size
     action  = envs.action_space.sample()
     values = {(tuple(obs.items()), action): 0}
+    total_reward = 0
     for step in tqdm.tqdm(range(0, args.num_steps)):
         next_obs, reward, done,_, info = envs.step(action)
         value_update(values, obs, action, reward, next_obs)
         obs = next_obs
         action = envs.action_space.sample() # random action
         values[(tuple(obs.items()), action)] = 0
+        total_reward += reward
+    print(f"Total reward: {total_reward}")
