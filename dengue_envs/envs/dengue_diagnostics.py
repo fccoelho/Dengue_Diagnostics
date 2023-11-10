@@ -112,11 +112,8 @@ class DengueDiagnosticsEnv(gym.Env):
         self.action_space = spaces.Sequence(
             spaces.Tuple(
                 (
-                    spaces.Discrete(self.size),  # x coordinate
-                    spaces.Discrete(self.size),  # y coordinate
-                    spaces.Discrete(
-                        6
-                    ),  # Action: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Do nothing, 4: confirm, 5: discard
+                    spaces.Discrete(self.episize),  # case id
+                    spaces.Discrete(6),  # Action: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Do nothing, 4: confirm, 5: discard
                 )
             )
         )
@@ -156,6 +153,18 @@ class DengueDiagnosticsEnv(gym.Env):
         if self.render_mode is not None:
             self._render_init(mode=self.render_mode)
 
+
+    def seed(self, seed: Optional[int] = None) -> List[int]:
+        """
+        Seed the environment
+        Args:
+            seed: Seed value
+
+        Returns:
+            List of seeds
+        """
+        self.np_random, seed = gym.utils.seeding.np_random(seed)
+        return [seed]
     def _render_init(self, mode="human"):
         """
         Initialize rendering
@@ -192,9 +201,10 @@ class DengueDiagnosticsEnv(gym.Env):
 
         return {
             "clinical_diagnostic": obs_cases,
+            "epiconf": [0] * len(obs_cases),
             "testd": [0] * len(obs_cases),
             "testc": [0] * len(obs_cases),
-            "t": [np.nan] * len(obs_cases),
+            "tnot": [np.nan] * len(obs_cases),
         }
 
     def _apply_clinical_uncertainty(self, t):
@@ -289,7 +299,7 @@ class DengueDiagnosticsEnv(gym.Env):
         else:
             return 1 if self.cmap[case[0][0], case[0][1]] > 1 else 0
 
-    def reset(self, reset_data: bool = False) -> Tuple[Dict, Dict]:
+    def reset(self, seed: int=None, options=None, reset_data: bool = False) -> Tuple[Dict, Dict]:
         """
         Resets the environment to the initial state
         Args:
@@ -298,6 +308,7 @@ class DengueDiagnosticsEnv(gym.Env):
         Returns:
 
         """
+        super().reset(seed=seed)
         if reset_data:   # Re-Creates the world if requested
             self.world = World(
                 self.size,
