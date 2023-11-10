@@ -121,7 +121,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
         # The lists below will be populated by the step() method, as the cases are being "generated"
         self.cases: pd.DataFrame = self.world.get_series_up_to_t(self.t)  # True cases
-        self.obs_cases = []  # Observed cases (for simulations with underreporting)
+        self.obs_cases = self._apply_clinical_uncertainty()  # Observed cases (after applying uncertainty)
 
         self.testd = (
             np.zeros(len(self.world.case_series)) - 1
@@ -197,24 +197,21 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Returns the current observation.
         """
-        obs_cases = self._apply_clinical_uncertainty(self.t)
 
         return {
-            "clinical_diagnostic": tuple((c.x,c.y,c.disease) for c in obs_cases.itertuples()),
-            "testd": tuple((c.Index, c.testd) for c in obs_cases.itertuples()),
-            "testc": tuple((c.Index, c.testc) for c in obs_cases.itertuples()),
-            "epiconf": tuple((c.Index, c.epiconf) for c in obs_cases.itertuples()),
-            "tnot": tuple((c.Index, c.t) for c in obs_cases.itertuples())
+            "clinical_diagnostic": tuple((c.x,c.y,c.disease) for c in self.obs_cases.itertuples()),
+            "testd": tuple((c.Index, c.testd) for c in self.obs_cases.itertuples()),
+            "testc": tuple((c.Index, c.testc) for c in self.obs_cases.itertuples()),
+            "epiconf": tuple((c.Index, c.epiconf) for c in self.obs_cases.itertuples()),
+            "tnot": tuple((c.Index, c.t) for c in self.obs_cases.itertuples())
         }
 
-    def _apply_clinical_uncertainty(self, t: int):
+    def _apply_clinical_uncertainty(self):
         """
         Apply clinical uncertainty to the observations: Observations are subject to misdiagnosis based on the clinical specificity
         """
-        obs_case_series = copy.deepcopy(
-            self.cases[self.cases.t==t]
-        )  # Copy of the true cases
-        for case in obs_case_series.iterrows():
+        obs_case_df = copy.deepcopy(self.cases)  # Copy of the true cases
+        for case in obs_case_df.iterrows():
             if self.np_random.uniform() < 0.01:
                 case[1].disease = 2  # Other disease
                 continue
@@ -229,7 +226,7 @@ class DengueDiagnosticsEnv(gym.Env):
                 ):  # Misdiagnosed as dengue
                     case[1].disease = 0
 
-        return obs_case_series
+        return obs_case_df
 
     def _calc_reward(self, true, estimated, action):
         """
@@ -321,7 +318,7 @@ class DengueDiagnosticsEnv(gym.Env):
             )
 
         self.cases = self.world.get_series_up_to_t(0)
-        self.obs_cases = self._apply_clinical_uncertainty(0)
+        self.obs_cases = self._apply_clinical_uncertainty()
 
         observation = self._get_obs()
 

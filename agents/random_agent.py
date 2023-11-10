@@ -17,12 +17,6 @@ def parse_args():
                         help="if toggled, `torch.backends.cudnn.deterministic=False`")
     parser.add_argument("--cuda", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
                         help="if toggled, cuda will be enabled by default")
-    parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
-                        help="if toggled, this experiment will be tracked with Weights and Biases")
-    parser.add_argument("--wandb-project-name", type=str, default="cleanRL",
-                        help="the wandb's project name")
-    parser.add_argument("--wandb-entity", type=str, default=None,
-                        help="the entity (team) of wandb's project")
     parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
                         help="whether to capture videos of the agent performances (check out `videos` folder)")
 
@@ -55,13 +49,13 @@ def parse_args():
 
     return args
 
-def make_env(env_id, seed, idx, capture_video, run_name):
+def make_env(env_id, seed, idx, capture_video, run_name, params):
     def thunk():
         if capture_video and idx == 0:
-            env = gym.make(env_id)
+            env = gym.make(env_id, **params)
             env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
         else:
-            env = gym.make(env_id)
+            env = gym.make(env_id, **params)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.seed(seed)
         env.action_space.seed(seed)
@@ -75,8 +69,19 @@ if __name__ == "__main__":
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
 
     # env setup
+    params = {
+        "size": 400,
+    "episize":  150,
+    "epilength":  60,
+    "dengue_center": (100, 100),
+    "chik_center": (300, 300),
+    "dengue_radius": 90,
+    "chik_radius": 90,
+    "clinical_specificity": 0.8,
+    "render_mode": None,
+    }
     envs = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, args.seed + i, i, args.capture_video, run_name) for i in range(args.num_envs)]
+        [make_env(args.env_id, args.seed + i, i, args.capture_video, run_name, params) for i in range(args.num_envs)]
     )
 
     # TRY NOT TO MODIFY: start the game
@@ -85,3 +90,6 @@ if __name__ == "__main__":
     next_obs, info = envs.reset()
     next_done = args.num_envs * [False]
     num_updates = args.total_timesteps // args.batch_size
+
+    for step in range(0, args.num_steps):
+        next_obs, next_reward, next_done,_, next_info = envs.step(envs.action_space.sample())
