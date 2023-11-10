@@ -135,11 +135,11 @@ class World:
                 self.dengue_total += new_d
                 self.chik_total += new_c
             dengue_cases = [
-                {"t": t, "x": int(x), "y": int(y), "disease": 0}
+                {"t": t, "x": int(x), "y": int(y), "disease": 0, "testd": 0, "testc": 0,"epiconf": 0}
                 for x, y in zip(dcases_x, dcases_y)
             ]
             chik_cases = [
-                {"t": t, "x": int(x), "y": int(y), "disease": 1}
+                {"t": t, "x": int(x), "y": int(y), "disease": 1, "testd": 0, "testc": 0,"epiconf": 0}
                 for x, y in zip(ccases_x, ccases_y)
             ]
             self.case_series.append(dengue_cases + chik_cases)

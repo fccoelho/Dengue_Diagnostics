@@ -197,37 +197,37 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Returns the current observation.
         """
-        obs_cases = tuple(self._apply_clinical_uncertainty(self.t))
+        obs_cases = self._apply_clinical_uncertainty(self.t)
 
         return {
-            "clinical_diagnostic": obs_cases,
-            "epiconf": [0] * len(obs_cases),
-            "testd": [0] * len(obs_cases),
-            "testc": [0] * len(obs_cases),
-            "tnot": [np.nan] * len(obs_cases),
+            "clinical_diagnostic": tuple((c.x,c.y,c.disease) for c in obs_cases.itertuples()),
+            "testd": tuple((c.Index, c.testd) for c in obs_cases.itertuples()),
+            "testc": tuple((c.Index, c.testc) for c in obs_cases.itertuples()),
+            "epiconf": tuple((c.Index, c.epiconf) for c in obs_cases.itertuples()),
+            "tnot": tuple((c.Index, c.t) for c in obs_cases.itertuples())
         }
 
-    def _apply_clinical_uncertainty(self, t):
+    def _apply_clinical_uncertainty(self, t: int):
         """
         Apply clinical uncertainty to the observations: Observations are subject to misdiagnosis based on the clinical specificity
         """
         obs_case_series = copy.deepcopy(
-            self.world.case_series[t]
+            self.cases[self.cases.t==t]
         )  # Copy of the true cases
-        for i, case in enumerate(obs_case_series):
+        for case in obs_case_series.iterrows():
             if self.np_random.uniform() < 0.01:
-                obs_case_series[i]["disease"] = 2  # Other disease
+                case[1].disease = 2  # Other disease
                 continue
-            if case["disease"] == 0:
+            if case[1].disease == 0:
                 if (
                     self.np_random.uniform() > self.clinical_specificity
                 ):  # Misdiagnosed as chik
-                    obs_case_series[i]["disease"] = 1
-            elif case["disease"] == 1:
+                    case[1].disease = 1
+            elif case[1].disease == 1:
                 if (
                     self.np_random.uniform() > self.clinical_specificity
                 ):  # Misdiagnosed as dengue
-                    obs_case_series[i]["disease"] = 0
+                    case[1].disease = 0
 
         return obs_case_series
 
@@ -238,7 +238,7 @@ class DengueDiagnosticsEnv(gym.Env):
         if len(estimated) == 0:
             return 0
         true_numdengue = len([c for c in true if c["disease"] == 0])
-        estimated_numdengue = len([c for c in estimated if c["disease"] == 0])
+        estimated_numdengue = len([c for c in estimated if c[2] == 0])
         # Mean absolute percentage error
         mape = np.abs(true_numdengue - estimated_numdengue) / max(1, true_numdengue)
         accuracy_reward = 1 if mape < 0.15 else 0
