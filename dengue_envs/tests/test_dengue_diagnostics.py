@@ -19,6 +19,7 @@ class MyEnvTestCase(unittest.TestCase):
     def test_action_space(self):
         action = self.Env.action_space.sample()
         self.assertIsInstance(action, tuple)
+        # self.assertEqual(1, len(action))
         self.assertIsInstance(action[0], tuple)
 
     def test_reset(self):

@@ -5,7 +5,11 @@ import time
 import gymnasium as gym
 import dengue_envs
 import numpy as np
+import tqdm
 
+
+GAMMA = 0.9
+ALPHA = 0.2
 def parse_args():
     # fmt: off
     parser = argparse.ArgumentParser()
@@ -27,7 +31,7 @@ def parse_args():
                         help="total timesteps of the experiments")
     parser.add_argument("--learning-rate", type=float, default=2.5e-4,
                         help="the learning rate of the optimizer")
-    parser.add_argument("--num-envs", type=int, default=4,
+    parser.add_argument("--num-envs", type=int, default=1,
                         help="the number of parallel game environments")
     parser.add_argument("--num-steps", type=int, default=128,
                         help="the number of steps to run in each environment per policy rollout")
@@ -63,6 +67,24 @@ def make_env(env_id, seed, idx, capture_video, run_name, params):
         return env
 
     return thunk
+def best_value_and_action(state):
+    best_v = -np.inf
+    best_a = None
+    state = tuple(state.items())
+    for action in range(4):
+        if (state, action) not in values:
+            values[(state, action)] = 0
+        if values[(state, action)] > best_v:
+            best_v = values[(state, action)]
+            best_a = action
+    return best_v, best_a
+def value_update(values, state, action, reward, next_state):
+    best_v, _ = best_value_and_action(next_state)
+    new_v = reward + GAMMA * best_v
+    if isinstance(state, tuple):
+        state = state[0]
+    old_v = values[(tuple(state.items()), action)]
+    values[(tuple(state.items()), action)] = old_v * (1 - ALPHA) + new_v * ALPHA
 
 if __name__ == "__main__":
     args = parse_args()
@@ -87,9 +109,14 @@ if __name__ == "__main__":
     # TRY NOT TO MODIFY: start the game
     global_step = 0
     start_time = time.time()
-    next_obs, info = envs.reset()
+    obs, info = envs.reset()
     next_done = args.num_envs * [False]
     num_updates = args.total_timesteps // args.batch_size
-
-    for step in range(0, args.num_steps):
-        next_obs, next_reward, next_done,_, next_info = envs.step(envs.action_space.sample())
+    action  = envs.action_space.sample()
+    values = {(tuple(obs.items()), action): 0}
+    for step in tqdm.tqdm(range(0, args.num_steps)):
+        next_obs, reward, done,_, info = envs.step(action)
+        value_update(values, obs, action, reward, next_obs)
+        obs = next_obs
+        action = envs.action_space.sample() # random action
+        values[(tuple(obs.items()), action)] = 0

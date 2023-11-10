@@ -14,19 +14,19 @@ from gymnasium import spaces
 
 
 class DengueDiagnosticsEnv(gym.Env):
-    metadata = {"render_modes": ["human", "console"], "render_fps": 4}
+    metadata = {"render_modes": ["human", "console"], "render_fps": 1}
 
     def __init__(
-        self,
-        size: int = 400,
-        episize: int = 150,
-        epilength: int = 60,
-        dengue_center=(100, 100),
-        chik_center=(300, 300),
-        dengue_radius=90,
-        chik_radius=90,
-        clinical_specificity=0.8,
-        render_mode=None,
+            self,
+            size: int = 400,
+            episize: int = 150,
+            epilength: int = 60,
+            dengue_center=(100, 100),
+            chik_center=(300, 300),
+            dengue_radius=90,
+            chik_radius=90,
+            clinical_specificity=0.8,
+            render_mode=None,
     ):
         """
 
@@ -78,30 +78,32 @@ class DengueDiagnosticsEnv(gym.Env):
                 "testd": spaces.Sequence(
                     spaces.Tuple(
                         (
-                        spaces.Discrete(self.episize),  # case id
-                        spaces.Discrete(4)  # Dengue testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
+                            spaces.Discrete(self.episize),  # case id
+                            spaces.Discrete(4)
+                        # Dengue testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
                         )
                     )
                 ),
                 "testc": spaces.Sequence(
                     spaces.Tuple((
                         spaces.Discrete(self.episize),  # case id
-                        spaces.Discrete(4)   # Chikungunya testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
+                        spaces.Discrete(4)
+                    # Chikungunya testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
                     ))
                 ),
                 "epiconf": spaces.Sequence(
                     spaces.Tuple(
                         (
-                        spaces.Discrete(self.episize),  # case id
-                        spaces.Discrete(2)  # Epidemiological confirmation: 0: no, 1: yes
+                            spaces.Discrete(self.episize),  # case id
+                            spaces.Discrete(2)  # Epidemiological confirmation: 0: no, 1: yes
                         )
                     )
                 ),
                 "tnot": spaces.Sequence(
                     spaces.Tuple(
                         (
-                        spaces.Discrete(self.episize),  # case id
-                        spaces.Discrete(self.epilength)  # Day of the clinical diagnosis
+                            spaces.Discrete(self.episize),  # case id
+                            spaces.Discrete(self.epilength)  # Day of the clinical diagnosis
                         )
                     )
                 ),
@@ -110,12 +112,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
         # We have 6 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "Do nothing", confirm, discard
         self.action_space = spaces.Sequence(
-            spaces.Tuple(
-                (
-                    spaces.Discrete(self.episize),  # case id
-                    spaces.Discrete(6),  # Action: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Do nothing, 4: confirm, 5: discard
-                )
-            )
+            spaces.Tuple((spaces.Discrete(self.episize), spaces.Discrete(6))) #case id, action
         )
         self.costs = np.array([0.5, 0.5, 0.1, 0.0, 0.0, 0.0])
 
@@ -124,13 +121,13 @@ class DengueDiagnosticsEnv(gym.Env):
         self.obs_cases = self._apply_clinical_uncertainty()  # Observed cases (after applying uncertainty)
 
         self.testd = (
-            np.zeros(len(self.world.case_series)) - 1
+                np.zeros(len(self.world.case_series)) - 1
         )  # Dengue test results -1: not tested, 0: negative, 1: positive, 2: inconclusive
         self.testc = (
-            np.zeros(len(self.world.case_series)) - 1
+                np.zeros(len(self.world.case_series)) - 1
         )  # Chikungunya test results -1: not tested, 0: negative, 1: positive, 2: inconclusive
         self.epiconf = (
-            np.zeros(len(self.world.case_series)) - 1
+                np.zeros(len(self.world.case_series)) - 1
         )  # Epidemiological confirmation -1: not checked, 0: not confirmed 1: confirmed
         self.final = np.zeros(
             len(self.world.case_series)
@@ -148,11 +145,10 @@ class DengueDiagnosticsEnv(gym.Env):
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
-        self.clock = None #self.metadata["render_fps"]
+        self.clock = None  # self.metadata["render_fps"]
         # Initialize rendering
         if self.render_mode is not None:
             self._render_init(mode=self.render_mode)
-
 
     def seed(self, seed: Optional[int] = None) -> List[int]:
         """
@@ -165,6 +161,7 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         self.np_random, seed = gym.utils.seeding.np_random(seed)
         return [seed]
+
     def _render_init(self, mode="human"):
         """
         Initialize rendering
@@ -192,14 +189,12 @@ class DengueDiagnosticsEnv(gym.Env):
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
-
     def _get_obs(self):
         """
         Returns the current observation.
         """
-
         return {
-            "clinical_diagnostic": tuple((c.x,c.y,c.disease) for c in self.obs_cases.itertuples()),
+            "clinical_diagnostic": tuple((c.x, c.y, c.disease) for c in self.obs_cases.itertuples()),
             "testd": tuple((c.Index, c.testd) for c in self.obs_cases.itertuples()),
             "testc": tuple((c.Index, c.testc) for c in self.obs_cases.itertuples()),
             "epiconf": tuple((c.Index, c.epiconf) for c in self.obs_cases.itertuples()),
@@ -217,12 +212,12 @@ class DengueDiagnosticsEnv(gym.Env):
                 continue
             if case[1].disease == 0:
                 if (
-                    self.np_random.uniform() > self.clinical_specificity
+                        self.np_random.uniform() > self.clinical_specificity
                 ):  # Misdiagnosed as chik
                     case[1].disease = 1
             elif case[1].disease == 1:
                 if (
-                    self.np_random.uniform() > self.clinical_specificity
+                        self.np_random.uniform() > self.clinical_specificity
                 ):  # Misdiagnosed as dengue
                     case[1].disease = 0
 
@@ -296,7 +291,7 @@ class DengueDiagnosticsEnv(gym.Env):
         else:
             return 1 if self.cmap[case[0][0], case[0][1]] > 1 else 0
 
-    def reset(self, seed: int=None, options=None, reset_data: bool = False) -> Tuple[Dict, Dict]:
+    def reset(self, seed: int = None, options=None, reset_data: bool = False) -> Tuple[Dict, Dict]:
         """
         Resets the environment to the initial state
         Args:
@@ -306,7 +301,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
         """
         super().reset(seed=seed)
-        if reset_data:   # Re-Creates the world if requested
+        if reset_data:  # Re-Creates the world if requested
             self.world = World(
                 self.size,
                 self.episize,
@@ -432,7 +427,7 @@ class DengueDiagnosticsEnv(gym.Env):
         )
         # self.screen.blit(pygame.transform.scale(self.world_surface, self.screen.get_rect().size), (0,0))
         pygame.display.update()
-        self.clock.tick()# Update the elapsed time in the training
+        self.clock.tick()  # Update the elapsed time in the training
 
     def _create_sprites(self) -> object:
         """
@@ -450,15 +445,15 @@ class DengueDiagnosticsEnv(gym.Env):
 
 class CaseSprite(pygame.sprite.Sprite):
     def __init__(
-        self,
+            self,
             id: int,
-        x: int,
-        y: int,
-        t: int,
-        disease_name: str,
-        color: tuple,
-        size: int,
-        scaling_factor: float,
+            x: int,
+            y: int,
+            t: int,
+            disease_name: str,
+            color: tuple,
+            size: int,
+            scaling_factor: float,
     ):
         super().__init__()
         self.case_id = id
