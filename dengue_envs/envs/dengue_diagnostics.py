@@ -12,7 +12,6 @@ from dengue_envs.data.generator import World
 from dengue_envs.viz import lineplot
 from gymnasium import spaces
 
-
 class DengueDiagnosticsEnv(gym.Env):
     metadata = {"render_modes": ["human", "console"], "render_fps": 1}
 
@@ -127,8 +126,6 @@ class DengueDiagnosticsEnv(gym.Env):
 
         self.tcase = []
         self.rewards = []
-
-
 
         # cumulative map of cases up to self.t
         self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
@@ -390,9 +387,12 @@ class DengueDiagnosticsEnv(gym.Env):
             timestep_display,
             (int((self.screen.get_width() - timestep_display.get_width()) / 2), 0),
         )
+
         # Plot learning metrics
-        plot1 = lineplot([1, 2, 3], [1, 2, 3], "x", "y", "Total Reward")
-        plot2 = lineplot([1, 2, 3], [1, 2, 3], "x", "y", "Accuracy")
+        plot1 = lineplot(range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1")
+        accuracy = [sum(self.rewards[:i+1])/(i+1) for i in range(self.t)]
+        plot2 = lineplot(range(1, self.t + 1), accuracy, "Step", "Accuracy", "Total Accuracy", "plot2")
+
         self.plot_surface1.blit(
             pygame.transform.scale(
                 pygame.image.load(plot1, "PNG"), self.plot_surface1.get_rect().size
@@ -403,7 +403,7 @@ class DengueDiagnosticsEnv(gym.Env):
             pygame.transform.scale(
                 pygame.image.load(plot2, "PNG"), self.plot_surface2.get_rect().size
             ),
-            (0, 0),
+            (0, 1),
         )
         self.screen.blit(
             self.plot_surface1, (0, 500), special_flags=pygame.BLEND_ALPHA_SDL2
@@ -432,6 +432,7 @@ class DengueDiagnosticsEnv(gym.Env):
                 spr.add(self.dengue_group)
             else:
                 spr.add(self.chik_group)
+
 
 
 class CaseSprite(pygame.sprite.Sprite):
