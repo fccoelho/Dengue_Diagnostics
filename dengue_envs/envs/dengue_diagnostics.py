@@ -330,10 +330,8 @@ class DengueDiagnosticsEnv(gym.Env):
         for a, o in zip(action, observation):
             if obs[o] == 0:  # Dengue test
                 self.testd.append((a[0], self._dengue_lab_test(a)))
-                print(f"Tested case {a[0]} for dengue")
             elif obs[o] == 1:  # Chik test
                 self.testc.append((a[0], self._chik_lab_test(a)))
-                print(f"Tested case {a[0]} for chik")
             elif obs[o] == 2:  # Epi confirm
                 pass
                 # self.epiconf.append(self._epi_confirm(a))
@@ -490,10 +488,7 @@ class CaseSprite(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=self.rect.center)
 
     def update(self, *args, **kwargs):
-        if self.case_id in self.env.testd:
-            self.mark_as_tested(0)
-        elif self.case_id in self.env.testc:
-            self.mark_as_tested(1)
+        pass
 
 
 class CaseGroup(pygame.sprite.RenderPlain):
