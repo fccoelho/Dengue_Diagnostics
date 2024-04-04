@@ -325,7 +325,6 @@ class DengueDiagnosticsEnv(gym.Env):
         observation = self._get_obs()
 
         # apply the actions
-        # Fixme: The recording of the actions are not correct.
         obs = {"testd": 0, "testc": 1, "epiconf": 2, "tnot": 3, "nothing": 4, "confirm": 5, "discard": 6, "clinical_diagnostic": 7}
         for a, o in zip(action, observation):
             if obs[o] == 0:  # Dengue test
