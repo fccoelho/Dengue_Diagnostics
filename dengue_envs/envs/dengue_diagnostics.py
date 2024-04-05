@@ -1,5 +1,7 @@
 # Basic packages
 import copy
+import time
+
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Tuple, Union, Optional
@@ -11,7 +13,6 @@ import pygame
 from dengue_envs.data.generator import World
 from dengue_envs.viz import lineplot
 from gymnasium import spaces
-
 
 class DengueDiagnosticsEnv(gym.Env):
     metadata = {"render_modes": ["human", "console"], "render_fps": 1}
@@ -127,8 +128,6 @@ class DengueDiagnosticsEnv(gym.Env):
 
         self.tcase = []
         self.rewards = []
-
-
 
         # cumulative map of cases up to self.t
         self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
@@ -326,29 +325,31 @@ class DengueDiagnosticsEnv(gym.Env):
         observation = self._get_obs()
 
         # apply the actions
-        # Fixme: The recording of the actions are not correct.
+        obs = {"testd": 0, "testc": 1, "epiconf": 2, "tnot": 3, "nothing": 4, "confirm": 5, "discard": 6, "clinical_diagnostic": 7}
         for a, o in zip(action, observation):
-            if a == 0:  # Dengue test
-                self.testd.append(self._dengue_lab_test(a))
-            elif a == 1:  # Chik test
-                self.testc.append(self._chik_lab_test(a))
-            elif a == 2:  # Epi confirm
-                self.epiconf.append(self._epi_confirm(a))
-                self.tcase.append(
-                    [
-                        self.t,
-                        0
-                        if not observation["clinical_diagnostic"]
-                        else observation["clinical_diagnostic"][-1],
-                    ]
-                )
-            elif a == 3:  # Do nothing
+            if obs[o] == 0:  # Dengue test
+                self.testd.append((a[0], self._dengue_lab_test(a)))
+            elif obs[o] == 1:  # Chik test
+                self.testc.append((a[0], self._chik_lab_test(a)))
+            elif obs[o] == 2:  # Epi confirm
                 pass
-
-            elif a == 4:  # Confirm
+                # self.epiconf.append(self._epi_confirm(a))
+                # self.tcase.append(
+                #     [
+                #         self.t,
+                #         0
+                #         if not observation["clinical_diagnostic"]
+                #         else observation["clinical_diagnostic"][-1],
+                #     ]
+                # )
+            elif obs[o] == 3:  # Do nothing
+                pass
+            elif obs[o] == 4:  # Confirm
                 self.final.append(1)
-            elif a == 5:  # Discard
+            elif obs[o] == 5:  # Discard
                 self.final.append(0)
+
+        self.update_sprites()
 
         # An episode is done if timestep is greter than 120
         terminated = self.t >= self.epilength + 60
@@ -371,6 +372,19 @@ class DengueDiagnosticsEnv(gym.Env):
 
         return observation, reward, terminated, False, info
 
+    def update_sprites(self):
+        # Update the sprites in the dengue group
+        for sprite in self.dengue_group.sprites():
+            for case_id, test_result in self.testd:
+                if sprite.case_id == case_id:
+                    sprite.mark_as_tested(0)
+
+        # Update the sprites in the chik group
+        for sprite in self.chik_group.sprites():
+            for case_id, test_result in self.testc:
+                if sprite.case_id == case_id:
+                    sprite.mark_as_tested(1)
+
     def render(self):
         """
         Render the environment
@@ -390,9 +404,12 @@ class DengueDiagnosticsEnv(gym.Env):
             timestep_display,
             (int((self.screen.get_width() - timestep_display.get_width()) / 2), 0),
         )
+
         # Plot learning metrics
-        plot1 = lineplot([1, 2, 3], [1, 2, 3], "x", "y", "Total Reward")
-        plot2 = lineplot([1, 2, 3], [1, 2, 3], "x", "y", "Accuracy")
+        plot1 = lineplot(range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1")
+        accuracy = [sum(self.rewards[:i+1])/(i+1) for i in range(self.t)]
+        plot2 = lineplot(range(1, self.t + 1), accuracy, "Step", "Accuracy", "Total Accuracy", "plot2")
+
         self.plot_surface1.blit(
             pygame.transform.scale(
                 pygame.image.load(plot1, "PNG"), self.plot_surface1.get_rect().size
@@ -403,7 +420,7 @@ class DengueDiagnosticsEnv(gym.Env):
             pygame.transform.scale(
                 pygame.image.load(plot2, "PNG"), self.plot_surface2.get_rect().size
             ),
-            (0, 0),
+            (0, 1),
         )
         self.screen.blit(
             self.plot_surface1, (0, 500), special_flags=pygame.BLEND_ALPHA_SDL2
@@ -427,7 +444,7 @@ class DengueDiagnosticsEnv(gym.Env):
         for case in self.cases[self.cases.t == self.t].itertuples():
             disease = "dengue" if case.disease == 0 else "chik"
             clr = (0, 255, 0) if disease == "dengue" else (255, 0, 0)
-            spr = CaseSprite(case.Index, case.x, case.y, case.t, disease, clr, 2, 1)
+            spr = CaseSprite(case.Index, case.x, case.y, case.t, disease, clr, 2, 1, self)
             if disease == "dengue":
                 spr.add(self.dengue_group)
             else:
@@ -445,6 +462,7 @@ class CaseSprite(pygame.sprite.Sprite):
             color: tuple,
             size: int,
             scaling_factor: float,
+            env: DengueDiagnosticsEnv,
     ):
         super().__init__()
         self.case_id = id
@@ -454,17 +472,19 @@ class CaseSprite(pygame.sprite.Sprite):
         self.image.fill(color)
         self.rect = self.image.get_rect()
         self.rect.center = (x * scaling_factor, y * scaling_factor)
+        self.env = env  # And this line
 
     def mark_as_tested(self, status: int):
         """
         Mark the case as tested
         """
         if status == 0:  # dengue
-            self.image = pygame.image.load("dengue-checked.png")
+            self.image = pygame.image.load("dengue-checked.png").convert_alpha()
         elif status == 1:  # chik
-            self.image = pygame.image.load("chik-checked.png")
+            self.image = pygame.image.load("chik-checked.png").convert_alpha()
         elif status == 2:  # inconclusive
-            self.image = pygame.image.load("inconclusive.png")
+            self.image = pygame.image.load("inconclusive.png").convert_alpha()
+        self.rect = self.image.get_rect(center=self.rect.center)
 
     def update(self, *args, **kwargs):
         pass
