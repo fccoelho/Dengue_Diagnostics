@@ -9,7 +9,6 @@ class AleatoryAgent:
         self.curr_obs = env.reset()
 
     def step(self, action):
-        action = self.env.action_space.sample()
         obs, reward, done, _, info = self.env.step(action)
         self.total_reward += reward
         self.curr_obs = obs
@@ -27,7 +26,7 @@ if __name__ == "__main__":
     # Create the agent
     agent = AleatoryAgent(env)
     # Run the simulation
-    for _ in range(100):
+    for _ in range(365):
         obs, reward, done, info = agent.step(env.action_space.sample())
         if done:
             break
