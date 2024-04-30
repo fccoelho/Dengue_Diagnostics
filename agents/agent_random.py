@@ -28,7 +28,9 @@ if __name__ == "__main__":
     agent = AleatoryAgent(env)
     # Run the simulation
     for _ in range(100):
-        obs, reward, done, info = agent.step(env.action_space.sample())
+        taken_action = env.action_space.sample()
+        obs, reward, done, info = agent.step(taken_action)
+        print(f"Action taken: {taken_action}")
         if done:
             break
     # Print the total reward

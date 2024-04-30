@@ -1,6 +1,7 @@
 import numpy as np
 from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
 
+
 class QLearningAgent:
     def __init__(self, env):
         self.env = env

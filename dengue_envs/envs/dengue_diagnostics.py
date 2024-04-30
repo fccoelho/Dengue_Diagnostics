@@ -26,7 +26,7 @@ class DengueDiagnosticsEnv(gym.Env):
             chik_center=(300, 300),
             dengue_radius=90,
             chik_radius=90,
-            clinical_specificity=0.8,
+            clinical_specificity=0.1,
             render_mode=None,
     ):
         """
@@ -216,6 +216,7 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Calculate the reward based on the true count and the actions taken
         """
+        # TODO: add chick and pass mape as hyperparameter
         if len(estimated) == 0:
             return 0
         true_numdengue = len([c for c in true if c["disease"] == 0])
@@ -243,14 +244,15 @@ class DengueDiagnosticsEnv(gym.Env):
         2: Positive
         3: Inconclusive
         """
-        if clinical_diag == 3:
-            return 1
+        # TODO: clinical_diag 3 doen't exist in the dataframe
         if self.np_random.uniform() < 0.1:  # 90% sensitivity
-            return 3  # Inconclusive
-        if self.np_random.uniform() >= 0.9:  # 90% specificity
-            return 1
+            return 1  # Inconclusive
         else:
-            return 2
+            if self.np_random.uniform() < 0.1:
+                return 3
+            else:
+                return 2
+
 
     def _chik_lab_test(self, clinical_diag):
         """
@@ -259,14 +261,13 @@ class DengueDiagnosticsEnv(gym.Env):
         2: Positive
         3: Inconclusive
         """
-        if clinical_diag == 3:
-            return 1
         if self.np_random.uniform() < 0.1:  # 90% sensitivity
-            return 3  # Inconclusive
-        if self.np_random.uniform() >= 0.9:  # 90% specificity
-            return 1
+            return 1  # Inconclusive
         else:
-            return 2
+            if self.np_random.uniform() < 0.1:
+                return 3
+            else:
+                return 2
 
     def _update_case_status(self, action):
         pass
@@ -328,8 +329,11 @@ class DengueDiagnosticsEnv(gym.Env):
         obs = {"testd": 0, "testc": 1, "epiconf": 2, "tnot": 3, "nothing": 4, "confirm": 5, "discard": 6, "clinical_diagnostic": 7}
         for a, o in zip(action, observation):
             if obs[o] == 0:  # Dengue test
+                print(a)
                 self.testd.append((a[0], self._dengue_lab_test(a)))
             elif obs[o] == 1:  # Chik test
+                print(a)
+
                 self.testc.append((a[0], self._chik_lab_test(a)))
             elif obs[o] == 2:  # Epi confirm
                 pass
@@ -407,6 +411,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
         # Plot learning metrics
         plot1 = lineplot(range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1")
+        # TODO: Fix the accuracy calculation
         accuracy = [sum(self.rewards[:i+1])/(i+1) for i in range(self.t)]
         plot2 = lineplot(range(1, self.t + 1), accuracy, "Step", "Accuracy", "Total Accuracy", "plot2")
 
@@ -479,11 +484,11 @@ class CaseSprite(pygame.sprite.Sprite):
         Mark the case as tested
         """
         if status == 0:  # dengue
-            self.image = pygame.image.load("dengue-checked.png").convert_alpha()
+            self.image = pygame.image.load("C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/dengue-checked.png").convert_alpha()
         elif status == 1:  # chik
-            self.image = pygame.image.load("chik-checked.png").convert_alpha()
+            self.image = pygame.image.load("C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/chik-checked.png").convert_alpha()
         elif status == 2:  # inconclusive
-            self.image = pygame.image.load("inconclusive.png").convert_alpha()
+            self.image = pygame.image.load("C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/inconclusive.png").convert_alpha()
         self.rect = self.image.get_rect(center=self.rect.center)
 
     def update(self, *args, **kwargs):
@@ -518,3 +523,7 @@ if __name__ == "__main__":
 
         # pygame.time.wait(60)
     pygame.quit()
+
+# TODO: show medical error
+# TODO: show test error
+# TODO: total tests applied
