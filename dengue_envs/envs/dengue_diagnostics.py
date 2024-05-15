@@ -14,6 +14,7 @@ from dengue_envs.data.generator import World
 from dengue_envs.viz import lineplot
 from gymnasium import spaces
 
+
 class DengueDiagnosticsEnv(gym.Env):
     metadata = {"render_modes": ["human", "console"], "render_fps": 1}
 
@@ -81,7 +82,7 @@ class DengueDiagnosticsEnv(gym.Env):
                         (
                             spaces.Discrete(self.episize),  # case id
                             spaces.Discrete(4)
-                        # Dengue testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
+                            # Dengue testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
                         )
                     )
                 ),
@@ -89,7 +90,7 @@ class DengueDiagnosticsEnv(gym.Env):
                     spaces.Tuple((
                         spaces.Discrete(self.episize),  # case id
                         spaces.Discrete(4)
-                    # Chikungunya testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
+                        # Chikungunya testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
                     ))
                 ),
                 "epiconf": spaces.Sequence(
@@ -113,7 +114,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
         # We have 6 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "Do nothing", confirm, discard
         self.action_space = spaces.Sequence(
-            spaces.Tuple((spaces.Discrete(self.episize), spaces.Discrete(6))) #case id, action
+            spaces.Tuple((spaces.Discrete(self.episize), spaces.Discrete(6)))  #case id, action
         )
         self.costs = np.array([0.5, 0.5, 0.1, 0.0, 0.0, 0.0])
 
@@ -248,14 +249,20 @@ class DengueDiagnosticsEnv(gym.Env):
         3: Inconclusive
         """
         # TODO: clinical_diag 3 doen't exist in the dataframe
-        if self.np_random.uniform() < 0.1:  # 90% sensitivity
-            return 1  # Inconclusive
-        else:
-            if self.np_random.uniform() < 0.1:
-                return 3
-            else:
-                return 2
+        # if self.np_random.uniform() < 0.1:  # 90% sensitivity
+        #     return 1  # Inconclusive
+        # else:
+        #     if self.np_random.uniform() < 0.1:
+        #         return 3
+        #     else:
+        #         return 2
 
+        if not clinical_diag[2] == 0 and self.np_random.uniform() < 0.1:
+            return 1
+        elif clinical_diag[2] == 0 and self.np_random.uniform() < 0.1:
+            return 3
+        else:
+            return 2
 
     def _chik_lab_test(self, clinical_diag):
         """
@@ -264,13 +271,12 @@ class DengueDiagnosticsEnv(gym.Env):
         2: Positive
         3: Inconclusive
         """
-        if self.np_random.uniform() < 0.1:  # 90% sensitivity
-            return 1  # Inconclusive
+        if not clinical_diag[2] == 1 and self.np_random.uniform() < 0.1:
+            return 1
+        elif clinical_diag[2] == 1 and self.np_random.uniform() < 0.1:
+            return 3
         else:
-            if self.np_random.uniform() < 0.1:
-                return 3
-            else:
-                return 2
+            return 2
 
     def _update_case_status(self, action):
         pass
@@ -329,7 +335,8 @@ class DengueDiagnosticsEnv(gym.Env):
         observation = self._get_obs()
 
         # apply the actions
-        obs = {"testd": 0, "testc": 1, "epiconf": 2, "tnot": 3, "nothing": 4, "confirm": 5, "discard": 6, "clinical_diagnostic": 7}
+        obs = {"testd": 0, "testc": 1, "epiconf": 2, "tnot": 3, "nothing": 4, "confirm": 5, "discard": 6,
+               "clinical_diagnostic": 7}
         for a, o in zip(action, observation):
             if obs[o] == 0:  # Dengue test
                 self.testd.append((a[0], self._dengue_lab_test(a)))
@@ -411,8 +418,10 @@ class DengueDiagnosticsEnv(gym.Env):
 
         # Plot learning metrics
         plot1 = lineplot(range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1")
-        correct_dengue = sum([1 for case in self.cases.itertuples() if (case.x, case.y) in self.testd and case.disease == 0])
-        correct_chik = sum([1 for case in self.cases.itertuples() if (case.x, case.y) in self.testc and case.disease == 1])
+        correct_dengue = sum(
+            [1 for case in self.cases.itertuples() if (case.x, case.y) in self.testd and case.disease == 0])
+        correct_chik = sum(
+            [1 for case in self.cases.itertuples() if (case.x, case.y) in self.testc and case.disease == 1])
         self.accuracy.append((correct_dengue + correct_chik) / len(self.cases))
         plot2 = lineplot(range(1, self.t + 1), self.accuracy, "Step", "Accuracy", "Total Accuracy", "plot2")
 
@@ -485,11 +494,14 @@ class CaseSprite(pygame.sprite.Sprite):
         Mark the case as tested
         """
         if status == 0:  # dengue
-            self.image = pygame.image.load("C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/dengue-checked.png").convert_alpha()
+            self.image = pygame.image.load(
+                "C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/dengue-checked.png").convert_alpha()
         elif status == 1:  # chik
-            self.image = pygame.image.load("C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/chik-checked.png").convert_alpha()
+            self.image = pygame.image.load(
+                "C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/chik-checked.png").convert_alpha()
         elif status == 2:  # inconclusive
-            self.image = pygame.image.load("C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/inconclusive.png").convert_alpha()
+            self.image = pygame.image.load(
+                "C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/inconclusive.png").convert_alpha()
         self.rect = self.image.get_rect(center=self.rect.center)
 
     def update(self, *args, **kwargs):
