@@ -128,6 +128,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
         self.tcase = []
         self.rewards = []
+        self.accuracy = []
 
         # cumulative map of cases up to self.t
         self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
@@ -411,9 +412,10 @@ class DengueDiagnosticsEnv(gym.Env):
 
         # Plot learning metrics
         plot1 = lineplot(range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1")
-        # TODO: Fix the accuracy calculation
-        accuracy = [sum(self.rewards[:i+1])/(i+1) for i in range(self.t)]
-        plot2 = lineplot(range(1, self.t + 1), accuracy, "Step", "Accuracy", "Total Accuracy", "plot2")
+        correct_dengue = sum([1 for case in self.cases.itertuples() if (case.x, case.y) in self.testd and case.disease == 0])
+        correct_chik = sum([1 for case in self.cases.itertuples() if (case.x, case.y) in self.testc and case.disease == 1])
+        self.accuracy.append((correct_dengue + correct_chik) / len(self.cases))
+        plot2 = lineplot(range(1, self.t + 1), self.accuracy, "Step", "Accuracy", "Total Accuracy", "plot2")
 
         self.plot_surface1.blit(
             pygame.transform.scale(
