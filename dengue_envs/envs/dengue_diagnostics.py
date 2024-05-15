@@ -213,18 +213,20 @@ class DengueDiagnosticsEnv(gym.Env):
 
         return obs_case_df
 
-    def _calc_reward(self, true, estimated, action):
+    def _calc_reward(self, true, estimated, action, mape_value=0.15):
         """
         Calculate the reward based on the true count and the actions taken
         """
-        # TODO: add chick and pass mape as hyperparameter
         if len(estimated) == 0:
             return 0
         true_numdengue = len([c for c in true if c["disease"] == 0])
+        true_numchik = len([c for c in true if c["disease"] == 1])
         estimated_numdengue = len([c for c in estimated if c[2] == 0])
+        estimated_numchik = len([c for c in estimated if c[2] == 1])
+
         # Mean absolute percentage error
-        mape = np.abs(true_numdengue - estimated_numdengue) / max(1, true_numdengue)
-        accuracy_reward = 1 if mape < 0.15 else 0
+        mape = (abs(true_numdengue - estimated_numdengue) + abs(true_numchik - estimated_numchik)) / len(true)
+        accuracy_reward = 1 if mape < mape_value else 0
         reward = accuracy_reward - 0.1 * self.costs[action[0][-1]]
         return reward
 
@@ -330,11 +332,8 @@ class DengueDiagnosticsEnv(gym.Env):
         obs = {"testd": 0, "testc": 1, "epiconf": 2, "tnot": 3, "nothing": 4, "confirm": 5, "discard": 6, "clinical_diagnostic": 7}
         for a, o in zip(action, observation):
             if obs[o] == 0:  # Dengue test
-                print(a)
                 self.testd.append((a[0], self._dengue_lab_test(a)))
             elif obs[o] == 1:  # Chik test
-                print(a)
-
                 self.testc.append((a[0], self._chik_lab_test(a)))
             elif obs[o] == 2:  # Epi confirm
                 pass
