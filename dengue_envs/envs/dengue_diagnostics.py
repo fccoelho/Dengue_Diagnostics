@@ -120,8 +120,6 @@ class DengueDiagnosticsEnv(gym.Env):
 
         self.real_cases = self.world.casedf.copy()
 
-        print(self.real_cases)
-
         # The lists below will be populated by the step() method, as the cases are being "generated"
         self.cases: pd.DataFrame = self.world.get_series_up_to_t(self.t)  # True cases
         self.obs_cases = self._apply_clinical_uncertainty()  # Observed cases (after applying uncertainty)
@@ -223,7 +221,6 @@ class DengueDiagnosticsEnv(gym.Env):
 
         return obs_case_df
 
-    # TODO
     def _calc_reward(self, true, estimated, action):
         """
         Calculate the reward based on the true count and the actions taken
