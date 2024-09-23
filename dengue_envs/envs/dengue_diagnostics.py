@@ -123,6 +123,8 @@ class DengueDiagnosticsEnv(gym.Env):
         # The lists below will be populated by the step() method, as the cases are being "generated"
         self.cases: pd.DataFrame = self.world.get_series_up_to_t(self.t)  # True cases
         self.obs_cases = self._apply_clinical_uncertainty()  # Observed cases (after applying uncertainty)
+        self.cases_t = self.obs_cases[self.obs_cases.t == self.t]  # Cases at time t
+        self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
 
         self.testd = []
         self.testc = []
@@ -131,9 +133,9 @@ class DengueDiagnosticsEnv(gym.Env):
 
         self.tcase = []
         self.rewards = []
-
         self.total_reward = 0
         self.accuracy = []
+
 
         # cumulative map of cases up to self.t
         self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
@@ -148,6 +150,8 @@ class DengueDiagnosticsEnv(gym.Env):
         if self.render_mode is not None:
             self._render_init(mode=self.render_mode)
 
+        self.individual_rewards = [[]]
+
     def seed(self, seed: Optional[int] = None) -> List[int]:
         """
         Seed the environment
@@ -159,6 +163,14 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         self.np_random, seed = gym.utils.seeding.np_random(seed)
         return [seed]
+
+    def get_case_id(self, case):
+        x = case[0]
+        y = case[1]
+        return self.real_cases[(self.real_cases.x == x) & (self.real_cases.y == y)].index[0]
+
+    def get_case_xy(self, case_id):
+        return self.real_cases.loc[case_id, ["x", "y"]].values
 
     def _render_init(self, mode="human"):
         """
@@ -196,7 +208,7 @@ class DengueDiagnosticsEnv(gym.Env):
             "testd": tuple((c.Index, c.testd) for c in self.obs_cases.itertuples()),
             "testc": tuple((c.Index, c.testc) for c in self.obs_cases.itertuples()),
             "epiconf": tuple((c.Index, c.epiconf) for c in self.obs_cases.itertuples()),
-            "tnot": tuple((c.Index, c.t) for c in self.obs_cases.itertuples())
+            "tnot": tuple((c.Index, c.t) for c in self.obs_cases.itertuples()),
         }
 
     def _apply_clinical_uncertainty(self):
@@ -225,6 +237,9 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Calculate the reward based on the true count and the actions taken
         """
+
+        rewards = []
+
         if len(estimated) == 0:
             return 0
 
@@ -234,16 +249,19 @@ class DengueDiagnosticsEnv(gym.Env):
         estimated_chik = len([c for c in estimated if c[2] == 1])
 
         # Mean absolute percentage error
-        mape = np.abs(true_numdengue - estimated_numdengue) + np.abs(true_chik - estimated_chik) / max(1, true_numdengue + true_chik)
+        mape = np.abs(true_numdengue + true_chik - estimated_numdengue - estimated_chik) / max(1, true_numdengue + true_chik)
         accuracy_reward = 1 if mape < 0.15 else 0
         reward = accuracy_reward
         for a in action:
+            if (a[1] == 0 and self.real_cases.loc[a[0], "disease"] == 0) or (a[1] == 1 and self.real_cases.loc[a[0], "disease"] == 1):
+                r = 1 + mape - self.costs[a[-1]]
+                rewards.append(r)
+            else:
+                r = -1 + mape - self.costs[a[-1]]
+                rewards.append(r)
             reward -= - self.costs[a[-1]]
-
         self.total_reward += reward
-
-        print(f"Reward: {reward}, Total Reward: {self.total_reward}", end="\r")
-
+        self.individual_rewards.append(rewards)
         return reward
 
     def calc_accuracy(self, true, estimated):
@@ -351,6 +369,13 @@ class DengueDiagnosticsEnv(gym.Env):
 
         return observation, info
 
+    def get_individual_rewards_at_t(self, t):
+        """
+        Get the individual rewards at time t
+        """
+        return self.individual_rewards[t]
+
+
     def step(self, action):
         """
         Apply the actions for every case at the current timestep (t)
@@ -389,7 +414,8 @@ class DengueDiagnosticsEnv(gym.Env):
             elif self.obs[o] == 5:  # Discard
                 self.final.append(0)
 
-        self.accuracy.append(self.calc_accuracy(self.cases.to_dict(orient="records"), observation["clinical_diagnostic"]))
+        self.accuracy.append(
+            self.calc_accuracy(self.cases.to_dict(orient="records"), observation["clinical_diagnostic"]))
 
         self.update_sprites()
 
@@ -400,6 +426,7 @@ class DengueDiagnosticsEnv(gym.Env):
             observation["clinical_diagnostic"],
             action,
         )
+
         print(f"Reward: {reward} \t Total Reward: {self.total_reward}", end="\r")
         self.rewards.append(reward)
         if self.render_mode == "human":
@@ -409,10 +436,11 @@ class DengueDiagnosticsEnv(gym.Env):
         self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
         self.cases = self.world.get_series_up_to_t(self.t)
         self.obs_cases = self._apply_clinical_uncertainty()
+        self.cases_t = self.obs_cases[self.obs_cases.t == self.t]
+        self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
         # get the next observation
         observation = self._get_obs()
         info = self._get_info()
-
         return observation, reward, terminated, False, info
 
     def update_sprites(self):
@@ -550,7 +578,6 @@ class CaseSprite(pygame.sprite.Sprite):
     def update(self, *args, **kwargs):
         pass
 
-
 class CaseGroup(pygame.sprite.RenderPlain):
     def __init__(self, name, scaling_factor):
         super().__init__()
@@ -575,7 +602,8 @@ if __name__ == "__main__":
         pygame.event.get()
         action = env.action_space.sample()  # Random action selection
         obs, reward, done, _, info = env.step(action)
-        print(f"Reward: {reward}", end="\r")
+        print(env.get_individual_rewards_at_t(t))
+        print(f"Step: {t}, Reward: {reward}, Done: {done}")
 
         # pygame.time.wait(60)
     pygame.quit()
