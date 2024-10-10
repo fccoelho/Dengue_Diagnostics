@@ -114,16 +114,17 @@ class DengueDiagnosticsEnv(gym.Env):
 
         # We have 6 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "Do nothing", confirm, discard
         self.action_space = spaces.Sequence(
-            spaces.Tuple((spaces.Discrete(self.episize), spaces.Discrete(6)))  #case id, action
+            spaces.Tuple((spaces.Discrete(2*episize), spaces.Discrete(6)))  #case id, action
         )
         self.costs = np.array([0.5, 0.5, 0.1, 0.0, 0.0, 0.0])
 
         self.real_cases = self.world.casedf.copy()
-
+        print(self.real_cases)
         # The lists below will be populated by the step() method, as the cases are being "generated"
         self.cases: pd.DataFrame = self.world.get_series_up_to_t(self.t)  # True cases
         self.obs_cases = self._apply_clinical_uncertainty()  # Observed cases (after applying uncertainty)
         self.cases_t = self.obs_cases[self.obs_cases.t == self.t]  # Cases at time t
+
         self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
 
         self.testd = []
@@ -150,7 +151,7 @@ class DengueDiagnosticsEnv(gym.Env):
         if self.render_mode is not None:
             self._render_init(mode=self.render_mode)
 
-        self.individual_rewards = [[]]
+        self.individual_rewards = [[0]]
 
     def seed(self, seed: Optional[int] = None) -> List[int]:
         """
@@ -417,7 +418,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.accuracy.append(
             self.calc_accuracy(self.cases.to_dict(orient="records"), observation["clinical_diagnostic"]))
 
-        self.update_sprites()
+        self.update_sprites() if self.render_mode == "human" else None
 
         # An episode is done if timestep is greter than 120
         terminated = self.t >= self.epilength + 60
