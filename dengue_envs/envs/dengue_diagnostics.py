@@ -1,5 +1,6 @@
 # Basic packages
 import copy
+import os
 import time
 
 import numpy as np
@@ -381,7 +382,7 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Apply the actions for every case at the current timestep (t)
         and the returns the observation(state at t+1), reward, termination status and info
-        action: [list of decisions for all current cases]: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing, 4: Confirm, 5: Discard
+        action: [list of decisions (2-tuples) for all current cases]: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing, 4: Confirm, 5: Discard
         """
         if not self.action_space.contains(action):
             raise ValueError(f"Invalid action {action} for {self.action_space}")
@@ -564,16 +565,16 @@ class CaseSprite(pygame.sprite.Sprite):
         """
         if status == 0:  # dengue
             self.image = pygame.image.load(
-                "dengue-checked.png").convert_alpha()
+                os.path.join(os.path.dirname(__file__),"dengue-checked.png")).convert_alpha()
         elif status == 1:  # chik
             self.image = pygame.image.load(
-                "chik-checked.png").convert_alpha()
+                os.path.join(os.path.dirname(__file__),"chik-checked.png")).convert_alpha()
         elif status == 2:  # inconclusive
             self.image = pygame.image.load(
-                "inconclusive.png").convert_alpha()
+                os.path.join(os.path.dirname(__file__),"inconclusive.png")).convert_alpha()
         elif status == 3:
             self.image = pygame.image.load(
-                "error.png").convert_alpha()
+                os.path.join(os.path.dirname(__file__), "error.png")).convert_alpha()
         self.rect = self.image.get_rect(center=self.rect.center)
 
     def update(self, *args, **kwargs):
