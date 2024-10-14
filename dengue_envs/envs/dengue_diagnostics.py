@@ -564,16 +564,16 @@ class CaseSprite(pygame.sprite.Sprite):
         """
         if status == 0:  # dengue
             self.image = pygame.image.load(
-                "C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/dengue-checked.png").convert_alpha()
+                "dengue-checked.png").convert_alpha()
         elif status == 1:  # chik
             self.image = pygame.image.load(
-                "C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/chik-checked.png").convert_alpha()
+                "chik-checked.png").convert_alpha()
         elif status == 2:  # inconclusive
             self.image = pygame.image.load(
-                "C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/inconclusive.png").convert_alpha()
+                "inconclusive.png").convert_alpha()
         elif status == 3:
             self.image = pygame.image.load(
-                "C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/dengue_envs/envs/error.png").convert_alpha()
+                "error.png").convert_alpha()
         self.rect = self.image.get_rect(center=self.rect.center)
 
     def update(self, *args, **kwargs):
