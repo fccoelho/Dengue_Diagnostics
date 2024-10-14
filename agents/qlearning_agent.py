@@ -114,7 +114,7 @@ class QLearning_Agent():
 
 if __name__ == "__main__":
     # Create the environment
-    env = DengueDiagnosticsEnv(epilength=365, size=500, render_mode="console")
+    env = DengueDiagnosticsEnv(epilength=365, size=500, render_mode="human")
     # Create the agent
     agent = QLearning_Agent(env)
     # Run the simulation
