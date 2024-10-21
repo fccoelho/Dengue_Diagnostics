@@ -255,6 +255,11 @@ class DengueDiagnosticsEnv(gym.Env):
         accuracy_reward = 1 if mape < 0.15 else 0
         reward = accuracy_reward
         for a in action:
+            is_dengue = a[1] == 0
+            is_true_dengue = self.real_cases.loc[int(a[0]), "disease"] == 0
+            is_chik = a[1] == 1
+            is_true_chik = self.real_cases.loc[int(a[0]), "disease"] == 1
+            print(f"Action: {a} \t Dengue True Pos: {is_dengue} \t Dengue Est Pos: {is_true_dengue} \t Chik True Pos: {is_chik} \t Chik Est Pos: {is_true_chik}")
             if (a[1] == 0 and self.real_cases.loc[int(a[0]), "disease"] == 0) or (a[1] == 1 and self.real_cases.loc[int(a[0]), "disease"] == 1):
                 r = 1 + mape - self.costs[a[-1]]
                 rewards.append(r)
