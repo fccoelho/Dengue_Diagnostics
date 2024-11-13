@@ -38,10 +38,8 @@ class AleatoryAgent:
                 action = self.choose_action()
                 action = (id, action)
                 actions.append(action)
-            print('A', actions)
             obs, reward, done, info = self.step(tuple(actions))
             rewards = self.env.get_individual_rewards_at_t(_)
-            print('R', rewards)
             if done:
                 break
 

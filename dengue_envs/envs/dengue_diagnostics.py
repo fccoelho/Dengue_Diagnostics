@@ -194,6 +194,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.world_surface.set_colorkey((0, 0, 0))
         self.dengue_group = CaseGroup("dengue", self.scaling_factor)
         self.chik_group = CaseGroup("chik", self.scaling_factor)
+        self.all_tests = CaseGroup("all", self.scaling_factor)
 
         self.plot_surface1 = pygame.Surface((400, 300))
         self.plot_surface2 = pygame.Surface((400, 300))
@@ -259,7 +260,6 @@ class DengueDiagnosticsEnv(gym.Env):
             is_true_dengue = self.real_cases.loc[int(a[0]), "disease"] == 0
             is_chik = a[1] == 1
             is_true_chik = self.real_cases.loc[int(a[0]), "disease"] == 1
-            print(f"Action: {a} \t Dengue True Pos: {is_dengue} \t Dengue Est Pos: {is_true_dengue} \t Chik True Pos: {is_chik} \t Chik Est Pos: {is_true_chik}")
             if (a[1] == 0 and self.real_cases.loc[int(a[0]), "disease"] == 0) or (a[1] == 1 and self.real_cases.loc[int(a[0]), "disease"] == 1):
                 r = 1 + mape - self.costs[a[-1]]
                 rewards.append(r)
@@ -424,7 +424,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.accuracy.append(
             self.calc_accuracy(self.cases.to_dict(orient="records"), observation["clinical_diagnostic"]))
 
-        self.update_sprites() if self.render_mode == "human" else None
+        self.update_sprites(action) if self.render_mode == "human" else None
 
         # An episode is done if timestep is greter than 120
         terminated = self.t >= self.epilength + 60
@@ -434,7 +434,7 @@ class DengueDiagnosticsEnv(gym.Env):
             action,
         )
 
-        print(f"Reward: {reward} \t Total Reward: {self.total_reward}", end="\r")
+        # print(f"Reward: {reward} \t Total Reward: {self.total_reward}", end="\r")
         self.rewards.append(reward)
         if self.render_mode == "human":
             self.render()
@@ -450,30 +450,18 @@ class DengueDiagnosticsEnv(gym.Env):
         info = self._get_info()
         return observation, reward, terminated, False, info
 
-    def update_sprites(self):
+    def update_sprites(self, actions):
         # Update the sprites in the dengue group
         for sprite in self.dengue_group.sprites():
-            for case_id, test_result in self.testd:
-                if sprite.case_id == case_id:
-                    if test_result == 1:
-                        sprite.mark_as_tested(0)
-                    else:
-                        sprite.mark_as_tested(2)
-            for case_id, test_result in self.testc:
-                if sprite.case_id == case_id:
-                    sprite.mark_as_tested(3)
+            for id, a in actions:
+                if sprite.case_id == id:
+                    sprite.mark_as_tested(int(a))
 
-        # Update the sprites in the chik group
         for sprite in self.chik_group.sprites():
-            for case_id, test_result in self.testc:
-                if sprite.case_id == case_id:
-                    if test_result == 1:
-                        sprite.mark_as_tested(1)
-                    else:
-                        sprite.mark_as_tested(2)
-            for case_id, test_result in self.testd:
-                if sprite.case_id == case_id:
-                    sprite.mark_as_tested(3)
+            for id, a in actions:
+                if sprite.case_id == id:
+                    sprite.mark_as_tested(int(a))
+
 
     def render(self):
         """
@@ -569,17 +557,29 @@ class CaseSprite(pygame.sprite.Sprite):
         Mark the case as tested
         """
         if status == 0:  # dengue
+            print("dengue")
             self.image = pygame.image.load(
-                os.path.join(os.path.dirname(__file__),"dengue-checked.png")).convert_alpha()
+                os.path.join(os.path.dirname(__file__),"dengue_test.png")).convert_alpha()
         elif status == 1:  # chik
+            print("chick")
             self.image = pygame.image.load(
-                os.path.join(os.path.dirname(__file__),"chik-checked.png")).convert_alpha()
+                os.path.join(os.path.dirname(__file__),"chik_test.png")).convert_alpha()
         elif status == 2:  # inconclusive
+            print("epi")
             self.image = pygame.image.load(
-                os.path.join(os.path.dirname(__file__),"inconclusive.png")).convert_alpha()
+                os.path.join(os.path.dirname(__file__),"epi_test.png")).convert_alpha()
         elif status == 3:
+            print("no_test")
             self.image = pygame.image.load(
-                os.path.join(os.path.dirname(__file__), "error.png")).convert_alpha()
+                os.path.join(os.path.dirname(__file__), "no_test.png")).convert_alpha()
+        elif status == 4:
+            print("confirm")
+            self.image = pygame.image.load(
+                os.path.join(os.path.dirname(__file__), "confirm_test.png")).convert_alpha()
+        elif status == 5:
+            print("discard")
+            self.image = pygame.image.load(
+                os.path.join(os.path.dirname(__file__), "discard_test.png")).convert_alpha()
         self.rect = self.image.get_rect(center=self.rect.center)
 
     def update(self, *args, **kwargs):

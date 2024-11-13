@@ -20,6 +20,14 @@ class QLearning_Agent():
         self.epsilon = 1
         self.z = 0
 
+        # debugging  0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing, 4: Confirm, 5: Discard
+        self.num_dengue_actions = 0
+        self.num_chik_actions = 0
+        self.num_epi_actions = 0
+        self.num_nothing_actions = 0
+        self.num_confirm_actions = 0
+        self.num_discard_actions = 0
+
     def choose_action(self, state):
         if np.random.uniform(0, 1) < self.epsilon:
             action = np.random.choice(6)
@@ -71,6 +79,22 @@ class QLearning_Agent():
                 action = (id, action)
                 actions.append(action)
             obs, reward, done, info = self.step(tuple(actions))
+
+            # debugging
+            for action in actions:
+                if action[1] == 0:
+                    self.num_dengue_actions += 1
+                elif action[1] == 1:
+                    self.num_chik_actions += 1
+                elif action[1] == 2:
+                    self.num_epi_actions += 1
+                elif action[1] == 3:
+                    self.num_nothing_actions += 1
+                elif action[1] == 4:
+                    self.num_confirm_actions += 1
+                elif action[1] == 5:
+                    self.num_discard_actions += 1
+
             rewards = self.env.get_individual_rewards_at_t(_)
             for i, case in enumerate(cases_t):
                 id = self.env.get_case_id(case)
@@ -79,7 +103,7 @@ class QLearning_Agent():
                     self.q_table[state] = np.zeros(6)
                 self.update_q_table(str(self.curr_obs[-1]) + str(id), actions[i][1], reward, state)
 
-            if done:
+            if done or len(cases_t) == 0:
                 self.save_q_table(final = True)
                 break
 
@@ -87,6 +111,16 @@ class QLearning_Agent():
                 self.save_q_table()
 
         print(f"Total reward: {self.total_reward}")
+        print('Dengue:', self.num_dengue_actions)
+        print('Chik:', self.num_chik_actions)
+        print('Epi:', self.num_epi_actions)
+        print('Nothing:', self.num_nothing_actions)
+        print('Confirm:', self.num_confirm_actions)
+        print('Discard:', self.num_discard_actions)
+
+        total = self.num_dengue_actions + self.num_chik_actions + self.num_epi_actions + self.num_nothing_actions + self.num_confirm_actions + self.num_discard_actions
+
+        print('Total:', total)
         self.env.close()
 
     def play(self):
@@ -114,7 +148,7 @@ class QLearning_Agent():
 
 if __name__ == "__main__":
     # Create the environment
-    env = DengueDiagnosticsEnv(epilength=365, size=500, render_mode="human")
+    env = DengueDiagnosticsEnv(epilength=15, size=500, render_mode="human")
     # Create the agent
     agent = QLearning_Agent(env)
     # Run the simulation
