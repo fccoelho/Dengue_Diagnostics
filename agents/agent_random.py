@@ -1,5 +1,6 @@
 from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
 import numpy as np
+import pygame
 
 class AleatoryAgent:
 
@@ -39,14 +40,20 @@ class AleatoryAgent:
                 action = (id, action)
                 actions.append(action)
             obs, reward, done, info = self.step(tuple(actions))
+            self.env.render()  # This is crucial for updating the window
+            pygame.event.pump()  # Keep Pygame events flowing (avoids freezing)
+
             rewards = self.env.get_individual_rewards_at_t(_)
+
             if done:
                 break
+            # Optionally, you can add a small delay to control the speed of the simulation
+            pygame.time.delay(10)  # Adjust this value as needed
 
 
 if __name__ == "__main__":
     # Create the environment
-    env = DengueDiagnosticsEnv(epilength=50, size=500, render_mode="human")
+    env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="human")
     # Create the agent
     agent = AleatoryAgent(env)
     # Run the simulation
