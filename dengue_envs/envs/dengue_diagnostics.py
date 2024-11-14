@@ -473,10 +473,9 @@ class DengueDiagnosticsEnv(gym.Env):
                 if sprite.case_id == id:
                     sprite.mark_as_tested(int(a))
 
-
     def render(self):
         """
-        Render the environment
+        Render the environment with a legend on the right side
         """
         self._create_sprites()
         self.dengue_group.draw(self.world_surface)
@@ -498,13 +497,47 @@ class DengueDiagnosticsEnv(gym.Env):
             self.plot_surface1, (0, 500), special_flags=pygame.BLEND_ALPHA_SDL2
         )
 
-        # self.screen.blit(csurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
+        # Draw the world surface
         self.screen.blit(
             self.world_surface, (0, 0), special_flags=pygame.BLEND_ALPHA_SDL2
         )
-        # self.screen.blit(pygame.transform.scale(self.world_surface, self.screen.get_rect().size), (0,0))
+
+        # Create the legend on the right side
+        legend_x = self.screen.get_width() - 200  # X position of the legend (right side)
+        legend_y = 120  # Y position of the first legend item
+        legend_margin = 40  # Space between items in the legend
+
+        # Define image mappings and their descriptions
+        image_legend = [
+            ("dengue_test.png", "Dengue Test"),
+            ("chick_test.png", "Chik Test"),
+            ("epi_test.png", "Inconclusive"),
+            ("no_test.png", "No Test"),
+            ("confirm_test.png", "Confirm"),
+            ("discard_test.png", "Discard"),
+        ]
+
+        # Render the legend
+        for image_file, description in image_legend:
+            number_font_legend = pygame.font.SysFont(None, 18)
+
+            # Load the image
+            image = pygame.image.load(os.path.join(os.path.dirname(__file__), image_file)).convert_alpha()
+            image= pygame.transform.scale(image, (10, 10))
+            self.screen.blit(image, (legend_x, legend_y))
+
+            # Render the description text
+            legend_text = number_font_legend.render(description, True, (0, 0, 0))
+            self.screen.blit(legend_text, (legend_x + 40, legend_y))
+
+            # Move to the next item in the legend
+            legend_y += legend_margin
+
+        # Update the display
         pygame.display.update()
-        self.clock.tick(10)  # Update the elapsed time in the training
+
+        # Control the frame rate
+        self.clock.tick(10)
 
     def _create_sprites(self) -> object:
         """
