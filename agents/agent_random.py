@@ -28,7 +28,7 @@ class AleatoryAgent:
 
 
     def play(self):
-        self.curr_obs = self.reset()
+        self.env.reset()
 
         for _ in range(self.env.epilength):
             actions = []
@@ -46,7 +46,7 @@ class AleatoryAgent:
 
 if __name__ == "__main__":
     # Create the environment
-    env = DengueDiagnosticsEnv(epilength=365, size=500, render_mode="human")
+    env = DengueDiagnosticsEnv(epilength=50, size=500, render_mode="human")
     # Create the agent
     agent = AleatoryAgent(env)
     # Run the simulation

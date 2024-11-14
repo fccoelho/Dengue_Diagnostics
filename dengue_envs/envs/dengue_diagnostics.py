@@ -125,7 +125,6 @@ class DengueDiagnosticsEnv(gym.Env):
         self.cases: pd.DataFrame = self.world.get_series_up_to_t(self.t)  # True cases
         self.obs_cases = self._apply_clinical_uncertainty()  # Observed cases (after applying uncertainty)
         self.cases_t = self.obs_cases[self.obs_cases.t == self.t]  # Cases at time t
-
         self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
 
         self.testd = []
@@ -262,10 +261,8 @@ class DengueDiagnosticsEnv(gym.Env):
             is_true_chik = self.real_cases.loc[int(a[0]), "disease"] == 1
             if (a[1] == 0 and self.real_cases.loc[int(a[0]), "disease"] == 0) or (a[1] == 1 and self.real_cases.loc[int(a[0]), "disease"] == 1):
                 r = 1 + mape - self.costs[a[-1]]
-                rewards.append(r)
             else:
                 r = -1 + mape - self.costs[a[-1]]
-                rewards.append(r)
             reward -= - self.costs[a[-1]]
         self.total_reward += reward
         self.individual_rewards.append(rewards)
@@ -367,6 +364,8 @@ class DengueDiagnosticsEnv(gym.Env):
 
         self.cases = self.world.get_series_up_to_t(0)
         self.obs_cases = self._apply_clinical_uncertainty()
+        self.cases_t = self.obs_cases[self.obs_cases.t == self.t]
+        self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
 
         observation = self._get_obs()
 
@@ -393,6 +392,8 @@ class DengueDiagnosticsEnv(gym.Env):
             raise ValueError(f"Invalid action {action} for {self.action_space}")
         # get the current true state
         self.cases = self.world.get_series_up_to_t(self.t)
+        self.cases_t = self.cases[self.cases.t == self.t]
+        self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
         observation = self._get_obs()
 
         # apply the actions
@@ -434,17 +435,27 @@ class DengueDiagnosticsEnv(gym.Env):
             action,
         )
 
-        # print(f"Reward: {reward} \t Total Reward: {self.total_reward}", end="\r")
-        self.rewards.append(reward)
+        print(f"Reward: {reward} \t Total Reward: {self.total_reward}", end="\r")
+        self.rewards.append(self.total_reward)
+        self.total_reward_plot = lineplot(
+            range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1"
+        )
+
+        # Render the plot (scaled to the surface)
+        self.plot_surface1.blit(
+            pygame.transform.scale(
+                pygame.image.load(self.total_reward_plot, "PNG"), self.plot_surface1.get_rect().size
+            ),
+            (0, 0),
+        )
         if self.render_mode == "human":
             self.render()
+
         # Update the timestep
         self.t += 1
         self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
         self.cases = self.world.get_series_up_to_t(self.t)
         self.obs_cases = self._apply_clinical_uncertainty()
-        self.cases_t = self.obs_cases[self.obs_cases.t == self.t]
-        self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
         # get the next observation
         observation = self._get_obs()
         info = self._get_info()
@@ -483,28 +494,8 @@ class DengueDiagnosticsEnv(gym.Env):
             (int((self.screen.get_width() - timestep_display.get_width()) / 2), 0),
         )
 
-        # Plot learning metrics
-        plot1 = lineplot(range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1")
-        accuracy = [sum(self.rewards[:i + 1]) / (i + 1) for i in range(self.t)]
-        plot2 = lineplot(range(1, self.t + 1), accuracy, "Step", "Accuracy", "Total Accuracy", "plot2")
-
-        self.plot_surface1.blit(
-            pygame.transform.scale(
-                pygame.image.load(plot1, "PNG"), self.plot_surface1.get_rect().size
-            ),
-            (0, 0),
-        )
-        self.plot_surface2.blit(
-            pygame.transform.scale(
-                pygame.image.load(plot2, "PNG"), self.plot_surface2.get_rect().size
-            ),
-            (0, 1),
-        )
         self.screen.blit(
             self.plot_surface1, (0, 500), special_flags=pygame.BLEND_ALPHA_SDL2
-        )
-        self.screen.blit(
-            self.plot_surface2, (400, 500), special_flags=pygame.BLEND_ALPHA_SDL2
         )
 
         # self.screen.blit(csurf,(0,0), special_flags=pygame.BLEND_ALPHA_SDL2)
@@ -513,7 +504,7 @@ class DengueDiagnosticsEnv(gym.Env):
         )
         # self.screen.blit(pygame.transform.scale(self.world_surface, self.screen.get_rect().size), (0,0))
         pygame.display.update()
-        self.clock.tick()  # Update the elapsed time in the training
+        self.clock.tick(10)  # Update the elapsed time in the training
 
     def _create_sprites(self) -> object:
         """
@@ -557,27 +548,21 @@ class CaseSprite(pygame.sprite.Sprite):
         Mark the case as tested
         """
         if status == 0:  # dengue
-            print("dengue")
             self.image = pygame.image.load(
                 os.path.join(os.path.dirname(__file__),"dengue_test.png")).convert_alpha()
         elif status == 1:  # chik
-            print("chick")
             self.image = pygame.image.load(
-                os.path.join(os.path.dirname(__file__),"chik_test.png")).convert_alpha()
+                os.path.join(os.path.dirname(__file__),"chick_test.png")).convert_alpha()
         elif status == 2:  # inconclusive
-            print("epi")
             self.image = pygame.image.load(
                 os.path.join(os.path.dirname(__file__),"epi_test.png")).convert_alpha()
         elif status == 3:
-            print("no_test")
             self.image = pygame.image.load(
                 os.path.join(os.path.dirname(__file__), "no_test.png")).convert_alpha()
         elif status == 4:
-            print("confirm")
             self.image = pygame.image.load(
                 os.path.join(os.path.dirname(__file__), "confirm_test.png")).convert_alpha()
         elif status == 5:
-            print("discard")
             self.image = pygame.image.load(
                 os.path.join(os.path.dirname(__file__), "discard_test.png")).convert_alpha()
         self.rect = self.image.get_rect(center=self.rect.center)
@@ -601,16 +586,23 @@ class CaseGroup(pygame.sprite.RenderPlain):
 
 if __name__ == "__main__":
     # Test the environment
-    total_time = 360
+    total_time = 60
     env = DengueDiagnosticsEnv(epilength=total_time, size=500, render_mode="human")
     obs = env.reset()
 
-    for t in range(total_time):
-        pygame.event.get()
-        action = env.action_space.sample()  # Random action selection
-        obs, reward, done, _, info = env.step(action)
-        print(env.get_individual_rewards_at_t(t))
-        print(f"Step: {t}, Reward: {reward}, Done: {done}")
+    clock = pygame.time.Clock()
 
-        # pygame.time.wait(60)
+    for t in range(total_time):
+        try:
+            pygame.event.get()
+            action = env.action_space.sample()  # Random action selection
+            obs, reward, done, _, info = env.step(action)
+            # print(env.get_individual_rewards_at_t(t))
+            print(f"Step: {t}, Reward: {reward}, Done: {done}")
+
+            env.render()
+            clock.tick(10)
+            # pygame.time.wait(60)
+        except:
+            pass
     pygame.quit()
