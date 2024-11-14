@@ -27,38 +27,42 @@ class AleatoryAgent:
         obs, reward, done, _, info = env.step(action)
         return obs, reward, done, _, info
 
-
     def play(self):
-        self.env.reset()
+            self.env.reset()
 
-        for _ in range(self.env.epilength):
-            actions = []
-            cases_t = self.env.cases_t
-            for case in cases_t:
-                id = self.env.get_case_id(case)
-                action = self.choose_action()
-                action = (id, action)
-                actions.append(action)
-            obs, reward, done, info = self.step(tuple(actions))
-            self.env.render()  # This is crucial for updating the window
-            pygame.event.pump()  # Keep Pygame events flowing (avoids freezing)
+            for step in range(self.env.epilength):
+                actions = []
+                cases_t = self.env.cases_t
+                for case in cases_t:
+                    id = self.env.get_case_id(case)
+                    action = self.choose_action()
+                    action = (id, action)
+                    actions.append(action)
+                obs, reward, done, info = self.step(tuple(actions))
 
-            rewards = self.env.get_individual_rewards_at_t(_)
+                # Call render and handle events to prevent freezing
+                self.env.render()  # This is crucial for updating the window
+                pygame.event.pump()  # Keep Pygame events flowing (avoids freezing)
 
-            if done:
-                break
-            # Optionally, you can add a small delay to control the speed of the simulation
-            pygame.time.delay(10)  # Adjust this value as needed
+                rewards = self.env.get_individual_rewards_at_t(step)
+                if done:
+                    break
 
+                # Optionally, you can add a small delay to control the speed of the simulation
+                pygame.time.delay(10)  # Adjust this value as needed
+
+                # Save the Pygame screen at the last iteration
+                if step == self.env.epilength - 1:
+                    pygame.image.save(self.env.screen, "final_screen.png")  # Save the screen
 
 if __name__ == "__main__":
-    # Create the environment
-    env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="human")
-    # Create the agent
-    agent = AleatoryAgent(env)
-    # Run the simulation
-    agent.play()
-    # Print the total reward
-    print(f"Total reward: {agent.total_reward}")
-    # Close the environment
-    env.close()
+        # Create the environment
+        env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="human")
+        # Create the agent
+        agent = AleatoryAgent(env)
+        # Run the simulation
+        agent.play()
+        # Print the total reward
+        print(f"Total reward: {agent.total_reward}")
+        # Close the environment
+        env.close()
