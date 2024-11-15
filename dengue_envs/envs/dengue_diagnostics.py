@@ -117,10 +117,9 @@ class DengueDiagnosticsEnv(gym.Env):
         self.action_space = spaces.Sequence(
             spaces.Tuple((spaces.Discrete(2*episize), spaces.Discrete(6)))  #case id, action
         )
-        self.costs = np.array([0.5, 0.5, 0.1, 0.0, 0.0, 0.0])
+        self.costs = np.array([1, 1, 1, 0.0, 0.5, 0.5])
 
         self.real_cases = self.world.casedf.copy()
-        print(self.real_cases)
         # The lists below will be populated by the step() method, as the cases are being "generated"
         self.cases: pd.DataFrame = self.world.get_series_up_to_t(self.t)  # True cases
         self.obs_cases = self._apply_clinical_uncertainty()  # Observed cases (after applying uncertainty)
@@ -253,7 +252,7 @@ class DengueDiagnosticsEnv(gym.Env):
         # Mean absolute percentage error
         mape = np.abs(true_numdengue + true_chik - estimated_numdengue - estimated_chik) / max(1, true_numdengue + true_chik)
         accuracy_reward = 1 if mape < 0.15 else 0
-        reward = accuracy_reward
+        reward = accuracy_reward * 10
         for a in action:
             is_dengue = a[1] == 0
             is_true_dengue = self.real_cases.loc[int(a[0]), "disease"] == 0
@@ -264,6 +263,22 @@ class DengueDiagnosticsEnv(gym.Env):
             else:
                 r = -1 + mape - self.costs[a[-1]]
             reward -= - self.costs[a[-1]]
+
+            if a[1] == 0 and self.real_cases.loc[int(a[0]), "disease"] == 0:
+                r = 1 - self.costs[a[1]]
+                reward += r
+            if a[1] == 1 and self.real_cases.loc[int(a[0]), "disease"] == 1:
+                r = 1 - self.costs[a[1]]
+                reward += r
+            if a[1] == 2:
+                r = 1 - self.costs[a[1]]
+                reward += 1
+            if a[1] == 4 and self.obs_cases.loc[int(a[0]), "disease"] == self.cases.loc[int(a[0]), "disease"]:
+                reward += 1
+            if a[1] == 5:
+                reward -= 1
+
+
         self.total_reward += reward
         self.individual_rewards.append(rewards)
         return reward
@@ -441,15 +456,14 @@ class DengueDiagnosticsEnv(gym.Env):
             range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1"
         )
 
-        # Render the plot (scaled to the surface)
-        self.plot_surface1.blit(
-            pygame.transform.scale(
-                pygame.image.load(self.total_reward_plot, "PNG"), self.plot_surface1.get_rect().size
-            ),
-            (0, 0),
-        )
         if self.render_mode == "human":
             self.render()
+            self.plot_surface1.blit(
+                pygame.transform.scale(
+                    pygame.image.load(self.total_reward_plot, "PNG"), self.plot_surface1.get_rect().size
+                ),
+                (0, 0),
+            )
 
         # Update the timestep
         self.t += 1

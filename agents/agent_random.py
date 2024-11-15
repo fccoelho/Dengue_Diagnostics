@@ -1,6 +1,7 @@
 from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
 import numpy as np
 import pygame
+import matplotlib.pyplot as plt
 
 class AleatoryAgent:
 
@@ -28,35 +29,37 @@ class AleatoryAgent:
         return obs, reward, done, _, info
 
     def play(self):
-            self.env.reset()
+        self.env.reset()
 
-            for step in range(self.env.epilength):
-                actions = []
-                cases_t = self.env.cases_t
-                for case in cases_t:
-                    id = self.env.get_case_id(case)
-                    action = self.choose_action()
-                    action = (id, action)
-                    actions.append(action)
-                obs, reward, done, info = self.step(tuple(actions))
+        for step in range(self.env.epilength):
+            actions = []
+            cases_t = self.env.cases_t
+            for case in cases_t:
+                id = self.env.get_case_id(case)
+                action = self.choose_action()
+                action = (id, action)
+                actions.append(action)
+            obs, reward, done, info = self.step(tuple(actions))
 
-                # Call render and handle events to prevent freezing
-                self.env.render()  # This is crucial for updating the window
-                pygame.event.pump()  # Keep Pygame events flowing (avoids freezing)
+            # Call render and handle events to prevent freezing
+            self.env.render()  # This is crucial for updating the window
+            pygame.event.pump()  # Keep Pygame events flowing (avoids freezing)
 
-                rewards = self.env.get_individual_rewards_at_t(step)
-                if done:
-                    break
+            rewards = self.env.get_individual_rewards_at_t(step)
+            if done:
+                break
 
-                # Optionally, you can add a small delay to control the speed of the simulation
-                pygame.time.delay(10)  # Adjust this value as needed
+            # Optionally, you can add a small delay to control the speed of the simulation
+            pygame.time.delay(10)  # Adjust this value as needed
 
-                # Save the Pygame screen at the last iteration
-                if step == self.env.epilength - 1:
-                    pygame.image.save(self.env.screen, "final_screen.png")  # Save the screen
+            # Save the Pygame screen at the last iteration
+            if step == self.env.epilength - 1:
+                pygame.image.save(self.env.screen, "final_screen.png")  # Save the screen
 
 if __name__ == "__main__":
-        # Create the environment
+    history = []
+    for i in range(200):
+    # Create the environment
         env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="human")
         # Create the agent
         agent = AleatoryAgent(env)
@@ -66,3 +69,17 @@ if __name__ == "__main__":
         print(f"Total reward: {agent.total_reward}")
         # Close the environment
         env.close()
+        history.append(agent.total_reward)
+
+    plt.figure()
+    # Plot the rewards
+    plt.plot(history)
+    # Add a title
+    plt.title("Total reward per episode")
+    # Add labels to the axes
+    plt.xlabel("Episode")
+    plt.ylabel("Total reward")
+    # Display the plot
+    plt.show()
+    # save plot
+    plt.savefig("q_learning.png")
