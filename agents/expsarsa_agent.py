@@ -12,7 +12,7 @@ from line_profiler_pycharm import profile
 class ExpSarsaAgent(BaseAgent):
     def __init__(self, env):
         super().__init__()
-        self.epsilon = 0.001 # epsilon is the probability of selecting a random action
+        self.epsilon = 0.05 # epsilon is the probability of selecting a random action
         self.gamma = 1 # gamma is the discount factor for future rewards
         self.step_size = 0.5 # step_size is the learning rate
         self.env = env
@@ -38,8 +38,8 @@ class ExpSarsaAgent(BaseAgent):
                 target += (1 - self.epsilon)/len(best_actions) + self.epsilon/self.n_actions * q_next[action_]
             else:
                 target += self.epsilon/self.n_actions * q_next[action_]
-        target *= self.gamma
-        self.q_value[state] += self.step_size * (reward + target - self.q_value[state])
+            target *= self.gamma
+            self.q_value[state][action_] += self.step_size * (reward + target - self.q_value[state][action_])
         #TODO: update self.policy
         return self.q_value
 

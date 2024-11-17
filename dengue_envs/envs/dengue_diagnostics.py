@@ -246,16 +246,11 @@ class DengueDiagnosticsEnv(gym.Env):
         Calculate the reward based on the true count and the actions taken
         """
 
-        rewards = []
-
         if len(estimated) == 0:
             return 0
 
+        accuracy_reward = len(action)* (self.accuracy[-1] > 0.55)
 
-        if len(self.accuracy)<3:
-            accuracy_reward = 10* (self.accuracy[-1] > 0.56)
-        else:
-            accuracy_reward =int(self.accuracy[-1] > self.accuracy[-3])* (100* (self.accuracy[-1] - self.accuracy[-3]))
         reward = accuracy_reward - sum([self.costs[a[-1]] for a in action])
 
 
