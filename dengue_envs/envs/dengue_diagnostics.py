@@ -385,7 +385,7 @@ class DengueDiagnosticsEnv(gym.Env):
         observation = self._get_obs()
 
         info = self._get_info()
-
+        self.rewards=[]
         self.t = 1
 
         return observation, info
