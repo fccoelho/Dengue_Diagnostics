@@ -25,7 +25,7 @@ class World:
         size: size of the world
         popsize: population size
         epilength: length of the epidemic in days
-        dengue_center: center of the dengue outbreak
+        dengue_center: center of the dengue outbreak    in days
         chik_center: center of the chikungunya outbreak
         dengue_radius: radius of the dengue outbreak
         chik_radius: radius of the chikungunya outbreak

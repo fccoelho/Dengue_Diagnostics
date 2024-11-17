@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "dengue_envs"}]
 
 [tool.poetry.dependencies]
-python = "<3.13,>=3.9"
+python = "<3.13,>=3.12"
 gymnasium = "^0.29.1"
 pygame = "^2.5.1"
 scipy = "^1.11.2"

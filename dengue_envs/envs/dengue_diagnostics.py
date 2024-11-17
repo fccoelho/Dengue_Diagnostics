@@ -294,7 +294,7 @@ class DengueDiagnosticsEnv(gym.Env):
         estimated_chik = len([c for c in estimated if c[2] == 1])
 
         accuracy = (true_numdengue - estimated_numdengue) + (true_chik - estimated_chik) / len(true)
-
+        self.accuracy.append(accuracy)
         return accuracy
 
     def _get_info(self):
@@ -385,7 +385,8 @@ class DengueDiagnosticsEnv(gym.Env):
         observation = self._get_obs()
 
         info = self._get_info()
-
+        self.rewards=[]
+        self.accuracy = []
         self.t = 1
 
         return observation, info
