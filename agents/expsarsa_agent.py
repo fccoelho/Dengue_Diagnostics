@@ -51,7 +51,7 @@ class ExpSarsaAgent(BaseAgent):
             if np.random.binomial(1, self.epsilon):
                 actions.append((id, np.random.choice(self.n_actions)))
             else:
-                values_ = self.q_value[state,:]
+                values_ = self.q_value[state]
                 actions.append((id, np.random.choice(np.argwhere(values_ == np.max(values_)).flatten())))
         return tuple(actions)
 
