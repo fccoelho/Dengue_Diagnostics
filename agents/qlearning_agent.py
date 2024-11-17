@@ -126,22 +126,29 @@ class QLearning_Agent():
 
 if __name__ == "__main__":
         history = []
+        accuracy = []
         env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="console")
         agent = QLearning_Agent(env)
         for i in range(200):
             agent.run()
             print(f"Total reward: {agent.total_reward} for run {i+1}")
             history.append(agent.total_reward)
+            accuracy.append(env.accuracy[-1])
 
         # Create a new figure
-        plt.figure()
+        fig, [ax1, ax2] = plt.subplots(2,1)
         # Plot the rewards
-        plt.plot(history)
+        ax1.plot(history)
         # Add a title
-        plt.title("Total reward per episode")
+        ax1.set_title("Total reward per episode")
         # Add labels to the axes
-        plt.xlabel("Episode")
-        plt.ylabel("Total reward")
+        ax1.set_xlabel("Episode")
+        ax1.set_ylabel("Total reward")
+        ax2.plot(accuracy)
+        ax2.set_title("Accuracy per episode")
+        ax2.set_xlabel("Episode")
+        ax2.set_ylabel("Accuracy")
+
         # Display the plot
         plt.show()
         # save plot
