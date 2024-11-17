@@ -127,7 +127,7 @@ class QLearning_Agent():
 if __name__ == "__main__":
         history = []
         accuracy = []
-        env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="console")
+        env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="human")
         agent = QLearning_Agent(env)
         for i in range(200):
             agent.run()
