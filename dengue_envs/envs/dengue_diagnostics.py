@@ -28,8 +28,8 @@ class DengueDiagnosticsEnv(gym.Env):
             chik_center=(300, 300),
             dengue_radius=90,
             chik_radius=90,
-            clinical_specificity=0.8,
-            clinical_sensitivity=0.99,
+            clinical_specificity=0.7,
+            clinical_sensitivity=0.7,
             render_mode=None,
     ):
         """
