@@ -90,11 +90,11 @@ if __name__ == "__main__":
     # env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="human")
     agent = ExpSarsaAgent(env)
 
-    episodes = 30
+    episodes = 300
     history = []
     accuracy = []
-    # for e in tqdm.tqdm(range(episodes), desc="Episode"):
-    for e in range(episodes):
+    for e in tqdm.tqdm(range(episodes), desc="Episode"):
+    # for e in range(episodes):
         obs, info = env.reset()
         done = False
         while not done:
@@ -105,7 +105,7 @@ if __name__ == "__main__":
             obs = new_obs
         history.append(env.rewards[-1])
         accuracy.append(env.accuracy[-1])
-        print(f"Episode {e+1} done with reward {env.rewards[-1]} and accuracy {env.accuracy[-1]}")
+        # print(f"Episode {e+1} done with reward {env.rewards[-1]} and accuracy {env.accuracy[-1]}")
 
     plot_results(history, accuracy)
     # plt.figure()

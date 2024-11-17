@@ -127,7 +127,7 @@ class QLearning_Agent():
 if __name__ == "__main__":
         history = []
         accuracy = []
-        env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="human")
+        env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="console")
         agent = QLearning_Agent(env)
         for i in range(200):
             agent.run()
@@ -145,6 +145,7 @@ if __name__ == "__main__":
         ax1.set_xlabel("Episode")
         ax1.set_ylabel("Total reward")
         ax2.plot(accuracy)
+        ax2.grid()
         ax2.set_title("Accuracy per episode")
         ax2.set_xlabel("Episode")
         ax2.set_ylabel("Accuracy")
