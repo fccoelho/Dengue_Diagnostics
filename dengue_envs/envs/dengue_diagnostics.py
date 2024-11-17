@@ -12,6 +12,7 @@ from typing import List, Dict, Tuple, Union, Optional
 # Import simulation tools
 import gymnasium as gym
 import pygame
+from networkx.classes import edges
 
 from dengue_envs.data.generator import World
 from dengue_envs.viz import lineplot
@@ -122,7 +123,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.action_space = spaces.Sequence(
             spaces.Tuple((spaces.Discrete(2*episize), spaces.Discrete(len(self.actions))))  #case id, action
         )
-        self.costs = np.array([1, 1, 1, 0.0, 0.0, 0.5])
+        self.costs = np.array([2, 2, 2, 0.0, 0.0, 0.5])
 
         self.real_cases = self.world.casedf.copy()
         # The lists below will be populated by the step() method, as the cases are being "generated"
@@ -245,14 +246,21 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Calculate the reward based on the true count and the actions taken
         """
+        td = sum([t["disease"] == 0 for t in true])
+        tc = sum([t["disease"] == 1 for t in true])
+        ed = sum([e[2] == 0 for e in estimated])
+        ec = sum([e[2] == 1 for e in estimated])
+
+        erro_d = abs(td - ed)
+        erro_c = abs(tc - ec)
 
         if len(estimated) == 0:
             return 0
 
-        accuracy_reward = len(action)* (self.accuracy[-1] > 0.55)
+        accuracy_reward = 2.25*len(action)* self.accuracy[-1]
 
         reward = accuracy_reward - sum([self.costs[a[-1]] for a in action])
-
+        reward -= (erro_d + erro_c) / len(estimated)
 
         self.total_reward += reward
         self.individual_rewards.append(reward)
