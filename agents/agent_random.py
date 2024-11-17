@@ -58,7 +58,7 @@ class AleatoryAgent:
 
 if __name__ == "__main__":
     history = []
-    for i in range(200):
+    for i in range(1):
     # Create the environment
         env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="human")
         # Create the agent
