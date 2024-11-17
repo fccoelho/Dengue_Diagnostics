@@ -47,7 +47,7 @@ class ExpSarsaAgent(BaseAgent):
         cases_t = self.env.cases_t
         for case in cases_t:
             id = self.env.get_case_id(case)
-            state = str(info)
+            state = str(case)
             if np.random.binomial(1, self.epsilon):
                 actions.append((id, np.random.choice(self.n_actions)))
             else:
@@ -63,12 +63,16 @@ def plot_results(rewards, accuracy):
     :return:
     """
 
-    fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+    fig, ax = plt.subplots(2, 1, figsize=(12, 6))
     ax[0].plot(rewards)
-    ax[0].set_title("Rewards")
+    ax[0].set_title("Expected Sarsa Agent")
+    ax[0].grid()
+    ax[0].set_ylabel("Rewards")
     ax[1].plot(accuracy)
     ax[1].grid()
-    ax[1].set_title("Accuracy")
+    ax[1].set_ylabel("Accuracy")
+    ax[1].set_xlabel("Episodes")
+    # ax[1].set_title("Accuracy")
     plt.show()
 
 if __name__ == "__main__":
@@ -77,7 +81,7 @@ if __name__ == "__main__":
     env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="console")
     agent = ExpSarsaAgent(env)
     obs, info = env.reset()
-    episodes = 2000
+    episodes = 1000
     history = []
     accuracy = []
     for _ in tqdm.tqdm(range(episodes), desc="Episode"):
@@ -89,6 +93,9 @@ if __name__ == "__main__":
             obs = new_obs
         history.append(env.rewards[-1])
         accuracy.append(env.accuracy[-1])
+        print(f"Episode {_+1} done with reward {env.rewards[-1]} and accuracy {env.accuracy[-1]}")
 
     plot_results(history, accuracy)
+
+    # plt.pcolor(np.array(agent.q_value.values()))
 

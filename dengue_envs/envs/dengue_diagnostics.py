@@ -120,7 +120,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.action_space = spaces.Sequence(
             spaces.Tuple((spaces.Discrete(2*episize), spaces.Discrete(len(self.actions))))  #case id, action
         )
-        self.costs = np.array([1, 1, 1, 0.0, 0.5, 0.5])
+        self.costs = np.array([1, 1, 1, 0.0, 0.0, 0.5])
 
         self.real_cases = self.world.casedf.copy()
         # The lists below will be populated by the step() method, as the cases are being "generated"
@@ -282,8 +282,10 @@ class DengueDiagnosticsEnv(gym.Env):
         #         reward += 1
         #     if a[1] == 5:
         #         reward -= 1
-
-        accuracy_reward = 10* (self.accuracy[-1] > 0.85)
+        if len(self.accuracy)<2:
+            accuracy_reward = 10* (self.accuracy[-1] > 0.56)
+        else:
+            accuracy_reward = (self.accuracy[-1]>0.5)*(10* (self.accuracy[-1] - self.accuracy[-2]))
         reward = accuracy_reward - sum([self.costs[a[-1]] for a in action])
 
 
@@ -304,7 +306,7 @@ class DengueDiagnosticsEnv(gym.Env):
         tnc = 0 # True negative chik
         fnc = 0     # False negative chik
         for t, e in zip(true, estimated):
-            if t['disease'] == 0:
+            if t['disease'] == 0:  # Dengue
                 if e[2] == 0:
                     tpd += 1
                     tnc += 1
@@ -319,34 +321,6 @@ class DengueDiagnosticsEnv(gym.Env):
                     fnc += 1
                     fpd += 1
 
-        tpd = 0  # True positive dengue
-        fpd = 0  # False positive dengue
-        tnd = 0  # True negative dengue
-        fnd = 0  # False negative dengue
-        tpc = 0  # True positive chik
-        fpc = 0  # False positive chik
-        tnc = 0  # True negative chik
-        fnc = 0  # False negative chik
-        for t, e in zip(true, estimated):
-            if t['disease'] == 0:
-                if e[2] == 0:
-                    tpd += 1
-                    tnc += 1
-                else:
-                    fnd += 1
-                    fpc += 1
-            if t['disease'] == 1:
-                if e[2] == 1:
-                    tpc += 1
-                    tnd += 1
-                else:
-                    fnc += 1
-                    fpd += 1
-
-        # true_numdengue = len([c for c in true if c["disease"] == 0])
-        # estimated_numdengue = len([c for c in estimated if c[2] == 0])
-        # true_chik = len([c for c in true if c["disease"] == 1])
-        # estimated_chik = len([c for c in estimated if c[2] == 1])
 
         accuracy_dengue = (tpd + tnd) / (tpd + tnd + fpd + fnd)
         accuracy_chik = (tpc + tnc) / (tpc + tnc + fpc + fnc)
@@ -376,7 +350,7 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         if clinical_diag == 3:
             return 1
-        if self.np_random.uniform() < 0.1:  # 90% sensitivity
+        if self.np_random.uniform() < 0.01:  # 99% sensitivity
             return 3  # Inconclusive
         if self.np_random.uniform() >= 0.9:  # 90% specificity
             return 1
@@ -392,7 +366,7 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         if clinical_diag == 3:
             return 1
-        if self.np_random.uniform() < 0.1:  # 90% sensitivity
+        if self.np_random.uniform() < 0.01:  # 99% sensitivity
             return 3  # Inconclusive
         if self.np_random.uniform() >= 0.9:  # 90% specificity
             return 0
