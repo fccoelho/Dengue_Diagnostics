@@ -319,6 +319,30 @@ class DengueDiagnosticsEnv(gym.Env):
                     fnc += 1
                     fpd += 1
 
+        tpd = 0  # True positive dengue
+        fpd = 0  # False positive dengue
+        tnd = 0  # True negative dengue
+        fnd = 0  # False negative dengue
+        tpc = 0  # True positive chik
+        fpc = 0  # False positive chik
+        tnc = 0  # True negative chik
+        fnc = 0  # False negative chik
+        for t, e in zip(true, estimated):
+            if t['disease'] == 0:
+                if e[2] == 0:
+                    tpd += 1
+                    tnc += 1
+                else:
+                    fnd += 1
+                    fpc += 1
+            if t['disease'] == 1:
+                if e[2] == 1:
+                    tpc += 1
+                    tnd += 1
+                else:
+                    fnc += 1
+                    fpd += 1
+
         # true_numdengue = len([c for c in true if c["disease"] == 0])
         # estimated_numdengue = len([c for c in estimated if c[2] == 0])
         # true_chik = len([c for c in true if c["disease"] == 1])
@@ -445,6 +469,7 @@ class DengueDiagnosticsEnv(gym.Env):
             raise ValueError(f"Invalid action {action} for {self.action_space}")
         # get the current true state
         self.cases = self.world.get_series_up_to_t(self.t)
+        self.obs_cases = self._apply_clinical_uncertainty()
         self.cases_t = self.cases[self.cases.t == self.t]
         self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
         observation = self._get_obs()
@@ -475,10 +500,11 @@ class DengueDiagnosticsEnv(gym.Env):
             elif self.obs[o] == 5:  # Discard
                 self.final.append(0)
 
-        self.accuracy.append(
-            self.calc_accuracy(self.cases.to_dict(orient="records"), observation["clinical_diagnostic"]))
-        if self.render_mode == "human":
-            self.update_sprites(action)
+        self.calc_accuracy(self.cases.to_dict(orient="records"), observation["clinical_diagnostic"])
+
+        self.accuracy_plot = lineplot(
+            range(1, self.t + 1), self.accuracy, "Step", "Accuracy", "Accuracy", "plot2"
+        )
 
         # An episode is done if timestep is greter than 120
         terminated = self.t >= self.epilength + 60
@@ -499,6 +525,13 @@ class DengueDiagnosticsEnv(gym.Env):
             self.plot_surface1.blit(
                 pygame.transform.scale(
                     pygame.image.load(self.total_reward_plot, "PNG"), self.plot_surface1.get_rect().size
+                ),
+                (0, 0),
+            )
+
+            self.plot_surface2.blit(
+                pygame.transform.scale(
+                    pygame.image.load(self.accuracy_plot, "PNG"), self.plot_surface2.get_rect().size
                 ),
                 (0, 0),
             )
@@ -547,6 +580,10 @@ class DengueDiagnosticsEnv(gym.Env):
 
         self.screen.blit(
             self.plot_surface1, (0, 500), special_flags=pygame.BLEND_ALPHA_SDL2
+        )
+
+        self.screen.blit(
+            self.plot_surface2, (400, 500), special_flags=pygame.BLEND_ALPHA_SDL2
         )
 
         # Draw the world surface
