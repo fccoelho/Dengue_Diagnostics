@@ -249,43 +249,46 @@ class DengueDiagnosticsEnv(gym.Env):
         if len(estimated) == 0:
             return 0
 
-        true_numdengue = len([c for c in true if c["disease"] == 0])
-        estimated_numdengue = len([c for c in estimated if c[2] == 0])
-        true_chik = len([c for c in true if c["disease"] == 1])
-        estimated_chik = len([c for c in estimated if c[2] == 1])
+        # true_numdengue = len([c for c in true if c["disease"] == 0])
+        # estimated_numdengue = len([c for c in estimated if c[2] == 0])
+        # true_chik = len([c for c in true if c["disease"] == 1])
+        # estimated_chik = len([c for c in estimated if c[2] == 1])
+        #
+        # # Mean absolute percentage error
+        # mape = np.abs(true_numdengue + true_chik - estimated_numdengue - estimated_chik) / max(1, true_numdengue + true_chik)
+        # accuracy_reward = 1 if mape < 0.15 else 0
+        # reward = accuracy_reward * 10
+        # for a in action:
+        #     is_dengue = a[1] == 0
+        #     is_true_dengue = self.real_cases.loc[int(a[0]), "disease"] == 0
+        #     is_chik = a[1] == 1
+        #     is_true_chik = self.real_cases.loc[int(a[0]), "disease"] == 1
+        #     if (a[1] == 0 and self.real_cases.loc[int(a[0]), "disease"] == 0) or (a[1] == 1 and self.real_cases.loc[int(a[0]), "disease"] == 1):
+        #         r = 1 + mape - self.costs[a[-1]]
+        #     else:
+        #         r = -1 + mape - self.costs[a[-1]]
+        #     reward -= - self.costs[a[-1]]
+        #
+        #     if a[1] == 0 and self.real_cases.loc[int(a[0]), "disease"] == 0:
+        #         r = 1 - self.costs[a[1]]
+        #         reward += r
+        #     if a[1] == 1 and self.real_cases.loc[int(a[0]), "disease"] == 1:
+        #         r = 1 - self.costs[a[1]]
+        #         reward += r
+        #     if a[1] == 2:
+        #         r = 1 - self.costs[a[1]]
+        #         reward += 1
+        #     if a[1] == 4 and self.obs_cases.loc[int(a[0]), "disease"] == self.cases.loc[int(a[0]), "disease"]:
+        #         reward += 1
+        #     if a[1] == 5:
+        #         reward -= 1
 
-        # Mean absolute percentage error
-        mape = np.abs(true_numdengue + true_chik - estimated_numdengue - estimated_chik) / max(1, true_numdengue + true_chik)
-        accuracy_reward = 1 if mape < 0.15 else 0
-        reward = accuracy_reward * 10
-        for a in action:
-            is_dengue = a[1] == 0
-            is_true_dengue = self.real_cases.loc[int(a[0]), "disease"] == 0
-            is_chik = a[1] == 1
-            is_true_chik = self.real_cases.loc[int(a[0]), "disease"] == 1
-            if (a[1] == 0 and self.real_cases.loc[int(a[0]), "disease"] == 0) or (a[1] == 1 and self.real_cases.loc[int(a[0]), "disease"] == 1):
-                r = 1 + mape - self.costs[a[-1]]
-            else:
-                r = -1 + mape - self.costs[a[-1]]
-            reward -= - self.costs[a[-1]]
-
-            if a[1] == 0 and self.real_cases.loc[int(a[0]), "disease"] == 0:
-                r = 1 - self.costs[a[1]]
-                reward += r
-            if a[1] == 1 and self.real_cases.loc[int(a[0]), "disease"] == 1:
-                r = 1 - self.costs[a[1]]
-                reward += r
-            if a[1] == 2:
-                r = 1 - self.costs[a[1]]
-                reward += 1
-            if a[1] == 4 and self.obs_cases.loc[int(a[0]), "disease"] == self.cases.loc[int(a[0]), "disease"]:
-                reward += 1
-            if a[1] == 5:
-                reward -= 1
+        accuracy_reward = 10* (self.accuracy[-1] > 0.85)
+        reward = accuracy_reward - sum([self.costs[a[-1]] for a in action])
 
 
         self.total_reward += reward
-        self.individual_rewards.append(rewards)
+        self.individual_rewards.append(reward)
         return reward
 
     def calc_accuracy(self, true, estimated):

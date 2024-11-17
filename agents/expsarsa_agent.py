@@ -67,6 +67,7 @@ def plot_results(rewards, accuracy):
     ax[0].plot(rewards)
     ax[0].set_title("Rewards")
     ax[1].plot(accuracy)
+    ax[1].grid()
     ax[1].set_title("Accuracy")
     plt.show()
 
@@ -76,7 +77,7 @@ if __name__ == "__main__":
     env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="console")
     agent = ExpSarsaAgent(env)
     obs, info = env.reset()
-    episodes = 500
+    episodes = 2000
     history = []
     accuracy = []
     for _ in tqdm.tqdm(range(episodes), desc="Episode"):
