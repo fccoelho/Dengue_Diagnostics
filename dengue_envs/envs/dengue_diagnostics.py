@@ -29,6 +29,7 @@ class DengueDiagnosticsEnv(gym.Env):
             dengue_radius=90,
             chik_radius=90,
             clinical_specificity=0.8,
+            clinical_sensitivity=0.99,
             render_mode=None,
     ):
         """
@@ -44,7 +45,7 @@ class DengueDiagnosticsEnv(gym.Env):
             clinical_specificity: specificity of the clinical diagnosis
             render_mode: render mode
         """
-        self.t = 0  # timestep
+        self.t = 1  # timestep
 
         self.size = size
         self.episize = episize
@@ -54,6 +55,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.dengue_radius = dengue_radius
         self.chik_radius = chik_radius
         self.clinical_specificity = clinical_specificity
+        self.clinical_sensitivity = clinical_sensitivity
 
         self.world = World(
             self.size,
@@ -114,8 +116,9 @@ class DengueDiagnosticsEnv(gym.Env):
         )
 
         # We have 6 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "Do nothing", confirm, discard
+        self.actions = ["testd", "testc", "epiconf", "nothing", "confirm", "discard"]
         self.action_space = spaces.Sequence(
-            spaces.Tuple((spaces.Discrete(2*episize), spaces.Discrete(6)))  #case id, action
+            spaces.Tuple((spaces.Discrete(2*episize), spaces.Discrete(len(self.actions))))  #case id, action
         )
         self.costs = np.array([1, 1, 1, 0.0, 0.5, 0.5])
 
@@ -215,10 +218,12 @@ class DengueDiagnosticsEnv(gym.Env):
     def _apply_clinical_uncertainty(self):
         """
         Apply clinical uncertainty to the observations: Observations are subject to misdiagnosis based on the clinical specificity
+        and sensitivity of the clinical assessment.
+        returns: A dataframe of observed cases
         """
         obs_case_df = copy.deepcopy(self.cases)  # Copy of the true cases
         for case in obs_case_df.iterrows():
-            if self.np_random.uniform() < 0.01:
+            if self.np_random.uniform() > self.clinical_sensitivity:
                 case[1].disease = 2  # Other disease
                 continue
             if case[1].disease == 0:
@@ -287,15 +292,43 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Calculate the accuracy of the estimated cases
         """
+        tpd = 0 # True positive dengue
+        fpd = 0 # False positive dengue
+        tnd = 0 # True negative dengue
+        fnd = 0 # False negative dengue
+        tpc = 0 # True positive chik
+        fpc = 0 # False positive chik
+        tnc = 0 # True negative chik
+        fnc = 0     # False negative chik
+        for t, e in zip(true, estimated):
+            if t['disease'] == 0:
+                if e[2] == 0:
+                    tpd += 1
+                    tnc += 1
+                else:
+                    fnd += 1
+                    fpc += 1
+            if t['disease'] == 1:
+                if e[2] == 1:
+                    tpc += 1
+                    tnd += 1
+                else:
+                    fnc += 1
+                    fpd += 1
 
-        true_numdengue = len([c for c in true if c["disease"] == 0])
-        estimated_numdengue = len([c for c in estimated if c[2] == 0])
-        true_chik = len([c for c in true if c["disease"] == 1])
-        estimated_chik = len([c for c in estimated if c[2] == 1])
+        # true_numdengue = len([c for c in true if c["disease"] == 0])
+        # estimated_numdengue = len([c for c in estimated if c[2] == 0])
+        # true_chik = len([c for c in true if c["disease"] == 1])
+        # estimated_chik = len([c for c in estimated if c[2] == 1])
 
-        accuracy = (true_numdengue - estimated_numdengue) + (true_chik - estimated_chik) / len(true)
-        self.accuracy.append(accuracy)
-        return accuracy
+        accuracy_dengue = (tpd + tnd) / (tpd + tnd + fpd + fnd)
+        accuracy_chik = (tpc + tnc) / (tpc + tnc + fpc + fnc)
+
+        mean_accuracy = (accuracy_dengue + accuracy_chik) / 2
+
+        # accuracy = (true_numdengue - estimated_numdengue) + (true_chik - estimated_chik) / len(true)
+        self.accuracy.append(mean_accuracy)
+        return mean_accuracy
 
     def _get_info(self):
         """
@@ -321,7 +354,7 @@ class DengueDiagnosticsEnv(gym.Env):
         if self.np_random.uniform() >= 0.9:  # 90% specificity
             return 1
         else:
-            return 2
+            return 0 # Dengue positive
 
     def _chik_lab_test(self, clinical_diag):
         """
@@ -335,9 +368,9 @@ class DengueDiagnosticsEnv(gym.Env):
         if self.np_random.uniform() < 0.1:  # 90% sensitivity
             return 3  # Inconclusive
         if self.np_random.uniform() >= 0.9:  # 90% specificity
-            return 1
+            return 0
         else:
-            return 2
+            return 1 # Chikungunya positive
 
     def _update_case_status(self, action, index, result):
         if action == 0:
@@ -377,7 +410,7 @@ class DengueDiagnosticsEnv(gym.Env):
                 self.chik_radius,
             )
 
-        self.cases = self.world.get_series_up_to_t(0)
+        self.cases = self.world.get_series_up_to_t(self.t)
         self.obs_cases = self._apply_clinical_uncertainty()
         self.cases_t = self.obs_cases[self.obs_cases.t == self.t]
         self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
@@ -402,6 +435,7 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Apply the actions for every case at the current timestep (t)
         and the returns the observation(state at t+1), reward, termination status and info
+         ["testd", "testc", "epiconf", "tnot", "nothing", "confirm", "discard"]
         action: [list of decisions (2-tuples) for all current cases]: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing, 4: Confirm, 5: Discard
         """
         if not self.action_space.contains(action):
@@ -440,8 +474,8 @@ class DengueDiagnosticsEnv(gym.Env):
 
         self.accuracy.append(
             self.calc_accuracy(self.cases.to_dict(orient="records"), observation["clinical_diagnostic"]))
-
-        self.update_sprites(action) if self.render_mode == "human" else None
+        if self.render_mode == "human":
+            self.update_sprites(action)
 
         # An episode is done if timestep is greter than 120
         terminated = self.t >= self.epilength + 60
