@@ -257,7 +257,7 @@ class DengueDiagnosticsEnv(gym.Env):
         if len(estimated) == 0:
             return 0
 
-        accuracy_reward = 2.25*len(action)* self.accuracy[-1]
+        accuracy_reward = 2.0*len(action)* self.accuracy[-1]
 
         reward = accuracy_reward - sum([self.costs[a[-1]] for a in action])
         reward -= (erro_d + erro_c) / len(estimated)

@@ -27,9 +27,9 @@ class ExpSarsaAgent(BaseAgent):
         :return:
         """
         if isinstance(state, dict):
-            state =state['clinical_diagnostic']
+            state = self._prep_state(state['clinical_diagnostic'])
         if isinstance(new_state, dict):
-            new_state = new_state['clinical_diagnostic']
+            new_state = self._prep_state(new_state['clinical_diagnostic'])
         target = 0
         q_next = self.q_value[new_state]
         best_actions = np.argwhere(q_next == np.max(q_next)).flatten()
@@ -52,8 +52,8 @@ class ExpSarsaAgent(BaseAgent):
         :return:
         """
         actions = []
-        cases_t = self.env.cases_t
-        state = obs['clinical_diagnostic']
+        cases_t = obs['clinical_diagnostic']
+        state = self._prep_state(cases_t)
         for case in cases_t:
             id = self.env.get_case_id(case)
             if np.random.binomial(1, self.epsilon):
@@ -62,6 +62,19 @@ class ExpSarsaAgent(BaseAgent):
                 values_ = self.q_value[state]
                 actions.append((id, np.random.choice(np.argwhere(values_ == np.max(values_)).flatten())))
         return tuple(actions)
+
+    def _prep_state(self, cases_t):
+        """
+        Prepare the state for the q-value table.
+        state = (t, num_cases_d, num_cases_c, num_cases_o)
+        :param cases_t: List of cases at time t
+        """
+        num_cases_d = sum([e[2] == 0 for e in cases_t])
+        num_cases_c = sum([e[2] == 1 for e in cases_t])
+        num_cases_o = sum([e[2] == 3 for e in cases_t])
+        state = (self.env.t, num_cases_d, num_cases_c, num_cases_o)
+        return state
+
 
 def plot_results(rewards, accuracy):
     """
@@ -90,7 +103,7 @@ if __name__ == "__main__":
     # env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="human")
     agent = ExpSarsaAgent(env)
 
-    episodes = 30000
+    episodes = 00
     history = []
     accuracy = []
     for e in tqdm.tqdm(range(episodes), desc="Episode"):
