@@ -156,7 +156,8 @@ class DengueDiagnosticsEnv(gym.Env):
         if self.render_mode is not None:
             self._render_init(mode=self.render_mode)
 
-        self.individual_rewards = [[0]]
+        self.individual_rewards = [0]
+        self.episode_accuracy = [0]
 
     def seed(self, seed: Optional[int] = None) -> List[int]:
         """
@@ -242,9 +243,13 @@ class DengueDiagnosticsEnv(gym.Env):
 
         return obs_case_df
 
-    def _calc_reward(self, true, estimated, action):
+    def _calc_reward(self, true, estimated, action, done):
         """
         Calculate the reward based on the true count and the actions taken
+        :param true: List of true cases
+        :param estimated: List of estimated cases
+        :param action: List of actions taken
+        :param done: If the episode is done
         """
         td = sum([t["disease"] == 0 for t in true])
         tc = sum([t["disease"] == 1 for t in true])
@@ -257,13 +262,22 @@ class DengueDiagnosticsEnv(gym.Env):
         if len(estimated) == 0:
             return 0
 
-        accuracy_reward = 2.0*len(action)* self.accuracy[-1]
+        # accuracy_reward = 2.0*len(action)* self.accuracy[-1]
+        if done:
+            if self.accuracy[-1] > 0.5:
+                accuracy_reward = 5000
+            elif self.accuracy[-1] > 0.52:
+                accuracy_reward = 10000
+            else:
+                accuracy_reward =  0
+        else:
+            accuracy_reward = 0
 
         reward = accuracy_reward - sum([self.costs[a[-1]] for a in action])
         reward -= (erro_d + erro_c) / len(estimated)
 
         self.total_reward += reward
-        self.individual_rewards.append(reward)
+
         return reward
 
     def calc_accuracy(self, true, estimated):
@@ -306,6 +320,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
         # accuracy = (true_numdengue - estimated_numdengue) + (true_chik - estimated_chik) / len(true)
         self.accuracy.append(mean_accuracy)
+
         return mean_accuracy
 
     def _get_info(self):
@@ -451,7 +466,7 @@ class DengueDiagnosticsEnv(gym.Env):
             elif self.obs[o] == 5:  # Discard
                 self.final.append(0)
 
-        self.calc_accuracy(self.cases.to_dict(orient="records"), observation["clinical_diagnostic"])
+        accuracy = self.calc_accuracy(self.cases.to_dict(orient="records"), observation["clinical_diagnostic"])
 
 
 
@@ -460,10 +475,14 @@ class DengueDiagnosticsEnv(gym.Env):
         reward = self._calc_reward(
             self.cases.to_dict(orient="records"),
             observation["clinical_diagnostic"],
-            action,
+            action, done
         )
         # print(f"Reward: {reward} \t Total Reward: {self.total_reward}", end="\r")
         self.rewards.append(self.total_reward)
+
+        if done:
+            self.episode_accuracy.append(accuracy)
+            self.individual_rewards.append(reward)
 
 
         if self.render_mode == "human":

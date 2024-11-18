@@ -88,7 +88,7 @@ def plot_results(rewards, accuracy):
     ax[0].plot(rewards)
     ax[0].set_title("Expected Sarsa Agent")
     ax[0].grid()
-    ax[0].set_ylabel("Rewards")
+    ax[0].set_ylabel("Rewards per episode")
     ax[1].plot(accuracy)
     ax[1].grid()
     ax[1].set_ylabel("Accuracy")
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     # env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="human")
     agent = ExpSarsaAgent(env)
 
-    episodes = 00
+    episodes = 1000
     history = []
     accuracy = []
     for e in tqdm.tqdm(range(episodes), desc="Episode"):
@@ -116,13 +116,15 @@ if __name__ == "__main__":
             new_obs, reward, done, _, info = env.step(action)
             agent.update_policy(obs, action, new_obs, reward)
             obs = new_obs
-        history.append(env.rewards[-1])
-        accuracy.append(env.accuracy[-1])
+
+        accuracy.append(np.mean(env.accuracy))
         print(f"Episode {e+1} done with reward {env.rewards[-1]:.4f} and accuracy {env.accuracy[-1]:.4f}")
 
-    plot_results(history, accuracy)
-    # plt.figure()
-    # qtable = np.array(list(agent.q_value.values()))
-    # plt.imshow(qtable)
-    # plt.show()
+    plot_results(env.individual_rewards, accuracy)
+    plt.figure()
+    qtable = [np.std(qv) for qv in agent.q_value.values()]
+    plt.bar(range(len(qtable)), qtable)
+    plt.title("Standard Deviation of Q-Values")
+    plt.xlabel("States")
+    plt.show()
 
