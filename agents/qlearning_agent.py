@@ -111,7 +111,7 @@ class QLearning_Agent():
             self.z += len(cases_t)
             for case in cases_t:
                 id = self.env.get_case_id(case)
-                state = str(self.curr_obs[-1]) + str(id)
+                state = str(self.curr_obs[-1]) #+ str(id)
                 if state not in self.q_table:
                     self.q_table[state] = np.zeros(6)
                 action = np.argmax(self.q_table[state])
@@ -145,6 +145,7 @@ if __name__ == "__main__":
         ax1.set_xlabel("Episode")
         ax1.set_ylabel("Total reward")
         ax2.plot(accuracy)
+        ax2.grid()
         ax2.set_title("Accuracy per episode")
         ax2.set_xlabel("Episode")
         ax2.set_ylabel("Accuracy")

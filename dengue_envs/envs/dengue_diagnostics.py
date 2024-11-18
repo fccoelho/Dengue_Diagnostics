@@ -2,6 +2,8 @@
 import copy
 import os
 import time
+from line_profiler_pycharm import profile
+
 
 import numpy as np
 import pandas as pd
@@ -10,6 +12,7 @@ from typing import List, Dict, Tuple, Union, Optional
 # Import simulation tools
 import gymnasium as gym
 import pygame
+from networkx.classes import edges
 
 from dengue_envs.data.generator import World
 from dengue_envs.viz import lineplot
@@ -28,7 +31,8 @@ class DengueDiagnosticsEnv(gym.Env):
             chik_center=(300, 300),
             dengue_radius=90,
             chik_radius=90,
-            clinical_specificity=0.8,
+            clinical_specificity=0.7,
+            clinical_sensitivity=0.7,
             render_mode=None,
     ):
         """
@@ -44,7 +48,7 @@ class DengueDiagnosticsEnv(gym.Env):
             clinical_specificity: specificity of the clinical diagnosis
             render_mode: render mode
         """
-        self.t = 0  # timestep
+        self.t = 1  # timestep
 
         self.size = size
         self.episize = episize
@@ -54,6 +58,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.dengue_radius = dengue_radius
         self.chik_radius = chik_radius
         self.clinical_specificity = clinical_specificity
+        self.clinical_sensitivity = clinical_sensitivity
 
         self.world = World(
             self.size,
@@ -114,10 +119,11 @@ class DengueDiagnosticsEnv(gym.Env):
         )
 
         # We have 6 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "Do nothing", confirm, discard
+        self.actions = ["testd", "testc", "epiconf", "nothing", "confirm", "discard"]
         self.action_space = spaces.Sequence(
-            spaces.Tuple((spaces.Discrete(2*episize), spaces.Discrete(6)))  #case id, action
+            spaces.Tuple((spaces.Discrete(2*episize), spaces.Discrete(len(self.actions))))  #case id, action
         )
-        self.costs = np.array([1, 1, 1, 0.0, 0.5, 0.5])
+        self.costs = np.array([2, 2, 2, 0.0, 0.0, 0.5])
 
         self.real_cases = self.world.casedf.copy()
         # The lists below will be populated by the step() method, as the cases are being "generated"
@@ -150,7 +156,8 @@ class DengueDiagnosticsEnv(gym.Env):
         if self.render_mode is not None:
             self._render_init(mode=self.render_mode)
 
-        self.individual_rewards = [[0]]
+        self.individual_rewards = [0]
+        self.episode_accuracy = [0]
 
     def seed(self, seed: Optional[int] = None) -> List[int]:
         """
@@ -167,7 +174,7 @@ class DengueDiagnosticsEnv(gym.Env):
     def get_case_id(self, case):
         x = case[0]
         y = case[1]
-        return self.real_cases[(self.real_cases.x == x) & (self.real_cases.y == y)].index[0]
+        return self.real_cases.loc[(self.real_cases.x == x) & (self.real_cases.y == y)].index[0]
 
     def get_case_xy(self, case_id):
         return self.real_cases.loc[case_id, ["x", "y"]].values
@@ -215,10 +222,12 @@ class DengueDiagnosticsEnv(gym.Env):
     def _apply_clinical_uncertainty(self):
         """
         Apply clinical uncertainty to the observations: Observations are subject to misdiagnosis based on the clinical specificity
+        and sensitivity of the clinical assessment.
+        returns: A dataframe of observed cases
         """
         obs_case_df = copy.deepcopy(self.cases)  # Copy of the true cases
         for case in obs_case_df.iterrows():
-            if self.np_random.uniform() < 0.01:
+            if self.np_random.uniform() > self.clinical_sensitivity:
                 case[1].disease = 2  # Other disease
                 continue
             if case[1].disease == 0:
@@ -234,73 +243,62 @@ class DengueDiagnosticsEnv(gym.Env):
 
         return obs_case_df
 
-    def _calc_reward(self, true, estimated, action):
+    def _calc_reward(self, true, estimated, action, done):
         """
         Calculate the reward based on the true count and the actions taken
+        :param true: List of true cases
+        :param estimated: List of estimated cases
+        :param action: List of actions taken
+        :param done: If the episode is done
         """
+        td = sum([t["disease"] == 0 for t in true])
+        tc = sum([t["disease"] == 1 for t in true])
+        ed = sum([e[2] == 0 for e in estimated])
+        ec = sum([e[2] == 1 for e in estimated])
 
-        rewards = []
+        erro_d = abs(td - ed)
+        erro_c = abs(tc - ec)
 
         if len(estimated) == 0:
             return 0
 
-        true_numdengue = len([c for c in true if c["disease"] == 0])
-        estimated_numdengue = len([c for c in estimated if c[2] == 0])
-        true_chik = len([c for c in true if c["disease"] == 1])
-        estimated_chik = len([c for c in estimated if c[2] == 1])
-
-        # Mean absolute percentage error
-        mape = np.abs(true_numdengue + true_chik - estimated_numdengue - estimated_chik) / max(1, true_numdengue + true_chik)
-        accuracy_reward = 1 if mape < 0.15 else 0
-        reward = accuracy_reward * 10
-        for a in action:
-            is_dengue = a[1] == 0
-            is_true_dengue = self.real_cases.loc[int(a[0]), "disease"] == 0
-            is_chik = a[1] == 1
-            is_true_chik = self.real_cases.loc[int(a[0]), "disease"] == 1
-            if (a[1] == 0 and self.real_cases.loc[int(a[0]), "disease"] == 0) or (a[1] == 1 and self.real_cases.loc[int(a[0]), "disease"] == 1):
-                r = 1 + mape - self.costs[a[-1]]
+        # accuracy_reward = 2.0*len(action)* self.accuracy[-1]
+        if done:
+            if self.accuracy[-1] > 0.5:
+                accuracy_reward = 5000
+            elif self.accuracy[-1] > 0.52:
+                accuracy_reward = 10000
             else:
-                r = -1 + mape - self.costs[a[-1]]
-            reward -= - self.costs[a[-1]]
+                accuracy_reward =  0
+        else:
+            accuracy_reward = 0
 
-            if a[1] == 0 and self.real_cases.loc[int(a[0]), "disease"] == 0:
-                r = 1 - self.costs[a[1]]
-                reward += r
-            if a[1] == 1 and self.real_cases.loc[int(a[0]), "disease"] == 1:
-                r = 1 - self.costs[a[1]]
-                reward += r
-            if a[1] == 2:
-                r = 1 - self.costs[a[1]]
-                reward += 1
-            if a[1] == 4 and self.obs_cases.loc[int(a[0]), "disease"] == self.cases.loc[int(a[0]), "disease"]:
-                reward += 1
-            if a[1] == 5:
-                reward -= 1
-
+        reward = accuracy_reward - sum([self.costs[a[-1]] for a in action])
+        reward -= (erro_d + erro_c) / len(estimated)
 
         self.total_reward += reward
-        self.individual_rewards.append(rewards)
+
         return reward
 
     def calc_accuracy(self, true, estimated):
         """
         Calculate the accuracy of the estimated cases
         """
-
-        tpd = 0  # True positive dengue
-        fpd = 0  # False positive dengue
-        tnd = 0  # True negative dengue
-        fnd = 0  # False negative dengue
-        tpc = 0  # True positive chik
-        fpc = 0  # False positive chik
-        tnc = 0  # True negative chik
-        fnc = 0  # False negative chik
+        tpd = 0 # True positive dengue
+        fpd = 0 # False positive dengue
+        tnd = 0 # True negative dengue
+        fnd = 0 # False negative dengue
+        tpc = 0 # True positive chik
+        fpc = 0 # False positive chik
+        tnc = 0 # True negative chik
+        fnc = 0     # False negative chik
         for t, e in zip(true, estimated):
-            if t['disease'] == 0:
+            if t['disease'] == 0:  # Dengue
                 if e[2] == 0:
                     tpd += 1
                     tnc += 1
+                elif e[2] == 3:
+                    fnd += 1
                 else:
                     fnd += 1
                     fpc += 1
@@ -308,14 +306,12 @@ class DengueDiagnosticsEnv(gym.Env):
                 if e[2] == 1:
                     tpc += 1
                     tnd += 1
+                elif e[2] == 3:
+                    fnc += 1
                 else:
                     fnc += 1
                     fpd += 1
 
-        # true_numdengue = len([c for c in true if c["disease"] == 0])
-        # estimated_numdengue = len([c for c in estimated if c[2] == 0])
-        # true_chik = len([c for c in true if c["disease"] == 1])
-        # estimated_chik = len([c for c in estimated if c[2] == 1])
 
         accuracy_dengue = (tpd + tnd) / (tpd + tnd + fpd + fnd)
         accuracy_chik = (tpc + tnc) / (tpc + tnc + fpc + fnc)
@@ -324,6 +320,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
         # accuracy = (true_numdengue - estimated_numdengue) + (true_chik - estimated_chik) / len(true)
         self.accuracy.append(mean_accuracy)
+
         return mean_accuracy
 
     def _get_info(self):
@@ -345,12 +342,12 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         if clinical_diag == 3:
             return 1
-        if self.np_random.uniform() < 0.1:  # 90% sensitivity
+        if self.np_random.uniform() < 0.01:  # 99% sensitivity
             return 3  # Inconclusive
         if self.np_random.uniform() >= 0.9:  # 90% specificity
             return 1
         else:
-            return 2
+            return 0 # Dengue positive
 
     def _chik_lab_test(self, clinical_diag):
         """
@@ -361,12 +358,12 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         if clinical_diag == 3:
             return 1
-        if self.np_random.uniform() < 0.1:  # 90% sensitivity
+        if self.np_random.uniform() < 0.01:  # 99% sensitivity
             return 3  # Inconclusive
         if self.np_random.uniform() >= 0.9:  # 90% specificity
-            return 1
+            return 0
         else:
-            return 2
+            return 1 # Chikungunya positive
 
     def _update_case_status(self, action, index, result):
         if action == 0:
@@ -406,7 +403,7 @@ class DengueDiagnosticsEnv(gym.Env):
                 self.chik_radius,
             )
 
-        self.cases = self.world.get_series_up_to_t(0)
+        self.cases = self.world.get_series_up_to_t(self.t)
         self.obs_cases = self._apply_clinical_uncertainty()
         self.cases_t = self.obs_cases[self.obs_cases.t == self.t]
         self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
@@ -426,11 +423,12 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         return self.individual_rewards[t]
 
-
+    @profile
     def step(self, action):
         """
         Apply the actions for every case at the current timestep (t)
         and the returns the observation(state at t+1), reward, termination status and info
+         ["testd", "testc", "epiconf", "tnot", "nothing", "confirm", "discard"]
         action: [list of decisions (2-tuples) for all current cases]: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing, 4: Confirm, 5: Discard
         """
         if not self.action_space.contains(action):
@@ -468,29 +466,32 @@ class DengueDiagnosticsEnv(gym.Env):
             elif self.obs[o] == 5:  # Discard
                 self.final.append(0)
 
-        self.calc_accuracy(self.cases.to_dict(orient="records"), observation["clinical_diagnostic"])
+        accuracy = self.calc_accuracy(self.cases.to_dict(orient="records"), observation["clinical_diagnostic"])
 
-        self.accuracy_plot = lineplot(
-            range(1, self.t + 1), self.accuracy, "Step", "Accuracy", "Accuracy", "plot2"
-        )
 
-        self.update_sprites(action) if self.render_mode == "human" else None
 
         # An episode is done if timestep is greter than 120
-        terminated = self.t >= self.epilength + 60
+        done = len(self.cases_t)==0#self.t >= self.epilength + 60
         reward = self._calc_reward(
             self.cases.to_dict(orient="records"),
             observation["clinical_diagnostic"],
-            action,
+            action, done
         )
-
-        print(f"Reward: {reward} \t Total Reward: {self.total_reward}", end="\r")
+        # print(f"Reward: {reward} \t Total Reward: {self.total_reward}", end="\r")
         self.rewards.append(self.total_reward)
-        self.total_reward_plot = lineplot(
-            range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1"
-        )
+
+        if done:
+            self.episode_accuracy.append(accuracy)
+            self.individual_rewards.append(reward)
+
 
         if self.render_mode == "human":
+            self.total_reward_plot = lineplot(
+                range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1"
+            )
+            self.accuracy_plot = lineplot(
+                range(1, self.t + 1), self.accuracy, "Step", "Accuracy", "Accuracy", "plot2"
+            )
             self.render()
             self.plot_surface1.blit(
                 pygame.transform.scale(
@@ -514,7 +515,7 @@ class DengueDiagnosticsEnv(gym.Env):
         # get the next observation
         observation = self._get_obs()
         info = self._get_info()
-        return observation, reward, terminated, False, info
+        return observation, reward, done, False, info
 
     def update_sprites(self, actions):
         # Update the sprites in the dengue group
