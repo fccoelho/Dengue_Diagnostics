@@ -413,9 +413,18 @@ class DengueDiagnosticsEnv(gym.Env):
 
         observation = self._get_obs()
 
+        space_shape = self.observation_space.spaces["clinical_diagnostic"].shape
+
         info = self._get_info()
         self.rewards=[]
         self.accuracy = []
+
+        for key in observation.keys():
+            # turn each tuple into a space.Sequence
+            observation[key] = None
+
+        self.total_reward = 0
+
         self.t = 1
 
         return observation, info
@@ -597,6 +606,15 @@ class DengueDiagnosticsEnv(gym.Env):
 
         # Control the frame rate
         self.clock.tick(10)
+
+
+    def close(self):
+        """
+        Close the environment
+        """
+        if self.render_mode == "human":
+            pygame.quit()
+
 
     def _create_sprites(self) -> object:
         """
