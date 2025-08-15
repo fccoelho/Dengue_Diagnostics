@@ -42,25 +42,25 @@ class AleatoryAgent:
             obs, reward, done, info = self.step(tuple(actions))
 
             # Call render and handle events to prevent freezing
-            self.env.render()  # This is crucial for updating the window
-            pygame.event.pump()  # Keep Pygame events flowing (avoids freezing)
+            # self.env.render()  # This is crucial for updating the window
+            # pygame.event.pump()  # Keep Pygame events flowing (avoids freezing)
 
             rewards = self.env.get_individual_rewards_at_t(step)
             if done:
                 break
 
             # Optionally, you can add a small delay to control the speed of the simulation
-            pygame.time.delay(10)  # Adjust this value as needed
+            # pygame.time.delay(10)  # Adjust this value as needed
 
             # Save the Pygame screen at the last iteration
-            if step == self.env.epilength - 1:
-                pygame.image.save(self.env.screen, "final_screen.png")  # Save the screen
+            # if step == self.env.epilength - 1:
+                # pygame.image.save(self.env.screen, "final_screen.png")  # Save the screen
 
 if __name__ == "__main__":
     history = []
     for i in range(1):
     # Create the environment
-        env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="human")
+        env = DengueDiagnosticsEnv(epilength=12, size=500)
         # Create the agent
         agent = AleatoryAgent(env)
         # Run the simulation
