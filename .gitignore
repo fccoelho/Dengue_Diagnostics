@@ -160,4 +160,4 @@ cython_debug/
 #.idea/
 /.idea
 .idea/misc.xml
-/agents/tianshou-examples.ipynb
+/agents/deepq/files/tianshou-examples.ipynb

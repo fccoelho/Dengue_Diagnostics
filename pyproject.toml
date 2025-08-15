@@ -17,6 +17,7 @@ pandas = "^2.1.1"
 torch = "^2.1.0"
 tensorboard = "^2.15.1"
 tqdm = "^4.66.1"
+notebook = "^7.3.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.1"
