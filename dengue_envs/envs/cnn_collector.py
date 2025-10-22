@@ -50,6 +50,8 @@ def generate_actions_from_q_maps(
 
         processed_actions.append(tuple(actions_for_this_env))
 
+        print(processed_actions)
+
     return processed_actions
 
 
