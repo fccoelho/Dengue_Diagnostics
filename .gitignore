@@ -161,3 +161,4 @@ cython_debug/
 /.idea
 .idea/misc.xml
 /agents/deepq/files/tianshou-examples.ipynb
+/agents/deepq/files/dqn_dengue_policy.pth
