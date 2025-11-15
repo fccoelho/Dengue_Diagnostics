@@ -698,3 +698,7 @@ if __name__ == "__main__":
         except:
             pass
     pygame.quit()
+
+
+# TODO fazer com o delay na recompensa
+# TODO avaliar em intervalos maiores
