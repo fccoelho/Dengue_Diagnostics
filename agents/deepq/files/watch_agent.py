@@ -10,7 +10,7 @@ from dengue_wrapper import DengueWrapper, CaseByCaseWrapper
 from fcn_network import DengueNet
 
 # --- Configurações ---
-POLICY_PATH = "dqn_dengue_policy2.pth"
+POLICY_PATH = "dqn_dengue_policy.pth"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 RENDER_FPS = 10  # Quantos "passos" do agente por segundo
 
@@ -108,6 +108,11 @@ if __name__ == "__main__":
             result = policy(batch)
             action = result.act[0].item()  # Pega a ação (como int)
 
+            # print("______________________________")
+            # print()
+            # print(action)
+            # print()
+            # print("______________________________")
             # 3. Executa a ação no ambiente
             obs, reward, terminated, truncated, info = env.step(action)
 

@@ -125,6 +125,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.obs_cases = self._apply_clinical_uncertainty()  # Observed cases (after applying uncertainty)
         self.cases_t = self.obs_cases[self.obs_cases.t == self.t]  # Cases at time t
         self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
+        self.obs_cases["agent_diagnosis"] = self.obs_cases["disease"]
 
         self.testd = []
         self.testc = []
@@ -278,52 +279,65 @@ class DengueDiagnosticsEnv(gym.Env):
             if a[1] == 5:
                 reward -= 1
 
-
         self.total_reward += reward
         self.individual_rewards.append(rewards)
         return reward
 
     def calc_accuracy(self, true, estimated):
         """
-        Calculate the accuracy of the estimated cases
+        Calcula a acurácia (média da acurácia de Dengue e Chik).
         """
 
-        tpd = 0  # True positive dengue
-        fpd = 0  # False positive dengue
-        tnd = 0  # True negative dengue
-        fnd = 0  # False negative dengue
-        tpc = 0  # True positive chik
-        fpc = 0  # False positive chik
-        tnc = 0  # True negative chik
-        fnc = 0  # False negative chik
+        print(true)
+        print(estimated)
+
+        tpd, fpd, tnd, fnd = 0, 0, 0, 0  # Contadores para Dengue
+        tpc, fpc, tnc, fnc = 0, 0, 0, 0  # Contadores para Chikungunya
+
+        # Se não houver dados, não há o que calcular.
+        if len(true) == 0:
+            self.accuracy.append(0.0)
+            return 0.0
+
         for t, e in zip(true, estimated):
-            if t['disease'] == 0:
-                if e[2] == 0:
-                    tpd += 1
-                    tnc += 1
-                else:
-                    fnd += 1
-                    fpc += 1
-            if t['disease'] == 1:
-                if e[2] == 1:
-                    tpc += 1
-                    tnd += 1
-                else:
-                    fnc += 1
-                    fpd += 1
+            true_label = t['disease']
+            est_label = e[2]
 
-        # true_numdengue = len([c for c in true if c["disease"] == 0])
-        # estimated_numdengue = len([c for c in estimated if c[2] == 0])
-        # true_chik = len([c for c in true if c["disease"] == 1])
-        # estimated_chik = len([c for c in estimated if c[2] == 1])
+            is_dengue = (true_label == 0)
+            predicted_dengue = (est_label == 0)
 
-        accuracy_dengue = (tpd + tnd) / (tpd + tnd + fpd + fnd)
-        accuracy_chik = (tpc + tnc) / (tpc + tnc + fpc + fnc)
+            if is_dengue and predicted_dengue:
+                tpd += 1  # Verdadeiro Positivo Dengue
+            elif is_dengue and not predicted_dengue:
+                fnd += 1  # Falso Negativo Dengue (Real: Dengue, Pred: Chik/Outro)
+            elif not is_dengue and predicted_dengue:
+                fpd += 1  # Falso Positivo Dengue (Real: Chik/Outro, Pred: Dengue)
+            elif not is_dengue and not predicted_dengue:
+                tnd += 1  # Verdadeiro Negativo Dengue (Real: Chik/Outro, Pred: Chik/Outro)
+
+            is_chik = (true_label == 1)
+            predicted_chik = (est_label == 1)
+
+            if is_chik and predicted_chik:
+                tpc += 1  # Verdadeiro Positivo Chik
+            elif is_chik and not predicted_chik:
+                fnc += 1  # Falso Negativo Chik (Real: Chik, Pred: Dengue/Outro)
+            elif not is_chik and predicted_chik:
+                fpc += 1  # Falso Positivo Chik (Real: Dengue/Outro, Pred: Chik)
+            elif not is_chik and not predicted_chik:
+                tnc += 1  # Verdadeiro Negativo Chik (Real: Dengue/Outro, Pred: Dengue/Outro)
+
+        total_cases = len(true)
+
+        accuracy_dengue = (tpd + tnd) / total_cases
+        accuracy_chik = (tpc + tnc) / total_cases
 
         mean_accuracy = (accuracy_dengue + accuracy_chik) / 2
 
-        # accuracy = (true_numdengue - estimated_numdengue) + (true_chik - estimated_chik) / len(true)
         self.accuracy.append(mean_accuracy)
+
+        # print(f"Accuracy: {mean_accuracy}")
+
         return mean_accuracy
 
     def _get_info(self):
@@ -369,12 +383,33 @@ class DengueDiagnosticsEnv(gym.Env):
             return 2
 
     def _update_case_status(self, action, index, result):
-        if action == 0:
+        """
+        Atualiza o status do caso e o diagnóstico do agente com base
+        nos resultados dos testes.
+        """
+        if action == 0:  # Teste de Dengue
             self.obs_cases.loc[index, "testd"] = result
-        elif action == 1:
+            if result == 2:  # Positivo para Dengue
+                self.obs_cases.loc[index, "agent_diagnosis"] = 0
+            elif result == 1:  # Negativo para Dengue
+                # Se não é Dengue e a estimativa era Dengue, vira Chik
+                if self.obs_cases.loc[index, "agent_diagnosis"] == 0:
+                    self.obs_cases.loc[index, "agent_diagnosis"] = 1
+            # Se for 3 (Inconclusivo), o agent_diagnosis não muda
+
+        elif action == 1:  # Teste de Chik
             self.obs_cases.loc[index, "testc"] = result
-        elif action == 2:
+            if result == 2:  # Positivo para Chik
+                self.obs_cases.loc[index, "agent_diagnosis"] = 1
+            elif result == 1:  # Negativo para Chik
+                # Se não é Chik e a estimativa era Chik, vira Dengue
+                if self.obs_cases.loc[index, "agent_diagnosis"] == 1:
+                    self.obs_cases.loc[index, "agent_diagnosis"] = 0
+            # Se for 3 (Inconclusivo), o agent_diagnosis não muda
+
+        elif action == 2:  # Epi confirm
             self.obs_cases.loc[index, "epiconf"] = result
+            # Esta ação não altera o 'agent_diagnosis'
 
     def _epi_confirm(self, case):
         """
@@ -408,6 +443,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
         self.cases = self.world.get_series_up_to_t(0)
         self.obs_cases = self._apply_clinical_uncertainty()
+        self.obs_cases["agent_diagnosis"] = self.obs_cases["disease"]
         self.cases_t = self.obs_cases[self.obs_cases.t == self.t]
         self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
 
@@ -438,60 +474,63 @@ class DengueDiagnosticsEnv(gym.Env):
         # get the current true state
         self.cases = self.world.get_series_up_to_t(self.t)
         self.obs_cases = self._apply_clinical_uncertainty()
+        self.obs_cases["agent_diagnosis"] = self.obs_cases["disease"]
         self.cases_t = self.cases[self.cases.t == self.t]
         self.cases_t = tuple((c.x, c.y, c.disease) for c in self.cases_t.itertuples())
-        observation = self._get_obs()
-
         # apply the actions
-        for a, o in zip(action, observation):
-            if a[1] == 0:  # Dengue test
-                self.testd.append((a[0], self._dengue_lab_test(a)))
-                self._update_case_status(0, a[0], self._dengue_lab_test(a))
-            elif self.obs[o] == 1:  # Chik test
-                self.testc.append((a[0], self._chik_lab_test(a)))
-                self._update_case_status(1, a[0], self._chik_lab_test(a))
-            elif self.obs[o] == 2:  # Epi confirm
+        for case_id, action_id in action:
+            if action_id == 0:  # Teste de Dengue
+                test_result = self._dengue_lab_test((case_id, action_id))
+                self.testd.append((case_id, test_result))
+                self._update_case_status(0, case_id, test_result)
+            elif action_id == 1:  # Teste de Chik
+                test_result = self._chik_lab_test((case_id, action_id))
+                self.testc.append((case_id, test_result))
+                self._update_case_status(1, case_id, test_result)
+            elif action_id == 2:  # Epi confirm
+                self._update_case_status(2, case_id, 1)
+            elif action_id == 3:  # Do nothing
+                # O agent_diagnosis permanece como o palpite clínico
                 pass
-                # self.epiconf.append(self._epi_confirm(a))
-                # self.tcase.append(
-                #     [
-                #         self.t,
-                #         0
-                #         if not observation["clinical_diagnostic"]
-                #         else observation["clinical_diagnostic"][-1],
-                #     ]
-                # )
-            elif self.obs[o] == 3:  # Do nothing
-                pass
-            elif self.obs[o] == 4:  # Confirm
+            elif action_id == 4:  # Confirm
+                # Ação decisiva: O agente confirma o 'agent_diagnosis' atual.
                 self.final.append(1)
-            elif self.obs[o] == 5:  # Discard
+            elif action_id == 5:  # Discard
+                self.obs_cases.loc[case_id, "agent_diagnosis"] = 2  # Vira Dengue
                 self.final.append(0)
 
-        self.calc_accuracy(self.cases.to_dict(orient="records"), observation["clinical_diagnostic"])
-
-        self.accuracy_plot = lineplot(
-            range(1, self.t + 1), self.accuracy, "Step", "Accuracy", "Accuracy", "plot2"
+        estimated_for_accuracy = tuple(
+            (c.x, c.y, c.agent_diagnosis)
+            for c in self.obs_cases.itertuples()
         )
 
-        self.update_sprites(action) if self.render_mode == "human" else None
+        true_cases = self.cases.to_dict(orient="records")
 
-        # An episode is done if timestep is greter than 120
+        self.calc_accuracy(true_cases, estimated_for_accuracy)
+
         terminated = self.t >= self.epilength + 60
         reward = self._calc_reward(
             self.cases.to_dict(orient="records"),
-            observation["clinical_diagnostic"],
+            estimated_for_accuracy,
             action,
         )
-
         print(f"Reward: {reward} \t Total Reward: {self.total_reward}", end="\r")
+
         self.rewards.append(self.total_reward)
-        self.total_reward_plot = lineplot(
-            range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1"
-        )
 
         if self.render_mode == "human":
-            self.render()
+            self._create_sprites()
+
+            self.update_sprites(action)
+
+            self.accuracy_plot = lineplot(
+                range(1, self.t + 1), self.accuracy, "Step", "Accuracy", "Accuracy", "plot2"
+            )
+
+            self.total_reward_plot = lineplot(
+                range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1"
+            )
+
             self.plot_surface1.blit(
                 pygame.transform.scale(
                     pygame.image.load(self.total_reward_plot, "PNG"), self.plot_surface1.get_rect().size
@@ -506,12 +545,13 @@ class DengueDiagnosticsEnv(gym.Env):
                 (0, 0),
             )
 
+            self.render()
+
         # Update the timestep
         self.t += 1
         self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
         self.cases = self.world.get_series_up_to_t(self.t)
         self.obs_cases = self._apply_clinical_uncertainty()
-        # get the next observation
         observation = self._get_obs()
         info = self._get_info()
         return observation, reward, terminated, False, info
@@ -532,7 +572,7 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Render the environment with a legend on the right side
         """
-        self._create_sprites()
+
         self.dengue_group.draw(self.world_surface)
         self.chik_group.draw(self.world_surface)
 
@@ -548,6 +588,7 @@ class DengueDiagnosticsEnv(gym.Env):
             (int((self.screen.get_width() - timestep_display.get_width()) / 2), 0),
         )
 
+        # Blit as superfícies que já foram preparadas no step()
         self.screen.blit(
             self.plot_surface1, (0, 500), special_flags=pygame.BLEND_ALPHA_SDL2
         )
@@ -582,7 +623,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
             # Load the image
             image = pygame.image.load(os.path.join(os.path.dirname(__file__), image_file)).convert_alpha()
-            image= pygame.transform.scale(image, (10, 10))
+            image = pygame.transform.scale(image, (10, 10))
             self.screen.blit(image, (legend_x, legend_y))
 
             # Render the description text
