@@ -237,50 +237,60 @@ class DengueDiagnosticsEnv(gym.Env):
 
     def _calc_reward(self, true, estimated, action):
         """
-        Calculate the reward based on the true count and the actions taken
+        Calcula a recompensa com base na CORREÇÃO das ações de DECISÃO (4, 5)
+        e no CUSTO de todas as ações.
+
+        'true' e 'estimated' não são usados aqui, pois a recompensa é
+        baseada nas ações tomadas e no estado real (self.cases).
+
+        'action' = tupla de tuplas de ações tomadas ((case_id, action_id), ...)
         """
 
-        rewards = []
+        REWARD_CORRECT_DECISION = 10.0
+        PENALTY_INCORRECT_DECISION = -10.0
+        REWARD_USEFUL_TEST = 2.0
 
-        if len(estimated) == 0:
-            return 0
+        reward = 0.0
 
-        true_numdengue = len([c for c in true if c["disease"] == 0])
-        estimated_numdengue = len([c for c in estimated if c[2] == 0])
-        true_chik = len([c for c in true if c["disease"] == 1])
-        estimated_chik = len([c for c in estimated if c[2] == 1])
+        for case_id, action_id in action:
 
-        # Mean absolute percentage error
-        mape = np.abs(true_numdengue + true_chik - estimated_numdengue - estimated_chik) / max(1, true_numdengue + true_chik)
-        accuracy_reward = 1 if mape < 0.15 else 0
-        reward = accuracy_reward * 10
-        for a in action:
-            is_dengue = a[1] == 0
-            is_true_dengue = self.real_cases.loc[int(a[0]), "disease"] == 0
-            is_chik = a[1] == 1
-            is_true_chik = self.real_cases.loc[int(a[0]), "disease"] == 1
-            if (a[1] == 0 and self.real_cases.loc[int(a[0]), "disease"] == 0) or (a[1] == 1 and self.real_cases.loc[int(a[0]), "disease"] == 1):
-                r = 1 + mape - self.costs[a[-1]]
-            else:
-                r = -1 + mape - self.costs[a[-1]]
-            reward -= - self.costs[a[-1]]
+            reward -= self.costs[action_id]
 
-            if a[1] == 0 and self.real_cases.loc[int(a[0]), "disease"] == 0:
-                r = 1 - self.costs[a[1]]
-                reward += r
-            if a[1] == 1 and self.real_cases.loc[int(a[0]), "disease"] == 1:
-                r = 1 - self.costs[a[1]]
-                reward += r
-            if a[1] == 2:
-                r = 1 - self.costs[a[1]]
-                reward += 1
-            if a[1] == 4 and self.obs_cases.loc[int(a[0]), "disease"] == self.cases.loc[int(a[0]), "disease"]:
-                reward += 1
-            if a[1] == 5:
-                reward -= 1
+            true_disease = self.cases.loc[case_id, "disease"]
+
+            agent_diagnosis = self.obs_cases.loc[case_id, "agent_diagnosis"]
+
+            if action_id == 0:  # Teste de Dengue
+                testd_result = self.obs_cases.loc[case_id, "testd"]
+                if (testd_result == 2 and true_disease == 0) or \
+                        (testd_result == 1 and true_disease != 0):
+                    reward += REWARD_USEFUL_TEST
+
+            elif action_id == 1:  # Teste de Chik
+                testc_result = self.obs_cases.loc[case_id, "testc"]
+                if (testc_result == 2 and true_disease == 1) or \
+                        (testc_result == 1 and true_disease != 1):
+                    reward += REWARD_USEFUL_TEST
+
+            elif action_id == 4:
+                if agent_diagnosis == true_disease:
+                    reward += REWARD_CORRECT_DECISION
+                else:
+                    reward += PENALTY_INCORRECT_DECISION
+
+            elif action_id == 5:
+                discarded_diagnosis = agent_diagnosis
+                if agent_diagnosis == 0:
+                    discarded_diagnosis = 1
+                elif agent_diagnosis == 1:
+                    discarded_diagnosis = 0
+                if discarded_diagnosis == true_disease:
+                    reward += REWARD_CORRECT_DECISION
+                else:
+                    reward += PENALTY_INCORRECT_DECISION
 
         self.total_reward += reward
-        self.individual_rewards.append(rewards)
+        self.individual_rewards.append([])
         return reward
 
     def calc_accuracy(self, true, estimated):
