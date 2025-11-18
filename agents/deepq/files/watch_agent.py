@@ -10,7 +10,7 @@ from dengue_wrapper import DengueWrapper, CaseByCaseWrapper
 from fcn_network import DengueNet
 
 # --- Configurações ---
-POLICY_PATH = "dqn_dengue_policy.pth"
+POLICY_PATH = "dqn_dengue_policy2.pth"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 RENDER_FPS = 10  # Quantos "passos" do agente por segundo
 
@@ -23,6 +23,7 @@ def make_env():
     env = DengueDiagnosticsEnv(
         epilength=60,
         size=400,
+        clinical_specificity=0.5,
         render_mode="human"  # Habilita a janela do pygame
     )
     # 2. Aplica os mesmos wrappers

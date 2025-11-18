@@ -28,7 +28,7 @@ class DengueDiagnosticsEnv(gym.Env):
             chik_center=(300, 300),
             dengue_radius=90,
             chik_radius=90,
-            clinical_specificity=0.8,
+            clinical_specificity: Union[float, Tuple[float, float]] = 0.8,
             render_mode=None,
     ):
         """
@@ -53,6 +53,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.chik_center = chik_center
         self.dengue_radius = dengue_radius
         self.chik_radius = chik_radius
+        self.specificity_setting = clinical_specificity
         self.clinical_specificity = clinical_specificity
 
         self.world = World(
@@ -298,9 +299,6 @@ class DengueDiagnosticsEnv(gym.Env):
         Calcula a acurácia (média da acurácia de Dengue e Chik).
         """
 
-        print(true)
-        print(estimated)
-
         tpd, fpd, tnd, fnd = 0, 0, 0, 0  # Contadores para Dengue
         tpc, fpc, tnc, fnc = 0, 0, 0, 0  # Contadores para Chikungunya
 
@@ -440,6 +438,15 @@ class DengueDiagnosticsEnv(gym.Env):
 
         """
         super().reset(seed=seed)
+
+        if isinstance(self.specificity_setting, tuple):
+            # Se for uma tupla (min, max), sorteia um valor uniforme
+            low, high = self.specificity_setting
+            self.clinical_specificity = self.np_random.uniform(low=low, high=high)
+        else:
+            # Se for um float, usa esse valor fixo
+            self.clinical_specificity = self.specificity_setting
+
         if reset_data:  # Re-Creates the world if requested
             self.world = World(
                 self.size,
@@ -524,7 +531,7 @@ class DengueDiagnosticsEnv(gym.Env):
             estimated_for_accuracy,
             action,
         )
-        print(f"Reward: {reward} \t Total Reward: {self.total_reward}", end="\r")
+        print(f"Reward: {reward} \t Total Reward: {self.total_reward}")
 
         self.rewards.append(self.total_reward)
 
