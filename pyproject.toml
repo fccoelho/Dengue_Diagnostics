@@ -20,7 +20,7 @@ notebook = "^7.3.2"
 torch = { version = "*", source = "pytorch_cu130" }
 torchvision = { version = "*", source = "pytorch_cu130" }
 torchaudio = { version = "*", source = "pytorch_cu130" }
-tianshou = "^2.0.0b2"
+tianshou = "2.0.0b2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.1"

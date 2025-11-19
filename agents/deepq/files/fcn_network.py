@@ -15,8 +15,6 @@ class DengueNet(nn.Module):
         super().__init__()
         self.device = device
 
-        # Encoder CNN para o mapa (4, 400, 400)
-        # (Arquitetura de exemplo, pode ser ajustada)
         self.map_encoder = nn.Sequential(
             nn.Conv2d(map_shape[0], 16, kernel_size=8, stride=4),  # (16, 99, 99)
             nn.ReLU(),
@@ -48,10 +46,10 @@ class DengueNet(nn.Module):
         )
 
     def forward(self, obs, state=None, info={}):
-                # Converte para tensores no dispositivo correto
+        # Converte para tensores no dispositivo correto
         map_tensor = torch.as_tensor(
             obs["map"], device=self.device, dtype=torch.float32
-        )
+        ).float()
         coords_tensor = torch.as_tensor(
             obs["case_coords"], device=self.device, dtype=torch.float32
         )

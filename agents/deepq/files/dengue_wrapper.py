@@ -15,9 +15,9 @@ class DengueWrapper(gym.ObservationWrapper):
         super().__init__(env)
         world_size = self.unwrapped.size
         self.observation_space = spaces.Box(
-            low=0, high=4,  # Status 0-3 são codificados como 1-4
-            shape=(4, world_size, world_size),  # Formato Channels-first
-            dtype=np.float32
+            low=0, high=255,
+            shape=(4, world_size, world_size),
+            dtype=np.uint8
         )
         self._world_size = world_size
 
@@ -35,7 +35,7 @@ class DengueWrapper(gym.ObservationWrapper):
         """
         Converte o dicionário de observação em um tensor.
         """
-        tensor = np.zeros((4, self._world_size, self._world_size), dtype=np.float32)
+        tensor = np.zeros((4, self._world_size, self._world_size), dtype=np.uint8)
 
         # Canal 0: Diagnóstico clínico (0,1,2 -> 1,2,3)
         for case in obs_dict.get('clinical_diagnostic', []):
