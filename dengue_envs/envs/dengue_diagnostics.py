@@ -54,8 +54,11 @@ class DengueDiagnosticsEnv(gym.Env):
         self.dengue_radius = dengue_radius
         self.chik_radius = chik_radius
         self.specificity_setting = clinical_specificity
-        self.clinical_specificity = clinical_specificity
-
+        if isinstance(self.specificity_setting, tuple):
+            low, high = self.specificity_setting
+            self.clinical_specificity = np.random.uniform(low, high)
+        else:
+            self.clinical_specificity = self.specificity_setting
         self.world = World(
             self.size,
             self.episize,
@@ -118,7 +121,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.action_space = spaces.Sequence(
             spaces.Tuple((spaces.Discrete(2*episize), spaces.Discrete(6)))  #case id, action
         )
-        self.costs = np.array([1, 1, 1, 0.0, 0.5, 0.5])
+        self.costs = np.array([1.0, 1.0, 1.0, 0.1, 0.0, 0.0])
 
         self.real_cases = self.world.casedf.copy()
         # The lists below will be populated by the step() method, as the cases are being "generated"
@@ -247,45 +250,43 @@ class DengueDiagnosticsEnv(gym.Env):
         'action' = tupla de tuplas de ações tomadas ((case_id, action_id), ...)
         """
 
-        REWARD_CORRECT_DECISION = 10.0
-        PENALTY_INCORRECT_DECISION = -10.0
-        REWARD_USEFUL_TEST = 2.0
+        PENALTY_INCORRECT_DECISION = -15.0
+        REWARD_CORRECT_DECISION = 5.0
 
         reward = 0.0
 
         for case_id, action_id in action:
 
+            # 1. Aplica o Custo da Ação (definido no __init__)
+            # Com a mudança no __init__, "Nada" agora custa -0.1
             reward -= self.costs[action_id]
 
             true_disease = self.cases.loc[case_id, "disease"]
-
             agent_diagnosis = self.obs_cases.loc[case_id, "agent_diagnosis"]
 
-            if action_id == 0:  # Teste de Dengue
-                testd_result = self.obs_cases.loc[case_id, "testd"]
-                if (testd_result == 2 and true_disease == 0) or \
-                        (testd_result == 1 and true_disease != 0):
-                    reward += REWARD_USEFUL_TEST
+            # Ações de Teste (0, 1) já pagam o custo acima.
+            # Não damos prémio extra, o prémio é a informação para acertar no final.
 
-            elif action_id == 1:  # Teste de Chik
-                testc_result = self.obs_cases.loc[case_id, "testc"]
-                if (testc_result == 2 and true_disease == 1) or \
-                        (testc_result == 1 and true_disease != 1):
-                    reward += REWARD_USEFUL_TEST
+            # Ações de Decisão (4, 5)
+            is_correct = False
+            is_decision = False
 
-            elif action_id == 4:
+            if action_id == 4:  # Confirmar
+                is_decision = True
                 if agent_diagnosis == true_disease:
-                    reward += REWARD_CORRECT_DECISION
-                else:
-                    reward += PENALTY_INCORRECT_DECISION
+                    is_correct = True
 
-            elif action_id == 5:
-                discarded_diagnosis = agent_diagnosis
-                if agent_diagnosis == 0:
-                    discarded_diagnosis = 1
-                elif agent_diagnosis == 1:
-                    discarded_diagnosis = 0
-                if discarded_diagnosis == true_disease:
+            elif action_id == 5:  # Descartar
+                is_decision = True
+                # Lógica de inversão (0<->1)
+                discarded = 1 if agent_diagnosis == 0 else 0
+                # Se for 'Outro' (2), mantém-se errado/inconclusivo na inversão binária
+                if discarded == true_disease:
+                    is_correct = True
+
+            # Aplica Prémio ou Penalidade
+            if is_decision:
+                if is_correct:
                     reward += REWARD_CORRECT_DECISION
                 else:
                     reward += PENALTY_INCORRECT_DECISION
@@ -298,7 +299,6 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Calcula a acurácia (média da acurácia de Dengue e Chik).
         """
-
         tpd, fpd, tnd, fnd = 0, 0, 0, 0  # Contadores para Dengue
         tpc, fpc, tnc, fnc = 0, 0, 0, 0  # Contadores para Chikungunya
 
@@ -469,6 +469,7 @@ class DengueDiagnosticsEnv(gym.Env):
         info = self._get_info()
         self.rewards=[]
         self.accuracy = []
+        self.total_reward = 0
         self.t = 1
 
         return observation, info
@@ -525,13 +526,13 @@ class DengueDiagnosticsEnv(gym.Env):
 
         self.calc_accuracy(true_cases, estimated_for_accuracy)
 
-        terminated = self.t >= self.epilength + 60
+        terminated = self.t >= self.epilength + 10
         reward = self._calc_reward(
             self.cases.to_dict(orient="records"),
             estimated_for_accuracy,
             action,
         )
-        print(f"Reward: {reward} \t Total Reward: {self.total_reward}")
+        # print(f"Reward: {reward} \t Total Reward: {self.total_reward}")
 
         self.rewards.append(self.total_reward)
 
@@ -589,6 +590,7 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Render the environment with a legend on the right side
         """
+        pygame.event.pump()
 
         self.dengue_group.draw(self.world_surface)
         self.chik_group.draw(self.world_surface)
@@ -748,7 +750,7 @@ if __name__ == "__main__":
             action = env.action_space.sample()  # Random action selection
             obs, reward, done, _, info = env.step(action)
             # print(env.get_individual_rewards_at_t(t))
-            print(f"Step: {t}, Reward: {reward}, Done: {done}")
+            # print(f"Step: {t}, Reward: {reward}, Done: {done}")
 
             env.render()
             clock.tick(10)

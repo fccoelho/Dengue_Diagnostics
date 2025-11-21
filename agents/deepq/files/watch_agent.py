@@ -11,7 +11,7 @@ from fcn_network import DengueNet
 
 
 # --- Configurações ---
-POLICY_PATH = "dqn_dengue_policy4.pth"
+POLICY_PATH = "dqn_dengue_policy6.pth"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 RENDER_FPS = 10
 WORLD_SIZE = 400
@@ -94,6 +94,9 @@ if __name__ == "__main__":
     terminated, truncated = False, False
     total_reward = 0
 
+    # 1. Inicialize o contador de ações
+    actions_taken_count = 0
+
     clock = pygame.time.Clock()
 
     print("Iniciando visualização do agente...")
@@ -114,15 +117,29 @@ if __name__ == "__main__":
             result = policy(batch)
             action = result.act[0].item()
 
-            # print("______________________________")
-            # print()
-            # print(action)
-            # print()
-            # print("______________________________")
+            # --- EXTRAÇÃO DE INFORMAÇÕES ---
+            # Incrementa contador
+            actions_taken_count += 1
+
+            # Pega o ID do caso atual direto do wrapper
+            # O wrapper armazena (case_id, x, y) em current_case
+            current_case_id = env.current_case[0]
+
+            # Pega o total de casos do ambiente base (unwrapped)
+            total_cases_env = len(env.unwrapped.obs_cases)
+
+            # Print formatado para acompanhar
+            # print(f"Passo: {actions_taken_count} | "
+            #       f"Ação: {action} | "
+            #       f"Case ID: {current_case_id} | "
+            #       f"Total Casos no Mundo: {total_cases_env}")
+            # -------------------------------
 
             obs, reward, terminated, truncated, info = env.step(action)
 
             total_reward += reward
+
+            print(total_reward)
 
             env.render()
 
@@ -137,6 +154,7 @@ if __name__ == "__main__":
 
     print("--- Fim da Visualização ---")
     print(f"Recompensa total do episódio: {total_reward:.2f}")
+    print(f"Total de ações tomadas: {actions_taken_count}")  # Print final
 
     env.close()
     pygame.quit()

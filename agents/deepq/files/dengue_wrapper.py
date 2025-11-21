@@ -109,42 +109,45 @@ class CaseByCaseWrapper(gym.Wrapper):
 
     def _next_case(self):
         """
-        Avança para o próximo caso ou, se não houver mais casos,
-        executa o step do ambiente real.
+        Avança para o próximo caso. Se não houver casos neste dia,
+        avança os dias no ambiente automaticamente até encontrar casos
+        ou o episódio terminar.
         """
-        try:
-            # Tenta pegar o próximo caso da lista
-            self.current_case = next(self.case_iterator)
-            # Retorna a observação do novo caso, com recompensa 0 (decisão intermediária)
-            return self._make_obs(), 0.0, False, False, {}
+        while True:
+            try:
+                # 1. Tenta pegar o próximo caso da lista atual (do dia atual)
+                self.current_case = next(self.case_iterator)
 
-        except StopIteration:
-            if not self.pending_actions:
+                # Se conseguiu, retorna a observação para o agente agir
+                return self._make_obs(), 0.0, False, False, {}
+
+            except StopIteration:
+                # 2. Acabaram os casos deste timestep (ou a lista estava vazia).
+                # Hora de avançar o ambiente real.
+
+                # Envia as ações acumuladas deste dia
+                action_tuple = tuple(self.pending_actions)
                 self.pending_actions = []
 
-            action_tuple = tuple(self.pending_actions)
+                # Chama o step do ambiente base (avança o tempo t -> t+1)
+                obs_tensor, reward, terminated, truncated, info = self.env.step(action_tuple)
 
-            obs_tensor, reward, terminated, truncated, info = self.env.step(action_tuple)
+                # Atualiza o mapa global
+                self._current_map_obs = obs_tensor
 
-            self._current_map_obs = obs_tensor
+                # Se o episódio acabou, retorna o fim
+                if terminated or truncated:
+                    self.current_case = (0, 0, 0)  # Agora sim, um dummy final seguro
+                    return self._make_obs(), reward, terminated, truncated, info
 
-            self.pending_actions = []
+                # Se não acabou, carrega os casos do NOVO dia
+                self.active_cases = self._get_active_cases()
+                self.case_iterator = iter(self.active_cases)
 
-            if terminated or truncated:
-                self.current_case = (0, 0, 0)
-                return self._make_obs(), reward, terminated, truncated, info
-
-            self.active_cases = self._get_active_cases()
-            self.case_iterator = iter(self.active_cases)
-
-            try:
-                self.current_case = next(self.case_iterator)
-            except StopIteration:
-                # O novo timestep também não tem casos. Raro, mas possível.
-                # Retorna o estado atual e espera o próximo 'step'.
-                self.current_case = (0, 0, 0)  # dummy
-
-            return self._make_obs(), reward, terminated, truncated, info
+                # O loop 'while True' vai voltar ao topo.
+                # Se houver casos no novo dia, o 'try' vai funcionar e retornar.
+                # Se a lista estiver vazia (dia sem casos), vai cair no 'except' de novo
+                # e avançar mais um dia automaticamente, sem incomodar o agente.
 
     def reset(self, **kwargs):
         obs_tensor, info = self.env.reset(**kwargs)
