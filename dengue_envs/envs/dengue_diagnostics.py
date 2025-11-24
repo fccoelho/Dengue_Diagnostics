@@ -5,6 +5,7 @@ import time
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from typing import List, Dict, Tuple, Union, Optional
 
 # Import simulation tools
@@ -140,7 +141,8 @@ class DengueDiagnosticsEnv(gym.Env):
         self.rewards = []
         self.total_reward = 0
         self.accuracy = []
-
+        self.mean_accuracy_history = []
+        self.mape_history = []
 
         # cumulative map of cases up to self.t
         self.dmap, self.cmap = self.world.get_maps_up_to_t(self.t)
@@ -237,6 +239,8 @@ class DengueDiagnosticsEnv(gym.Env):
                 ):  # Misdiagnosed as dengue
                     case[1].disease = 0
 
+        obs_case_df["agent_diagnosis"] = obs_case_df["disease"]
+
         return obs_case_df
 
     def _calc_reward(self, true, estimated, action):
@@ -305,6 +309,8 @@ class DengueDiagnosticsEnv(gym.Env):
         # Se não houver dados, não há o que calcular.
         if len(true) == 0:
             self.accuracy.append(0.0)
+            self.mean_accuracy_history.append(0.0)
+            self.mape_history.append(0.0)
             return 0.0
 
         for t, e in zip(true, estimated):
@@ -343,8 +349,21 @@ class DengueDiagnosticsEnv(gym.Env):
         mean_accuracy = (accuracy_dengue + accuracy_chik) / 2
 
         self.accuracy.append(mean_accuracy)
+        self.mean_accuracy_history.append(mean_accuracy)
 
-        # print(f"Accuracy: {mean_accuracy}")
+        true_numdengue = len([c for c in true if c["disease"] == 0])
+        estimated_numdengue = len([c for c in estimated if c[2] == 0])
+        true_chik = len([c for c in true if c["disease"] == 1])
+        estimated_chik = len([c for c in estimated if c[2] == 1])
+        true_total = true_numdengue + true_chik
+        est_total = estimated_numdengue + estimated_chik
+
+        if true_total > 0:
+            mape = np.abs(true_total - est_total) / true_total
+        else:
+            mape = 0.0
+
+        self.mape_history.append(mape)
 
         return mean_accuracy
 
@@ -469,6 +488,8 @@ class DengueDiagnosticsEnv(gym.Env):
         info = self._get_info()
         self.rewards=[]
         self.accuracy = []
+        self.mean_accuracy_history = []
+        self.mape_history = []
         self.total_reward = 0
         self.t = 1
 
@@ -542,7 +563,7 @@ class DengueDiagnosticsEnv(gym.Env):
             self.update_sprites(action)
 
             self.accuracy_plot = lineplot(
-                range(1, self.t + 1), self.accuracy, "Step", "Accuracy", "Accuracy", "plot2"
+                range(1, self.t + 1), self.mean_accuracy_history, "Step", "Accuracy", "Accuracy", "plot2"
             )
 
             self.total_reward_plot = lineplot(
@@ -572,6 +593,13 @@ class DengueDiagnosticsEnv(gym.Env):
         self.obs_cases = self._apply_clinical_uncertainty()
         observation = self._get_obs()
         info = self._get_info()
+
+        if terminated:
+            ep_acc = np.mean(self.mean_accuracy_history) if self.mean_accuracy_history else 0.0
+            ep_mape = np.mean(self.mape_history) if self.mape_history else 0.0
+            info["episode/accuracy"] = ep_acc
+            info["episode/mape"] = ep_mape
+
         return observation, reward, terminated, False, info
 
     def update_sprites(self, actions):
@@ -671,6 +699,105 @@ class DengueDiagnosticsEnv(gym.Env):
             else:
                 spr.add(self.chik_group)
 
+    def plot_confusion_map(self, title="Mapa de Confusão Espacial", save_path=None):
+        """
+        Gera um mapa espacial colorindo os casos baseados no resultado da classificação
+        (TP, TN, FP, FN, Erro de Classe).
+        Deve ser chamado AO FINAL de um episódio ou teste.
+        """
+        if self.obs_cases.empty:
+            print("Erro: Não há casos no histórico para plotar.")
+            return
+
+        # Listas para guardar as coordenadas de cada categoria
+        coords = {
+            'TP': [],  # True Positive (Acertou Doença)
+            'TN': [],  # True Negative (Acertou "Outro")
+            'FP': [],  # False Positive (Disse Doença, era Outro)
+            'FN': [],  # False Negative (Disse Outro, era Doença)
+            'Misclass': []  # Misclassification (Era Dengue, disse Chik ou vice-versa)
+        }
+
+        print("Gerando Mapa de Confusão...")
+
+        # Itera sobre o histórico completo do agente (obs_cases)
+        for index, row in self.obs_cases.iterrows():
+            # Pega a VERDADE ABSOLUTA (do real_cases, usando o mesmo índice)
+            # Nota: Assume-se que os índices de obs_cases correspondem aos de real_cases
+            try:
+                true_disease = self.real_cases.loc[index, 'disease']
+            except KeyError:
+                continue  # Caso raro de desalinhamento, ignora
+
+            # Pega o diagnóstico FINAL do agente
+            agent_diag = row['agent_diagnosis']
+            x, y = row['x'], row['y']
+
+            # Definições de "Doença" (0=Dengue, 1=Chik) vs "Não Doença" (2=Outro)
+            is_true_disease = true_disease in [0, 1]
+            is_true_other = true_disease == 2
+            is_agent_disease = agent_diag in [0, 1]
+            is_agent_other = agent_diag == 2
+
+            # Lógica de Classificação
+            if is_true_other and is_agent_other:
+                coords['TN'].append((x, y))  # Verdadeiro Negativo
+            elif is_true_disease and (agent_diag == true_disease):
+                coords['TP'].append((x, y))  # Verdadeiro Positivo (Acerto exato)
+            elif is_true_other and is_agent_disease:
+                coords['FP'].append((x, y))  # Falso Positivo (Alarme Falso)
+            elif is_true_disease and is_agent_other:
+                coords['FN'].append((x, y))  # Falso Negativo (Omissão)
+            elif is_true_disease and is_agent_disease and (agent_diag != true_disease):
+                coords['Misclass'].append((x, y))  # Erro de Classificação (Trocou as doenças)
+
+        # --- Plotting com Matplotlib ---
+        fig, ax = plt.subplots(figsize=(10, 10))
+
+        # Configura limites e inversão do eixo Y (para combinar com Pygame/Matrizes)
+        ax.set_xlim(0, self.size)
+        ax.set_ylim(0, self.size)
+        ax.set_aspect('equal')
+        ax.invert_yaxis()
+
+        # Estilos para cada categoria (Cor, Marcador, Legenda)
+        styles = {
+            'TN': {'color': 'lightgray', 'marker': 'o', 'label': 'True Negative (Acertou "Outro")', 's': 20,
+                   'alpha': 0.3},
+            'TP': {'color': 'green', 'marker': '^', 'label': 'True Positive (Acertou Doença)', 's': 60},
+            'FP': {'color': 'red', 'marker': 'X', 'label': 'False Positive (Alarme Falso)', 's': 60},
+            'FN': {'color': 'blue', 'marker': 'v', 'label': 'False Negative (Deixou Passar)', 's': 60},
+            'Misclass': {'color': 'orange', 'marker': 's', 'label': 'Misclassification (Trocou Doença)', 's': 50},
+        }
+
+        # Plota os pontos de cada categoria
+        for category, points in coords.items():
+            if points:
+                px, py = zip(*points)
+                ax.scatter(px, py, **styles[category])
+
+        # Desenha os centros dos focos reais (Ground Truth) para referência visual
+        dengue_circle = plt.Circle(self.dengue_center, self.dengue_radius, color='green', fill=False, linestyle='--',
+                                   alpha=0.5, label='Raio Dengue Real')
+        chik_circle = plt.Circle(self.chik_center, self.chik_radius, color='orange', fill=False, linestyle='--',
+                                 alpha=0.5, label='Raio Chik Real')
+        ax.add_patch(dengue_circle)
+        ax.add_patch(chik_circle)
+
+        # Decoração do Gráfico
+        ax.set_title(title, fontsize=16)
+        ax.set_xlabel("Coordenada X")
+        ax.set_ylabel("Coordenada Y")
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), title="Legenda")
+        ax.grid(True, linestyle=':', alpha=0.4)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Mapa salvo em: {save_path}")
+
+        return fig, ax
 
 class CaseSprite(pygame.sprite.Sprite):
     def __init__(

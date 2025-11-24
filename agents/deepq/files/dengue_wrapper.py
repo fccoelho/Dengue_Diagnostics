@@ -110,44 +110,40 @@ class CaseByCaseWrapper(gym.Wrapper):
     def _next_case(self):
         """
         Avança para o próximo caso. Se não houver casos neste dia,
-        avança os dias no ambiente automaticamente até encontrar casos
-        ou o episódio terminar.
+        avança os dias no ambiente automaticamente, ACUMULANDO A RECOMPENSA.
         """
+        accumulated_reward = 0.0  # <-- Variável para guardar a recompensa
+
         while True:
             try:
-                # 1. Tenta pegar o próximo caso da lista atual (do dia atual)
+                # 1. Tenta pegar o próximo caso da lista atual
                 self.current_case = next(self.case_iterator)
 
-                # Se conseguiu, retorna a observação para o agente agir
-                return self._make_obs(), 0.0, False, False, {}
+                # Se conseguiu, retorna obs e a recompensa acumulada até agora
+                return self._make_obs(), accumulated_reward, False, False, {}
 
             except StopIteration:
-                # 2. Acabaram os casos deste timestep (ou a lista estava vazia).
-                # Hora de avançar o ambiente real.
+                # 2. Acabaram os casos deste dia. Avançar ambiente.
 
-                # Envia as ações acumuladas deste dia
                 action_tuple = tuple(self.pending_actions)
                 self.pending_actions = []
 
-                # Chama o step do ambiente base (avança o tempo t -> t+1)
+                # Chama step. Recebe recompensa do dia que passou.
                 obs_tensor, reward, terminated, truncated, info = self.env.step(action_tuple)
 
-                # Atualiza o mapa global
+                # SOMA a recompensa
+                accumulated_reward += reward
+
                 self._current_map_obs = obs_tensor
 
-                # Se o episódio acabou, retorna o fim
                 if terminated or truncated:
-                    self.current_case = (0, 0, 0)  # Agora sim, um dummy final seguro
-                    return self._make_obs(), reward, terminated, truncated, info
+                    self.current_case = (0, 0, 0)
+                    # Retorna a recompensa total final
+                    return self._make_obs(), accumulated_reward, terminated, truncated, info
 
-                # Se não acabou, carrega os casos do NOVO dia
+                # Carrega casos do novo dia
                 self.active_cases = self._get_active_cases()
                 self.case_iterator = iter(self.active_cases)
-
-                # O loop 'while True' vai voltar ao topo.
-                # Se houver casos no novo dia, o 'try' vai funcionar e retornar.
-                # Se a lista estiver vazia (dia sem casos), vai cair no 'except' de novo
-                # e avançar mais um dia automaticamente, sem incomodar o agente.
 
     def reset(self, **kwargs):
         obs_tensor, info = self.env.reset(**kwargs)
