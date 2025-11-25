@@ -799,6 +799,63 @@ class DengueDiagnosticsEnv(gym.Env):
 
         return fig, ax
 
+    def get_episode_metrics(self):
+        """
+        Calcula métricas detalhadas (Clínicas e Econômicas) ao final do episódio.
+        Deve ser chamado apenas quando done=True.
+        """
+        # 1. Recuperar Verdade vs Estimativa
+        y_true = self.cases['disease'].values  # 0: Dengue, 1: Chik, 2: Outro
+        y_pred = self.obs_cases['agent_diagnosis'].values
+
+        # 2. Calcular Matriz de Confusão para Dengue (Classe 0)
+        # Consideramos Dengue como "Positivo" e (Chik + Outro) como "Negativo" para estas métricas
+        TP = np.sum((y_true == 0) & (y_pred == 0))
+        TN = np.sum((y_true != 0) & (y_pred != 0))
+        FP = np.sum((y_true != 0) & (y_pred == 0))
+        FN = np.sum((y_true == 0) & (y_pred != 0))
+
+        epsilon = 1e-7  # Para evitar divisão por zero
+
+        # 3. Métricas Clínicas
+        sensitivity = TP / (TP + FN + epsilon)  # Recall (Dengue)
+        specificity = TN / (TN + FP + epsilon)
+        precision = TP / (TP + FP + epsilon)
+        f1_score = 2 * (precision * sensitivity) / (precision + sensitivity + epsilon)
+        accuracy = (TP + TN) / len(y_true)
+
+        # 4. Métricas Econômicas
+        # Contar total de testes realizados (listas testd e testc guardam histórico)
+        total_tests = len(self.testd) + len(self.testc)
+        total_cases = len(y_true)
+
+        # Custo total (baseado nos custos definidos no __init__)
+        # Assumindo: Teste=1.0, Confirm/Discard=0.0, DoNothing=0.1
+        # Se quiser usar o self.total_reward acumulado, pode usar, mas aqui calculamos custo "bruto" de operação
+        test_cost = total_tests * 1.0
+
+        # Custo Médio por Diagnóstico Correto (Total Gasto / Total Acertos)
+        total_correct = TP + TN
+        cost_per_correct_diagnosis = test_cost / (total_correct + epsilon)
+
+        # Taxa de Redução de Testes (Comparado a testar todos para ambas doenças = 2 testes por pessoa)
+        # Cenário base: Testar tudo = 2 * total_cases
+        potential_tests = total_cases * 2
+        test_reduction_rate = 1 - (total_tests / potential_tests)
+
+        return {
+            "Acurácia": accuracy,
+            "Sensibilidade (Dengue)": sensitivity,
+            "Especificidade": specificity,
+            "F1-Score": f1_score,
+            "Precisão": precision,
+            "Custo Total de Testes": test_cost,
+            "Testes Realizados": total_tests,
+            "Custo por Acerto": cost_per_correct_diagnosis,
+            "Redução de Testes (%)": test_reduction_rate * 100,
+            "Recompensa Total": self.total_reward
+        }
+
 class CaseSprite(pygame.sprite.Sprite):
     def __init__(
             self,

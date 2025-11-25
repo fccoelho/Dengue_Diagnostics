@@ -3,15 +3,17 @@ import numpy as np
 import pygame
 import matplotlib.pyplot as plt
 
+
 class AleatoryAgent:
 
     def __init__(self, env):
         self.env = env
         self.total_reward = 0
-        self.curr_obs = env.reset()
+        self.curr_obs = None  # Inicializa como None
 
     def step(self, action):
-        obs, reward, done, _, info = self.env.step(action)
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        done = terminated or truncated
         self.total_reward += reward
         self.curr_obs = obs
         return obs, reward, done, info
@@ -20,66 +22,71 @@ class AleatoryAgent:
         """ Return a random number between 0 and 5 """
         return np.random.choice(6)
 
-
     def reset(self):
         self.total_reward = 0
-        self.curr_obs = self.env.reset()
-        action = self.env.action_space.sample()  # Random action selection
-        obs, reward, done, _, info = env.step(action)
-        return obs, reward, done, _, info
+        self.curr_obs, info = self.env.reset()
+        return self.curr_obs, info
 
-    def play(self):
-        self.env.reset()
+    def play(self, episode_id=1):
+        self.reset()
 
-        for step in range(self.env.epilength):
+        step = 0
+        while True:
             actions = []
             cases_t = self.env.cases_t
+
+            # Se não houver casos neste timestep, passamos uma lista vazia ou ação vazia
             for case in cases_t:
                 id = self.env.get_case_id(case)
                 action = self.choose_action()
                 action = (id, action)
                 actions.append(action)
+
+            # Converte para tupla conforme esperado pelo ambiente
             obs, reward, done, info = self.step(tuple(actions))
 
-            # Call render and handle events to prevent freezing
-            self.env.render()  # This is crucial for updating the window
-            pygame.event.pump()  # Keep Pygame events flowing (avoids freezing)
+            # Renderização
+            if self.env.render_mode == "human":
+                self.env.render()
+                pygame.event.pump()
+                pygame.time.delay(10)
 
-            rewards = self.env.get_individual_rewards_at_t(step)
+            # Debug rewards
+            # rewards = self.env.get_individual_rewards_at_t(self.env.t) # Cuidado: t já incrementou no step
+
             if done:
+                print(f"Episódio {episode_id} finalizado no step {step}.")
+                self.env.plot_confusion_map(
+                    title=f"Mapa de Confusão - Episódio {episode_id} (Aleatório)",
+                    save_path=f"confusao_random_ep_{episode_id}.png"
+                )
                 break
 
-            # Optionally, you can add a small delay to control the speed of the simulation
-            pygame.time.delay(10)  # Adjust this value as needed
+            step += 1
 
-            # Save the Pygame screen at the last iteration
-            # if step == self.env.epilength - 1:
-                # pygame.image.save(self.env.screen, "final_screen.png")  # Save the screen
 
 if __name__ == "__main__":
     history = []
-    for i in range(1):
-    # Create the environment
-        env = DengueDiagnosticsEnv(epilength=12, size=500, render_mode="human")
-        # Create the agent
-        agent = AleatoryAgent(env)
-        # Run the simulation
-        agent.play()
-        # Print the total reward
+    # Aumentei para 2 episódios para testar o reset
+    num_episodes = 2
+
+    # Render mode "human" para ver o Pygame, ou None para ser mais rápido
+    env = DengueDiagnosticsEnv(epilength=30, size=500, render_mode="human")
+
+    agent = AleatoryAgent(env)
+
+    for i in range(num_episodes):
+        print(f"Iniciando episódio {i + 1}...")
+        agent.play(episode_id=i + 1)
         print(f"Total reward: {agent.total_reward}")
-        # Close the environment
-        env.close()
         history.append(agent.total_reward)
 
+    env.close()
+
     plt.figure()
-    # Plot the rewards
     plt.plot(history)
-    # Add a title
     plt.title("Total reward per episode")
-    # Add labels to the axes
     plt.xlabel("Episode")
     plt.ylabel("Total reward")
-    # Display the plot
+    plt.savefig("random_agent_results.png")
     plt.show()
-    # save plot
-    plt.savefig("q_learning.png")
