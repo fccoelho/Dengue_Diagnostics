@@ -47,3 +47,10 @@ pip install -e .
 ## Usage
 To use the environment, import it as follows:
 ```
+
+
+- criar dados simulados baseados em 2016
+- metodos de krieger para calculo de superficie de densidade de pontos (nao assume dist)
+
+# TODO fazer com o delay na recompensa
+# TODO avaliar em intervalos maiores
