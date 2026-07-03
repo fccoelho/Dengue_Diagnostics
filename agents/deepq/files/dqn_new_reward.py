@@ -9,49 +9,51 @@ from tianshou.env import SubprocVectorEnv
 from tianshou.policy import DQNPolicy
 from tianshou.trainer import OffpolicyTrainer
 from tianshou.utils import TensorboardLogger
+from tianshou.env import DummyVectorEnv
 
-# Seus módulos
+# Importações do seu repositório original
 from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
 from dengue_wrapper import DengueWrapper, CaseByCaseWrapper
 from fcn_network import DengueNet
 
-# --- CONFIGURAÇÕES GERAIS ---
+# --- CONFIGURAÇÕES DO NOVO EXPERIMENTO EXPANDIDO ---
 print(f"CUDA Available: {torch.cuda.is_available()}")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Hiperparâmetros Fixos
-LR = 1e-4
-GAMMA = 0.99
-N_STEP = 3
-TARGET_UPDATE_FREQ = 1000
-BUFFER_SIZE = 1000
-BATCH_SIZE = 64
+# Hiperparâmetros Ajustados para Estabilidade em Espaços Maiores
+LR = 5e-5               # Taxa de aprendizado ligeiramente menor para evitar divergência
+GAMMA = 0.99            # Mantido para propagar bem o credit assignment do delay
+N_STEP = 4              # Aumentado para ajudar a capturar a dependência temporal do delay
+TARGET_UPDATE_FREQ = 1500
+BUFFER_SIZE = 5000     # NOVO: Buffer expandido para comportar mais estados
+BATCH_SIZE = 32        # NOVO: Batch size maior para lidar com a alta variância do grid expandido
 
-# Configuração do Experimento
-EPOCH = 50  # 50 Épocas por agente
-STEP_PER_EPOCH = 10000  # 10k passos por época
-STEP_PER_COLLECT = 1000
+# Configuração de Épocas
+EPOCH = 60              # Aumentado ligeiramente para dar mais tempo de convergência
+STEP_PER_EPOCH = 12000
+STEP_PER_COLLECT = 1200
 UPDATE_PER_STEP = 0.1
 
-# Exploração
+# Exploração Reajustada
 EPS_TRAIN_START = 1.0
 EPS_TRAIN_FINAL = 0.05
-EPS_TRAIN_DECAY = 50000  # Decaimento ao longo de 20 épocas
+EPS_TRAIN_DECAY = 15000
 EPS_TEST = 0.01
 
-# Ambientes
-NUM_ENVS = 4
-NUM_TEST_ENVS = 4
+# Ambientes Paralelos
+NUM_ENVS = 2
+NUM_TEST_ENVS = 2
 
-# Mundo
-WORLD_SIZE = 400
-MIN_BORDER_DISTANCE = 50
-MAX_RADIUS = 100
-MIN_RADIUS = 50
+# Novas dimensões do Mundo Epidemiológico
+WORLD_SIZE = 600          # NOVO: Grid expandido (era 400)
+EPISIZE = 250             # NOVO: Mais casos ocorrendo simultaneamente (era 150)
+REWARD_DELAY_DAYS = 5     # NOVO: Ativação do delay epidemiológico de 5 dias
+MIN_BORDER_DISTANCE = 80
+MAX_RADIUS = 200          # NOVO: Raios máximos adaptados ao novo tamanho de cidade
+MIN_RADIUS = 80
 
-# --- LISTA DE EXPERIMENTOS ---
-# Vamos treinar 3 agentes diferentes
-SEEDS = [100]
+# Seeds para o novo experimento
+SEEDS = [400, 500]
 
 
 def generate_random_center(size: int, margin: int) -> Tuple[int, int]:
@@ -61,16 +63,18 @@ def generate_random_center(size: int, margin: int) -> Tuple[int, int]:
 
 
 def make_env():
-    """Factory do ambiente."""
-    # Nota: A seed global do numpy/torch cuida da aleatoriedade aqui
+    """Factory do ambiente customizado para o Grid Maior."""
     dengue_center = generate_random_center(WORLD_SIZE, MIN_BORDER_DISTANCE)
     chik_center = generate_random_center(WORLD_SIZE, MIN_BORDER_DISTANCE)
     dengue_radius = np.random.randint(MIN_RADIUS, MAX_RADIUS)
     chik_radius = np.random.randint(MIN_RADIUS, MAX_RADIUS)
 
+    # Inicializando o ambiente com as novas flags de escala e delay
     env = DengueDiagnosticsEnv(
-        epilength=60,
         size=WORLD_SIZE,
+        episize=EPISIZE,
+        epilength=60,
+        reward_delay_days=REWARD_DELAY_DAYS,  # Injetando o delay aqui
         clinical_specificity=(0.5, 0.95),
         dengue_center=dengue_center,
         chik_center=chik_center,
@@ -82,32 +86,29 @@ def make_env():
     return env
 
 
-def train_one_agent(seed):
-    """Função que treina UM agente completo com uma seed específica."""
+def train_large_grid_agent(seed):
+    """Executa o pipeline completo de treino para uma seed específica."""
+    experiment_name = f"dqn_large_grid_delay_seed_{seed}"
+    print(f"\n{'=' * 50}")
+    print(f" INICIANDO EXPERIMENTO EXPANDIDO: {experiment_name}")
+    print(f"{'=' * 50}\n")
 
-    experiment_name = f"dqn_seed_{seed}"
-    print(f"\n{'=' * 40}")
-    print(f"   INICIANDO TREINAMENTO: {experiment_name}")
-    print(f"{'=' * 40}\n")
-
-    # 1. Definir Seeds para reprodutibilidade deste agente
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-    # 2. Criar Ambientes
-    train_envs = SubprocVectorEnv([make_env for _ in range(NUM_ENVS)])
-    test_envs = SubprocVectorEnv([make_env for _ in range(NUM_TEST_ENVS)])
+    # Criando os vetores de sub-processos para os ambientes
+    train_envs = DummyVectorEnv([make_env for _ in range(NUM_ENVS)])
+    test_envs = DummyVectorEnv([make_env for _ in range(NUM_TEST_ENVS)])
 
-    # Seed nos ambientes
     train_envs.seed(seed)
     test_envs.seed(seed)
 
-    # 3. Rede e Política
-    # Criamos uma instância dummy para pegar shapes
+    # Coleta dinâmica de dimensões através do wrapper instanciado
     dummy_env = make_env()
     map_shape = dummy_env.observation_space.spaces["map"].shape
     action_shape = dummy_env.action_space.n
 
+    # Instanciando a rede neural (ela se ajusta ao novo tamanho de mapa automaticamente)
     net = DengueNet(map_shape, action_shape, device=DEVICE).to(DEVICE)
     optim = torch.optim.Adam(net.parameters(), lr=LR)
 
@@ -120,27 +121,26 @@ def train_one_agent(seed):
         action_space=dummy_env.action_space
     )
 
-    # 4. Buffer
+    # Configuração da Memória de Replay
     buffer = VectorReplayBuffer(
         total_size=BUFFER_SIZE,
         buffer_num=NUM_ENVS,
         ignore_obs_next=True
     )
 
-    # 5. Coletores
     train_collector = Collector(policy, train_envs, buffer, exploration_noise=True)
     test_collector = Collector(policy, test_envs)
 
-    # Inicialização forçada do buffer
-    print("-> Inicializando buffer...")
-    train_collector.collect(n_step=100, reset_before_collect=True)
+    print("-> Pré-populando o buffer de experiências...")
+    train_collector.collect(n_step=1000, reset_before_collect=True)
 
-    # 6. Logger (Pastas separadas por seed!)
-    log_path = os.path.join("logs", "experiment_50_epochs", experiment_name)
+    # Logs direcionados para uma pasta específica do experimento em escala
+    log_path = os.path.join("logs", "experiment_large_grid", experiment_name)
     writer = SummaryWriter(log_path)
     logger = TensorboardLogger(writer)
 
     def train_fn(epoch, env_step):
+        # Lógica de decaimento linear ajustada para a nova escala temporal
         if env_step <= EPS_TRAIN_DECAY:
             eps = EPS_TRAIN_START - env_step / EPS_TRAIN_DECAY * \
                   (EPS_TRAIN_START - EPS_TRAIN_FINAL)
@@ -152,11 +152,11 @@ def train_one_agent(seed):
         policy.set_eps(EPS_TEST)
 
     def save_best_fn(policy):
-        # Salva na pasta do experimento específico
-        path = os.path.join(log_path, "policy_best.pth")
+        path = os.path.join(log_path, "policy_large_best.pth")
         torch.save(policy.state_dict(), path)
+        print(f"[*] Novo melhor modelo salvo em: {path}")
 
-    # 7. Treinamento
+    # Inicialização do Treinador Off-Policy do Tianshou
     trainer = OffpolicyTrainer(
         policy=policy,
         train_collector=train_collector,
@@ -176,12 +176,11 @@ def train_one_agent(seed):
 
     result = trainer.run()
 
-    # Salvar modelo final
-    final_path = os.path.join(log_path, "policy_final.pth")
+    # Salvando os pesos finais obtidos
+    final_path = os.path.join(log_path, "policy_large_final.pth")
     torch.save(policy.state_dict(), final_path)
-    print(f"-> Treino finalizado para Seed {seed}. Salvo em {final_path}")
+    print(f"-> Treino concluído com sucesso. Resultados salvos em {log_path}")
 
-    # Fechar ambientes para liberar memória para o próximo agente
     train_envs.close()
     test_envs.close()
 
@@ -189,7 +188,9 @@ def train_one_agent(seed):
 if __name__ == "__main__":
     for seed in SEEDS:
         try:
-            train_one_agent(seed)
+            train_large_grid_agent(seed)
         except Exception as e:
-            print(f"ERRO CRÍTICO na Seed {seed}: {e}")
+            print(f"🚨 ERRO CRÍTICO na execução da Seed {seed}: {e}")
             continue
+
+# TODO: implementar com matrizes esparsas

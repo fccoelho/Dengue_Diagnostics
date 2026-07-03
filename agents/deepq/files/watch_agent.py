@@ -11,9 +11,9 @@ from fcn_network import DengueNet
 
 
 # --- Configurações ---
-POLICY_PATH = "dqn_dengue_policy6.pth"
-# POLICY_PATH = "dqn_dengue_policy_SEED_850.pth"
-# POLICY_PATH = "C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/agents/deepq/files/logs/experiment_50_epochs/dqn_seed_100/policy_best.pth"
+POLICY_PATH = "dqn_dengue_policy3.pth"
+#POLICY_PATH = "dqn_dengue_policy_SEED_850.pth"
+#POLICY_PATH = "C:/Users/segun/Documents/GitHub/Dengue_Diagnostics/agents/deepq/files/logs/experiment_50_epochs/dqn_seed_100/policy_best.pth"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 RENDER_FPS = 10
 WORLD_SIZE = 400

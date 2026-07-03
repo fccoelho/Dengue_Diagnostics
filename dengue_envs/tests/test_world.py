@@ -30,7 +30,7 @@ class WorldTestCase(unittest.TestCase):
     def test_case_dataframe(self):
         df = self.world.casedf
         self.assertListEqual(list(df.index), list(range(len(df))))
-        self.assertListEqual(list(df.columns), ["t", "x", "y", "disease"])
+        self.assertListEqual(list(df.columns), ["t", "x", "y", "disease", "testd", "testc", "epiconf"])
 
     def test_viewer(self):
         self.world.view()

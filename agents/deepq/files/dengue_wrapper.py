@@ -1,4 +1,3 @@
-# dengue_wrappers.py
 import gymnasium as gym
 import numpy as np
 from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
@@ -8,14 +7,17 @@ from gymnasium import spaces
 class DengueWrapper(gym.ObservationWrapper):
     """
     Converte a observação Dict do DengueDiagnosticsEnv para um tensor 4-channel.
-    (Baseado na Célula 4 do seu notebook)
+    Mantém o tamanho original (sem downsampling) utilizando o menor tipo de dado (uint8).
     """
 
     def __init__(self, env: DengueDiagnosticsEnv):
         super().__init__(env)
         world_size = self.unwrapped.size
+
+        # O limite máximo dos seus dados é 4 (status + 1), então high=5 é suficiente
+        # dtype travado em np.uint8 (1 byte por célula)
         self.observation_space = spaces.Box(
-            low=0, high=255,
+            low=0, high=5,
             shape=(4, world_size, world_size),
             dtype=np.uint8
         )
@@ -33,8 +35,9 @@ class DengueWrapper(gym.ObservationWrapper):
 
     def observation(self, obs_dict):
         """
-        Converte o dicionário de observação em um tensor.
+        Converte o dicionário de observação em um tensor ultraleve na memória RAM.
         """
+        # Tensor inicializado explicitamente como np.uint8
         tensor = np.zeros((4, self._world_size, self._world_size), dtype=np.uint8)
 
         # Canal 0: Diagnóstico clínico (0,1,2 -> 1,2,3)
@@ -61,7 +64,7 @@ class DengueWrapper(gym.ObservationWrapper):
             if case_data.t == current_t:
                 x, y = int(case_data.x), int(case_data.y)
                 if 0 <= x < self._world_size and 0 <= y < self._world_size:
-                    tensor[3, x, y] = 1.0
+                    tensor[3, x, y] = 1  # Usando 1 inteiro no lugar de 1.0 float
 
         return tensor
 
@@ -69,7 +72,6 @@ class DengueWrapper(gym.ObservationWrapper):
 class CaseByCaseWrapper(gym.Wrapper):
     """
     Transforma o problema de "N decisões por passo" para "1 decisão por passo, N vezes".
-    Isto torna o action_space um simples Discrete(6).
     """
 
     def __init__(self, env: DengueWrapper):
@@ -80,18 +82,18 @@ class CaseByCaseWrapper(gym.Wrapper):
         self.observation_space = spaces.Dict({
             "map": env.observation_space,
             "case_coords": spaces.Box(
-                low=0, high=self.unwrapped.size, shape=(2,), dtype=np.float32
+                # Normalizado de 0.0 a 1.0 em float32 (Apenas 8 bytes, não pesa nada)
+                low=0.0, high=1.0, shape=(2,), dtype=np.float32
             )
         })
 
         self.active_cases = []
         self.case_iterator = iter(self.active_cases)
         self.pending_actions = []
-        self.current_case = (0, 0, 0)  # (case_id, x, y)
+        self.current_case = (0, 0, 0)
         self._current_map_obs = None
 
     def _get_active_cases(self):
-        """Pega os casos ativos no timestep atual do ambiente base."""
         df = self.unwrapped.obs_cases
         t = self.unwrapped.t
         active_df = df[df.t == t]
@@ -100,70 +102,82 @@ class CaseByCaseWrapper(gym.Wrapper):
             cases.append((case.Index, int(case.x), int(case.y)))
         return cases
 
+    def _refresh_active_cases(self):
+        self.active_cases = self._get_active_cases()
+        self.case_iterator = iter(self.active_cases)
+
+    def _advance_empty_days(self):
+        """Skip days with no reported cases (common at start_day=1 or sparse curves)."""
+        terminated, truncated = False, False
+        info = {}
+
+        while not self.active_cases:
+            obs_tensor, reward, terminated, truncated, info = self.env.step(tuple())
+            self._current_map_obs = obs_tensor
+            if terminated or truncated:
+                self.current_case = (0, 0, 0)
+                return terminated, truncated, info
+            self._refresh_active_cases()
+
+        return terminated, truncated, info
+
     def _make_obs(self):
-        """Cria a observação Dict para o agente."""
+        # Coordenadas normalizadas dividindo pelo tamanho original
+        normalized_x = self.current_case[1] / self.unwrapped.size
+        normalized_y = self.current_case[2] / self.unwrapped.size
+
         return {
             "map": self._current_map_obs,
-            "case_coords": np.array([self.current_case[1], self.current_case[2]], dtype=np.float32)
+            "case_coords": np.array([normalized_x, normalized_y], dtype=np.float32)
         }
 
     def _next_case(self):
-        """
-        Avança para o próximo caso. Se não houver casos neste dia,
-        avança os dias no ambiente automaticamente, ACUMULANDO A RECOMPENSA.
-        """
-        accumulated_reward = 0.0  # <-- Variável para guardar a recompensa
+        accumulated_reward = 0.0
+        last_info = {}
 
         while True:
             try:
-                # 1. Tenta pegar o próximo caso da lista atual
                 self.current_case = next(self.case_iterator)
-
-                # Se conseguiu, retorna obs e a recompensa acumulada até agora
-                return self._make_obs(), accumulated_reward, False, False, {}
+                return self._make_obs(), accumulated_reward, False, False, last_info
 
             except StopIteration:
-                # 2. Acabaram os casos deste dia. Avançar ambiente.
-
                 action_tuple = tuple(self.pending_actions)
                 self.pending_actions = []
 
-                # Chama step. Recebe recompensa do dia que passou.
                 obs_tensor, reward, terminated, truncated, info = self.env.step(action_tuple)
-
-                # SOMA a recompensa
                 accumulated_reward += reward
-
                 self._current_map_obs = obs_tensor
+                last_info = info
 
                 if terminated or truncated:
                     self.current_case = (0, 0, 0)
-                    # Retorna a recompensa total final
                     return self._make_obs(), accumulated_reward, terminated, truncated, info
 
-                # Carrega casos do novo dia
-                self.active_cases = self._get_active_cases()
-                self.case_iterator = iter(self.active_cases)
+                self._refresh_active_cases()
+                term, trunc, skip_info = self._advance_empty_days()
+                if skip_info:
+                    last_info = skip_info
+                if term or trunc:
+                    self.current_case = (0, 0, 0)
+                    return self._make_obs(), accumulated_reward, term, trunc, last_info
 
     def reset(self, **kwargs):
         obs_tensor, info = self.env.reset(**kwargs)
         self._current_map_obs = obs_tensor
         self.pending_actions = []
 
-        self.active_cases = self._get_active_cases()
-        self.case_iterator = iter(self.active_cases)
+        self._refresh_active_cases()
+        self._advance_empty_days()
 
         try:
             self.current_case = next(self.case_iterator)
         except StopIteration:
-            self.current_case = (0, 0, 0)  # dummy
+            self.current_case = (0, 0, 0)
 
         return self._make_obs(), info
 
     def step(self, action: int):
-        """
-        O agente passa uma única ação (0-5) para o caso atual.
-        """
+        if self.current_case[0] == 0 and not self.active_cases:
+            return self._make_obs(), 0.0, True, False, {}
         self.pending_actions.append((int(self.current_case[0]), int(action)))
-
         return self._next_case()

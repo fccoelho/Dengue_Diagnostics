@@ -46,6 +46,14 @@ class DengueNet(nn.Module):
         )
 
     def forward(self, obs, state=None, info={}):
+
+        map_obs = obs["map"]
+
+        # CORREÇÃO DEFINITIVA: Converte numpy/tensor para Float Tensor e garante que está na GPU
+        # next(self.parameters()).device pega automaticamente o device (CPU/CUDA) da rede
+        device = next(self.parameters()).device
+        obs["map"] = torch.as_tensor(map_obs, dtype=torch.float32, device=device)
+
         # Converte para tensores no dispositivo correto
         map_tensor = torch.as_tensor(
             obs["map"], device=self.device, dtype=torch.float32

@@ -27,7 +27,8 @@ class TestDengueWrapper(unittest.TestCase):
         expected_shape = (4, 20, 20)
         self.assertIsInstance(self.wrapper.observation_space, spaces.Box)
         self.assertEqual(self.wrapper.observation_space.shape, expected_shape)
-        self.assertEqual(self.wrapper.observation_space.dtype, np.float32)
+        # Wrapper stores the map as uint8 to keep the replay buffer memory light.
+        self.assertEqual(self.wrapper.observation_space.dtype, np.uint8)
 
     def test_observation_logic(self):
         """
@@ -170,13 +171,19 @@ class TestCasetByCaseWrapper(unittest.TestCase):
         self.assertEqual(info, {"info_key": 1})
 
         self.assertEqual(self.wrapper.current_case, (100, 5, 5))
-        self.assertTrue(np.array_equal(obs["case_coords"], np.array([5., 5.])))
+        # Coordinates are normalized by world size (20): 5/20 = 0.25.
+        self.assertTrue(np.allclose(obs["case_coords"], np.array([0.25, 0.25])))
         self.assertTrue(np.array_equal(obs["map"], self.dummy_tensor_obs))
         self.assertEqual(len(list(self.wrapper.case_iterator)), 1)
 
     def test_reset_no_cases(self):
-        """Testa o reset quando NÃO há casos ativos no t=0."""
+        """Testa o reset quando NÃO há casos ativos no t=0.
+
+        Sem casos, o wrapper avança os dias automaticamente; aqui o ambiente
+        base é mockado para terminar imediatamente.
+        """
         self.dw_env_mock.reset.return_value = (self.dummy_tensor_obs, {})
+        self.dw_env_mock.step.return_value = (self.dummy_tensor_obs, 0.0, True, False, {})
         self._mock_active_cases(t=0, cases_list=[])
 
         obs, info = self.wrapper.reset()
@@ -204,7 +211,8 @@ class TestCasetByCaseWrapper(unittest.TestCase):
         self.assertFalse(term1)
         self.assertEqual(self.wrapper.pending_actions, [(100, 3)])
         self.assertEqual(self.wrapper.current_case, (101, 8, 8))
-        self.assertTrue(np.array_equal(obs1["case_coords"], np.array([8., 8.])))
+        # Normalized by world size (20): 8/20 = 0.4.
+        self.assertTrue(np.allclose(obs1["case_coords"], np.array([0.4, 0.4])))
 
         next_t_obs_tensor = np.ones((4, 20, 20), dtype=np.float32)
         self.dw_env_mock.step.return_value = (next_t_obs_tensor, 10.0, False, False, {"real_info": 1})
@@ -224,7 +232,8 @@ class TestCasetByCaseWrapper(unittest.TestCase):
         self.assertEqual(self.wrapper.current_case, (200, 1, 1))
 
         self.assertTrue(np.array_equal(obs2["map"], next_t_obs_tensor))
-        self.assertTrue(np.array_equal(obs2["case_coords"], np.array([1., 1.])))
+        # Normalized by world size (20): 1/20 = 0.05.
+        self.assertTrue(np.allclose(obs2["case_coords"], np.array([0.05, 0.05])))
 
     def test_step_and_terminate(self):
         """Testa se o wrapper lida com o término do episódio."""
