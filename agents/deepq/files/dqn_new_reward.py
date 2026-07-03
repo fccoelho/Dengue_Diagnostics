@@ -25,7 +25,7 @@ LR = 5e-5               # Taxa de aprendizado ligeiramente menor para evitar div
 GAMMA = 0.99            # Mantido para propagar bem o credit assignment do delay
 N_STEP = 4              # Aumentado para ajudar a capturar a dependência temporal do delay
 TARGET_UPDATE_FREQ = 1500
-BUFFER_SIZE = 5000     # NOVO: Buffer expandido para comportar mais estados
+BUFFER_SIZE = 1000     # NOVO: Buffer expandido para comportar mais estados
 BATCH_SIZE = 32        # NOVO: Batch size maior para lidar com a alta variância do grid expandido
 
 # Configuração de Épocas
@@ -45,15 +45,15 @@ NUM_ENVS = 2
 NUM_TEST_ENVS = 2
 
 # Novas dimensões do Mundo Epidemiológico
-WORLD_SIZE = 600          # NOVO: Grid expandido (era 400)
-EPISIZE = 250             # NOVO: Mais casos ocorrendo simultaneamente (era 150)
-REWARD_DELAY_DAYS = 5     # NOVO: Ativação do delay epidemiológico de 5 dias
+WORLD_SIZE = 300          # NOVO: Grid expandido (era 400)
+EPISIZE = 100             # NOVO: Mais casos ocorrendo simultaneamente (era 150)
+REWARD_DELAY_DAYS = 0     # NOVO: Ativação do delay epidemiológico de 0 dias (sem delay)
 MIN_BORDER_DISTANCE = 80
-MAX_RADIUS = 200          # NOVO: Raios máximos adaptados ao novo tamanho de cidade
+MAX_RADIUS = 100          # NOVO: Raios máximos adaptados ao novo tamanho de cidade
 MIN_RADIUS = 80
 
 # Seeds para o novo experimento
-SEEDS = [400, 500]
+SEEDS = [42]
 
 
 def generate_random_center(size: int, margin: int) -> Tuple[int, int]:

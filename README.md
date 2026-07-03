@@ -52,4 +52,13 @@ pip install -e .
 # TODO fazer com o delay na recompensa
 # TODO avaliar em intervalos maiores
 
+\\ todo: como mostrar grandes diferencas entre o aleatorio e o que fizemos
+
+\\ todo: distribuicao espacial realista (2016)
+
+\\ todo: delay de recompensas
+
+\\ todo: comparar com o fluxo de tomada de decisão da secretaria
+\\ entra na introducao, comparar o fluxo atual tal qual o fluxo
+\\ e ja entra como parte da metodologia
 ```
