@@ -88,14 +88,19 @@ def main() -> None:
     )
     parser.add_argument("--fps", type=int, default=10, help="Frames por segundo.")
     parser.add_argument(
-        "--no-confusion-map",
+        "--save-maps",
         action="store_true",
-        help="Nao salvar mapa de confusao ao final.",
+        help="Salvar mapa de confusao e da epidemia (default: nao salvar).",
     )
     parser.add_argument(
-        "--no-epidemic-map",
+        "--save-confusion-map",
         action="store_true",
-        help="Nao salvar mapa da epidemia (ground truth) ao iniciar.",
+        help="Salvar mapa de confusao ao final.",
+    )
+    parser.add_argument(
+        "--save-epidemic-map",
+        action="store_true",
+        help="Salvar mapa da epidemia (ground truth) ao iniciar.",
     )
     parser.add_argument(
         "--device", default=None, help="cpu ou cuda (default: cuda se disponivel)."
@@ -120,8 +125,8 @@ def main() -> None:
         agent_name="dqn",
         seed=seed,
         render_fps=args.fps,
-        save_confusion_map=not args.no_confusion_map,
-        save_epidemic_map=not args.no_epidemic_map,
+        save_confusion_map=args.save_maps or args.save_confusion_map,
+        save_epidemic_map=args.save_maps or args.save_epidemic_map,
     )
 
 

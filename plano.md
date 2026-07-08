@@ -132,8 +132,44 @@ A renderização saiu do ambiente e virou um pacote isolado `dengue_envs/renderi
 Validação: 80 testes passando + smoke test headless (`SDL_VIDEODRIVER=dummy`)
 rodando `step`/`render` sem abrir janela.
 
-Próximo agente a migrar para este mesmo pipeline: **Q-Learning** (basta um novo
-runner + registrá-lo no `AGENT_REGISTRY`).
+Próximo agente a migrar para este mesmo pipeline: **DQN** (registrar runner no
+`AGENT_REGISTRY` + checkpoint `.pth`).
+
+---
+
+# ✅ Rodada — Q-Learning tabular no ambiente novo
+
+Migração do Q-Learning legado (`qlearning_agent_old.py`) para o pipeline atual
+(`make_env` + wrappers + benchmark).
+
+### O que foi feito
+
+- **`agents/qlearning/agent.py`**: `QLearningAgent` (tabela Q, ε-greedy, save/load)
+  e `QLearningAgentRunner` (`EpisodeRunner` para benchmark/watch).
+- **Estado discretizado**: `{day_bucket}|{clinical}|{testd}|{testc}` a partir do
+  mapa tensor do `CaseByCaseWrapper` (uma ação por caso, `Discrete(6)`).
+- **`agents/qlearning/train.py`**: script de treino por YAML (não executado
+  automaticamente; o usuário roda quando quiser).
+- **`agents/qlearning/watch.py`**: visualização com `run_watch`.
+- **`experiments/configs/train/qlearning_default.yaml`**: hiperparâmetros padrão.
+- **Benchmark**: `qlearning` registrado em `AGENT_REGISTRY`; checkpoint opcional
+  via `checkpoints.qlearning` no `benchmark.yaml`.
+- **Legado preservado**: `qlearning_agent_old.py`.
+
+### Como usar
+
+```bash
+# Treinar (gera results/qlearning/q_table.pkl)
+poetry run python agents/qlearning/train.py
+
+# Benchmark (descomente qlearning no benchmark.yaml após treinar)
+poetry run python experiments/evaluate.py
+
+# Assistir
+poetry run python agents/qlearning/watch.py --q-table results/qlearning/q_table.pkl
+```
+
+Documentação completa: `agents/qlearning/README.md`.
 
 ---
 
@@ -509,7 +545,7 @@ runner.train(make_env_factory(config), config)
 | `agents/deepq/files/agent_train.py` + `dqn_new_reward.py` | `agents/dqn/train.py` (um só) |
 | `agents/random/agent_random.py` | `agents/random/agent.py` |
 | `agents/random/random_agent.py` | remover ou marcar deprecated |
-| `agents/qlearning/qlearning_agent.py` | `agents/qlearning/agent.py` |
+| `agents/qlearning/qlearning_agent.py` | `agents/qlearning/agent.py` (novo) + `qlearning_agent_old.py` |
 | `agents/ppo/ppo.py` | `agents/ppo/train.py` (reescrever para o env) |
 | `COMPARACAO.py` | `experiments/evaluate.py` |
 
@@ -554,9 +590,10 @@ Checklist por algoritmo:
 
 | Algoritmo | Env necessário | Status hoje |
 |-----------|----------------|-------------|
-| Random | `CaseByCaseWrapper` ou env bruto | ✅ Funciona |
-| Q-Learning | Env bruto (ação por dia) | ⚠️ Baseline fraco |
-| DQN | `DengueWrapper` + `CaseByCaseWrapper` | ✅ Tianshou |
+| Random | `CaseByCaseWrapper` | ✅ Benchmark + watch |
+| Clinical | `CaseByCaseWrapper` | ✅ Benchmark |
+| Q-Learning | `map_tensor` + `case_by_case` | ✅ Train + benchmark + watch |
+| DQN | `DengueWrapper` + `CaseByCaseWrapper` | ✅ Tianshou (treino legado); benchmark pendente |
 | PPO | Mesmo wrapper do DQN | ❌ Template CartPole |
 
 Para PPO: reutilizar `DengueNet` ou uma política mais leve; GAE sobre episódios completos no wrapper.

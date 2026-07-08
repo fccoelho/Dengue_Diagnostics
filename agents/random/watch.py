@@ -4,6 +4,7 @@ Uso (da raiz do repositório):
     poetry run python agents/random/watch.py
     poetry run python agents/random/watch.py --seed 100 --fps 8   # reproduzir surto
     poetry run python agents/random/watch.py --seed random        # surto aleatorio
+    poetry run python agents/random/watch.py --save-maps          # salvar PNGs ao final
     poetry run python agents/random/watch.py --config experiments/configs/env/synthetic_large.yaml
 
 Abre a janela Pygame e mostra o agente decidindo caso a caso (mapa + gráficos de
@@ -36,14 +37,19 @@ def main() -> None:
     )
     parser.add_argument("--fps", type=int, default=10, help="Frames por segundo.")
     parser.add_argument(
-        "--no-confusion-map",
+        "--save-maps",
         action="store_true",
-        help="Nao salvar mapa de confusao ao final.",
+        help="Salvar mapa de confusao e da epidemia (default: nao salvar).",
     )
     parser.add_argument(
-        "--no-epidemic-map",
+        "--save-confusion-map",
         action="store_true",
-        help="Nao salvar mapa da epidemia (ground truth) ao iniciar.",
+        help="Salvar mapa de confusao ao final.",
+    )
+    parser.add_argument(
+        "--save-epidemic-map",
+        action="store_true",
+        help="Salvar mapa da epidemia (ground truth) ao iniciar.",
     )
     args = parser.parse_args()
 
@@ -57,8 +63,8 @@ def main() -> None:
         env_config,
         seed=seed,
         render_fps=args.fps,
-        save_confusion_map=not args.no_confusion_map,
-        save_epidemic_map=not args.no_epidemic_map,
+        save_confusion_map=args.save_maps or args.save_confusion_map,
+        save_epidemic_map=args.save_maps or args.save_epidemic_map,
     )
 
 

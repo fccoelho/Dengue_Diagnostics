@@ -90,8 +90,8 @@ def run_watch(
     render_fps: int = 10,
     max_steps: Optional[int] = None,
     artifacts_dir: Optional[str] = None,
-    save_confusion_map: bool = True,
-    save_epidemic_map: bool = True,
+    save_confusion_map: bool = False,
+    save_epidemic_map: bool = False,
 ) -> Dict:
     """Roda UM episódio com renderização e devolve as métricas finais.
 

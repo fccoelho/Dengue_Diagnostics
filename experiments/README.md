@@ -11,6 +11,8 @@ experiments/
 │   ├── env/
 │   │   ├── synthetic_default.yaml   # ambiente sintético padrão
 │   │   └── synthetic_large.yaml     # grid/epidemia maiores
+│   ├── train/
+│   │   └── qlearning_default.yaml   # hiperparâmetros do Q-Learning tabular
 │   └── benchmark.yaml               # quais agentes/seeds rodar e onde salvar
 ├── evaluate.py                      # roda o benchmark e salva os CSVs
 └── README.md
@@ -37,6 +39,9 @@ Baselines disponíveis:
   superá-lo para justificar seu custo. A diferença de recompensa para ele é a
   **contribuição marginal** do agente.
 - `random` — escolhe uma ação uniforme por caso.
+- `qlearning` — Q-Learning tabular (uma ação por caso, mesmo wrapper do DQN).
+  Requer Q-table treinada; descomente em `benchmark.yaml` após rodar
+  `agents/qlearning/train.py`. Checkpoint em `checkpoints.qlearning`.
 
 Para trocar o ambiente, edite `env_config` no `benchmark.yaml` (ex.:
 `env/synthetic_large.yaml`) ou ajuste os YAMLs em `configs/env/`.
@@ -96,19 +101,26 @@ poetry run python agents/random/watch.py --config experiments/configs/env/synthe
 
 # Policy DQN treinada (aponte para o .pth gerado no treino)
 poetry run python agents/deepq/watch.py --policy caminho/para/policy.pth --seed 100
+
+# Q-Learning tabular (aponte para o q_table.pkl treinado)
+poetry run python agents/qlearning/watch.py --q-table results/qlearning/q_table.pkl --seed 100
 ```
 
 Usando a mesma `--seed` do `benchmark.yaml` (ex.: `100`), você vê exatamente o
 cenário avaliado. Ao final, um resumo do episódio é impresso (recompensa,
-acurácia multiclasse/binária, testes) e dois PNGs:
-- **Mapa da epidemia** (ground truth) — salvo ao iniciar o episódio em
-  `results/epidemic_maps/` (ou `{output_dir}/epidemic_maps/` no benchmark).
-  Funciona com qualquer gerador cujo `real_cases` siga o esquema padrão
-  (`t`, `x`, `y`, `disease`); futuros datasets realistas (Rio 2016, etc.)
-  só precisam produzir esse DataFrame.
-- **Mapa de confusão** — salvo ao final (decisões do agente vs. verdade).
+acurácia multiclasse/binária, testes).
 
-Use `--no-epidemic-map` ou `--no-confusion-map` no watch para pular.
+Por padrão o watch **não** grava PNGs (só visualiza). Para salvar mapas:
+
+```bash
+poetry run python agents/random/watch.py --save-maps
+poetry run python agents/random/watch.py --save-confusion-map   # só confusão
+poetry run python agents/random/watch.py --save-epidemic-map    # só epidemia
+```
+
+Os PNGs vão para `results/confusion_maps/` e `results/epidemic_maps/`. No
+**benchmark**, mapas e CSVs são salvos por padrão em `{output_dir}/` (veja
+`save_artifacts: true` no `benchmark.yaml`).
 
 Feche a janela ou use Ctrl+C para sair.
 

@@ -108,6 +108,29 @@ dengue_envs/
 agents/          # RL agents (DQN via Tianshou, random, clinical, qlearning, ppo)
 ```
 
+### Agents
+
+| Agent | Module | Train | Benchmark | Watch |
+|-------|--------|-------|-----------|-------|
+| Clinical (baseline) | `agents/clinical/` | — | yes | — |
+| Random (baseline) | `agents/random/` | — | yes | yes |
+| Q-Learning (tabular) | `agents/qlearning/` | `agents/qlearning/train.py` | yes* | yes |
+| DQN (deep) | `agents/deepq/` | `agents/deepq/files/agent_train.py` | planned | yes |
+
+\* Q-Learning no benchmark requer Q-table treinada (`results/qlearning/q_table.pkl`). Ver `agents/qlearning/README.md`.
+
+Benchmark all agents:
+
+```bash
+poetry run python experiments/evaluate.py --config experiments/configs/benchmark.yaml
+```
+
+Train Q-Learning (not run automatically):
+
+```bash
+poetry run python agents/qlearning/train.py --config experiments/configs/train/qlearning_default.yaml
+```
+
 ### Rendering
 
 Rendering lives entirely in `dengue_envs/rendering/` (not in the env):

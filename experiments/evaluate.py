@@ -32,14 +32,25 @@ from dengue_envs.wrappers import make_env
 
 from agents.base import ID_COLUMNS, PRIMARY_METRIC, RESULT_COLUMNS
 from agents.clinical.agent import ClinicalOnlyAgentRunner
+from agents.qlearning.agent import QLearningAgentRunner
 from agents.random.agent import RandomAgentRunner
 
 # Registro de agentes disponíveis (nome -> classe runner).
-# Novos algoritmos (q-learning, dqn, ppo, ...) entram aqui conforme migrados.
+# Novos algoritmos (dqn, ppo, ...) entram aqui conforme migrados.
 AGENT_REGISTRY = {
     "clinical": ClinicalOnlyAgentRunner,
     "random": RandomAgentRunner,
+    "qlearning": QLearningAgentRunner,
 }
+
+
+def _make_runner(name: str, bench: dict):
+    """Instancia o runner; agentes com checkpoint usam `checkpoints` no YAML."""
+    cls = AGENT_REGISTRY[name]
+    if name == "qlearning":
+        checkpoints = bench.get("checkpoints", {})
+        return cls(q_table_path=checkpoints.get("qlearning"))
+    return cls()
 
 
 def load_yaml(path: Path) -> dict:
@@ -69,6 +80,9 @@ def run_benchmark(config_path: str) -> pd.DataFrame:
     output_dir = Path(bench.get("output_dir", "results/baseline"))
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Por padrão o benchmark salva tudo: CSVs + mapas de confusão + mapas da epidemia.
+    save_artifacts = bool(bench.get("save_artifacts", True))
+
     all_rows: List[Dict] = []
     for name in agent_names:
         if name not in AGENT_REGISTRY:
@@ -76,10 +90,14 @@ def run_benchmark(config_path: str) -> pd.DataFrame:
                 f"Agente desconhecido: {name!r}. "
                 f"Disponíveis: {sorted(AGENT_REGISTRY)}"
             )
-        runner = AGENT_REGISTRY[name]()
+        runner = _make_runner(name, bench)
         print(f"[benchmark] avaliando '{name}' em {len(seeds)} episódios...")
         rows = runner.evaluate(
-            make_env, seeds, env_config, artifacts_dir=str(output_dir)
+            make_env,
+            seeds,
+            env_config,
+            artifacts_dir=str(output_dir),
+            save_artifacts=save_artifacts,
         )
         all_rows.extend(rows)
 
@@ -106,8 +124,11 @@ def run_benchmark(config_path: str) -> pd.DataFrame:
     print("  - benchmark_raw.csv")
     print("  - benchmark_mean.csv")
     print("  - benchmark_std.csv")
-    print(f"  - confusion_maps/  (mapas por agente/seed)")
-    print(f"  - epidemic_maps/   (mapa ground-truth por seed)")
+    if save_artifacts:
+        print(f"  - confusion_maps/  (mapas por agente/seed)")
+        print(f"  - epidemic_maps/   (mapa ground-truth por seed)")
+    else:
+        print("  (artefatos visuais omitidos: save_artifacts=false no YAML)")
 
     _print_ranking(mean_df)
     return df

@@ -7,12 +7,20 @@
 # - `seeds`: uma seed por episódio; para a mesma seed, todos os agentes veem o
 #   mesmo cenário (mundo + incerteza clínica reprodutíveis).
 # - `output_dir`: pasta (relativa à raiz do repositório) onde os CSVs são salvos.
+# - `save_artifacts`: se true (padrão), salva também mapas de confusão e da epidemia.
 env_config: env/synthetic_default.yaml
 
 agents:
   - clinical
   - random
+  # Descomente após treinar (agents/qlearning/train.py):
+  # - qlearning
+
+# Checkpoints opcionais para agentes treinados.
+# checkpoints:
+#   qlearning: results/qlearning/q_table.pkl
 
 seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
 
 output_dir: results/baseline
+save_artifacts: true

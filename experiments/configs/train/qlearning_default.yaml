@@ -1,0 +1,25 @@
+# Treino tabular Q-Learning (mesmo ambiente do benchmark/DQN).
+#
+# Uso:
+#   poetry run python agents/qlearning/train.py --config experiments/configs/train/qlearning_default.yaml
+#
+# Saídas em output_dir:
+#   q_table.pkl       — checkpoint principal (usado pelo benchmark/watch)
+#   q_table.txt       — dump legível da tabela
+#   training_log.csv  — recompensa por episódio
+
+env_config: ../env/synthetic_default.yaml
+
+train:
+  episodes: 200
+  seed: 42
+  alpha: 0.5
+  gamma: 0.5
+  epsilon_start: 0.30
+  epsilon_final: 0.05
+  epsilon_decay_episodes: 150
+  day_bucket_size: 5
+  save_every: 25
+  log_every: 10
+
+output_dir: results/qlearning

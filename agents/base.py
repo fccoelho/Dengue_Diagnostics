@@ -126,9 +126,11 @@ class EpisodeRunner:
         seeds: List[int],
         env_config: dict,
         artifacts_dir: Optional[str] = None,
+        save_artifacts: bool = True,
     ) -> List[Dict]:
         rows: List[Dict] = []
-        confusion_dir, epidemic_dir = _artifact_dirs(artifacts_dir)
+        root = artifacts_dir if save_artifacts else None
+        confusion_dir, epidemic_dir = _artifact_dirs(root)
         env = make_env(env_config)
         for seed in seeds:
             seed = int(seed)
@@ -161,8 +163,8 @@ class EpisodeRunner:
         make_env=None,
         render_fps: int = 10,
         artifacts_dir: Optional[str] = None,
-        save_confusion_map: bool = True,
-        save_epidemic_map: bool = True,
+        save_confusion_map: bool = False,
+        save_epidemic_map: bool = False,
     ) -> Dict:
         """Assiste a UM episódio deste agente com renderização (janela Pygame).
 
