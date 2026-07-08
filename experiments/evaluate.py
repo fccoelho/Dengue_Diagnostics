@@ -78,7 +78,9 @@ def run_benchmark(config_path: str) -> pd.DataFrame:
             )
         runner = AGENT_REGISTRY[name]()
         print(f"[benchmark] avaliando '{name}' em {len(seeds)} episódios...")
-        rows = runner.evaluate(make_env, seeds, env_config)
+        rows = runner.evaluate(
+            make_env, seeds, env_config, artifacts_dir=str(output_dir)
+        )
         all_rows.extend(rows)
 
     df = _order_columns(pd.DataFrame(all_rows))
@@ -104,6 +106,8 @@ def run_benchmark(config_path: str) -> pd.DataFrame:
     print("  - benchmark_raw.csv")
     print("  - benchmark_mean.csv")
     print("  - benchmark_std.csv")
+    print(f"  - confusion_maps/  (mapas por agente/seed)")
+    print(f"  - epidemic_maps/   (mapa ground-truth por seed)")
 
     _print_ranking(mean_df)
     return df

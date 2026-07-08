@@ -35,6 +35,16 @@ def main() -> None:
         help="Seed do cenario (int) ou 'random' para surto diferente a cada execucao.",
     )
     parser.add_argument("--fps", type=int, default=10, help="Frames por segundo.")
+    parser.add_argument(
+        "--no-confusion-map",
+        action="store_true",
+        help="Nao salvar mapa de confusao ao final.",
+    )
+    parser.add_argument(
+        "--no-epidemic-map",
+        action="store_true",
+        help="Nao salvar mapa da epidemia (ground truth) ao iniciar.",
+    )
     args = parser.parse_args()
 
     if args.seed == "random":
@@ -43,7 +53,13 @@ def main() -> None:
         seed = int(args.seed)
 
     env_config = load_env_config(args.config)
-    RandomAgentRunner().watch(env_config, seed=seed, render_fps=args.fps)
+    RandomAgentRunner().watch(
+        env_config,
+        seed=seed,
+        render_fps=args.fps,
+        save_confusion_map=not args.no_confusion_map,
+        save_epidemic_map=not args.no_epidemic_map,
+    )
 
 
 if __name__ == "__main__":

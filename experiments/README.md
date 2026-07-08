@@ -64,6 +64,8 @@ comparáveis. São gravados em `output_dir` (default `results/baseline/`):
 | `benchmark_raw.csv` | uma linha por `(agente, seed)` |
 | `benchmark_mean.csv` | média das métricas por agente |
 | `benchmark_std.csv` | desvio-padrão das métricas por agente |
+| `confusion_maps/{agent}/confusao_{agent}_seed_{seed}.png` | mapa de confusão espacial por episódio |
+| `epidemic_maps/mapa_epidemia_seed_{seed}.png` | mapa ground-truth da epidemia (por seed; igual para todos os agentes) |
 
 Colunas (ver `agents/base.py::RESULT_COLUMNS`):
 
@@ -98,7 +100,17 @@ poetry run python agents/deepq/watch.py --policy caminho/para/policy.pth --seed 
 
 Usando a mesma `--seed` do `benchmark.yaml` (ex.: `100`), você vê exatamente o
 cenário avaliado. Ao final, um resumo do episódio é impresso (recompensa,
-acurácia multiclasse/binária, testes). Feche a janela ou use Ctrl+C para sair.
+acurácia multiclasse/binária, testes) e dois PNGs:
+- **Mapa da epidemia** (ground truth) — salvo ao iniciar o episódio em
+  `results/epidemic_maps/` (ou `{output_dir}/epidemic_maps/` no benchmark).
+  Funciona com qualquer gerador cujo `real_cases` siga o esquema padrão
+  (`t`, `x`, `y`, `disease`); futuros datasets realistas (Rio 2016, etc.)
+  só precisam produzir esse DataFrame.
+- **Mapa de confusão** — salvo ao final (decisões do agente vs. verdade).
+
+Use `--no-epidemic-map` ou `--no-confusion-map` no watch para pular.
+
+Feche a janela ou use Ctrl+C para sair.
 
 O baseline **clínico** não tem script de watch: ele existe apenas como piso de
 referência das métricas (não faz ações para observar).

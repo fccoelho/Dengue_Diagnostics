@@ -10,7 +10,7 @@ import pygame
 
 from dengue_envs.data.generator import World
 from dengue_envs.metrics.episode_metrics import episode_metrics
-from dengue_envs.rendering import PygameRenderer
+from dengue_envs.rendering import PygameRenderer, plot_epidemic_map
 from gymnasium import spaces
 
 # Núcleo modular (Fase 1): o ambiente agora DELEGA a lógica de clínica,
@@ -488,11 +488,36 @@ class DengueDiagnosticsEnv(gym.Env):
             self.chik_radius = int(self.np_random.integers(radius_lo, radius_hi + 1))
 
         if self.randomize_outbreak:
-            self.dengue_r0 = float(self.np_random.uniform(1.2, 1.8))
-            self.chik_r0 = float(self.np_random.uniform(1.0, 1.5))
+            # Dengue: surto principal (R0 claramente epidêmico, > 1).
+            self.dengue_r0 = float(self.np_random.uniform(1.45, 1.85))
+            # Chik: sempre menor que dengue (65–88% do R0 da dengue), simulando
+            # um surto secundário mais contido.
+            chik_frac = float(self.np_random.uniform(0.65, 0.88))
+            self.chik_r0 = max(1.12, self.dengue_r0 * chik_frac)
+            if self.chik_r0 >= self.dengue_r0:
+                self.chik_r0 = self.dengue_r0 - 0.10
         else:
             self.dengue_r0 = 1.5
             self.chik_r0 = 1.2
+
+    def _epidemic_is_valid(self) -> bool:
+        """Verifica se o ``World`` gerado tem surtos não triviais e realistas."""
+        w = self.world
+        # Sempre epidêmico: R0 > 1 e chik claramente menor que dengue.
+        if self.dengue_r0 <= 1.05 or self.chik_r0 <= 1.05:
+            return False
+        if self.chik_r0 >= self.dengue_r0:
+            return False
+        # Volume mínimo de casos (evita curvas degeneradas).
+        if w.dengue_total < 15 or w.chik_total < 8:
+            return False
+        if w.chik_total >= w.dengue_total:
+            return False
+        # Pelo menos alguns casos nos primeiros dias ativos do agente (t=1).
+        if w.casedf is None or w.casedf.empty:
+            return False
+        early = w.casedf[w.casedf["t"] <= 1]
+        return len(early) >= 5
 
     def _update_action_space(self) -> None:
         """Atualiza o espaço de ações quando o total de casos muda."""
@@ -502,19 +527,25 @@ class DengueDiagnosticsEnv(gym.Env):
 
     def _create_world(self) -> None:
         """Gera um novo ``World`` a partir do RNG atual do episódio."""
-        self._sample_outbreak_params()
-        self.world = World(
-            self.size,
-            self.episize,
-            self.epilength,
-            self.dengue_center,
-            self.chik_center,
-            self.dengue_radius,
-            self.chik_radius,
-            dengue_r0=self.dengue_r0,
-            chik_r0=self.chik_r0,
-            random_state=self.np_random,
-        )
+        max_attempts = 25
+        for attempt in range(max_attempts):
+            self._sample_outbreak_params()
+            self.world = World(
+                self.size,
+                self.episize,
+                self.epilength,
+                self.dengue_center,
+                self.chik_center,
+                self.dengue_radius,
+                self.chik_radius,
+                dengue_r0=self.dengue_r0,
+                chik_r0=self.chik_r0,
+                random_state=self.np_random,
+            )
+            if self._epidemic_is_valid():
+                break
+            if not self.randomize_outbreak or attempt == max_attempts - 1:
+                break
         self.real_cases = self.world.casedf.copy()
         self.num_cases = len(self.real_cases)
         self._update_action_space()
@@ -692,7 +723,25 @@ class DengueDiagnosticsEnv(gym.Env):
         if self.renderer is not None:
             self.renderer.create_sprites(self.cases, self.t)
 
-    def plot_confusion_map(self, title="Mapa de Confusão Espacial", save_path=None):
+    def plot_epidemic_map(self, title="Mapa da Epidemia (Ground Truth)", save_path=None, show=False):
+        """Mapa espacial da epidemia VERDADEIRA (``real_cases``).
+
+        Delega para ``dengue_envs.rendering.epidemic_map.plot_epidemic_map``,
+        funcionando com qualquer gerador cujo ``casedf`` siga o esquema padrão.
+        """
+        return plot_epidemic_map(
+            self.real_cases,
+            self.size,
+            dengue_center=self.dengue_center,
+            chik_center=self.chik_center,
+            dengue_radius=self.dengue_radius,
+            chik_radius=self.chik_radius,
+            title=title,
+            save_path=save_path,
+            show=show,
+        )
+
+    def plot_confusion_map(self, title="Mapa de Confusão Espacial", save_path=None, show=False):
         """
         Gera um mapa espacial colorindo os casos baseados no resultado da classificação
         (TP, TN, FP, FN, Erro de Classe).
@@ -700,7 +749,7 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         if self.obs_cases.empty:
             print("Erro: Não há casos no histórico para plotar.")
-            return
+            return None
 
         # Listas para guardar as coordenadas de cada categoria
         coords = {
@@ -789,6 +838,11 @@ class DengueDiagnosticsEnv(gym.Env):
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
             print(f"Mapa salvo em: {save_path}")
+
+        if show:
+            plt.show()
+        else:
+            plt.close(fig)
 
         return fig, ax
 

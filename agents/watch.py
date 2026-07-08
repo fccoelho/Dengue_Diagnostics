@@ -84,10 +84,14 @@ def run_watch(
     act_fn: Optional[ActFn] = None,
     *,
     setup: Optional[SetupFn] = None,
-    seed: Optional[int] = 100,
+    agent_name: str = "agent",
+    seed: Optional[int] = None,
     make_env=None,
     render_fps: int = 10,
     max_steps: Optional[int] = None,
+    artifacts_dir: Optional[str] = None,
+    save_confusion_map: bool = True,
+    save_epidemic_map: bool = True,
 ) -> Dict:
     """Roda UM episódio com renderização e devolve as métricas finais.
 
@@ -112,12 +116,25 @@ def run_watch(
     obs, info = env.reset(seed=seed)
     env.action_space.seed(seed)
 
+    from agents.artifacts import artifact_dirs, save_epidemic_map as _save_epi
+
+    confusion_dir, epidemic_dir = artifact_dirs(artifacts_dir)
+
     terminated = truncated = False
     total_reward = 0.0
     steps = 0
 
     print(f"[watch] iniciando (fps={render_fps}). Feche a janela ou use Ctrl+C para sair.")
     _print_outbreak_info(env, seed)
+
+    if save_epidemic_map:
+        _save_epi(
+            env,
+            seed,
+            output_dir=epidemic_dir,
+            agent=agent_name,
+            skip_if_exists=False,
+        )
 
     # Reporta novos casos quando o dia avança.
     last_day = env.unwrapped.t
@@ -148,5 +165,11 @@ def run_watch(
 
     metrics = env.unwrapped.get_episode_metrics()
     _print_summary(steps, total_reward, metrics)
+
+    if save_confusion_map:
+        from agents.artifacts import save_confusion_map as _save_map
+
+        _save_map(env, agent_name, seed, output_dir=confusion_dir)
+
     env.close()
     return metrics

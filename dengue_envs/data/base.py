@@ -27,6 +27,10 @@ class EpidemicGenerator(Protocol):
     Implementações devem produzir um `casedf` (DataFrame) com, no mínimo, as
     colunas em `CASE_COLUMNS`, e expor um objeto "World-like" com os métodos
     que o ambiente consome (`get_series_up_to_t`, `get_maps_up_to_t`).
+
+    O mapa da epidemia (`dengue_envs.rendering.epidemic_map.plot_epidemic_map`)
+    consome diretamente esse ``casedf``/``real_cases``, portanto qualquer
+    gerador compatível ganha visualização automática via ``agents/artifacts``.
     """
 
     size: int

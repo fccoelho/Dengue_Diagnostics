@@ -217,25 +217,19 @@ class World:
         )[0]
         return dengue_map, chik_map
 
-    def view(self):
+    def view(self, save_path=None, show=False):
+        """Visualiza a epidemia (delega ao plot genérico de ``rendering``)."""
+        from dengue_envs.rendering.epidemic_map import plot_epidemic_map
+
         if self.casedf is None:
             self.build_case_dataframe()
-
-        casedf = self.casedf
-        dengue_map = np.histogram2d(
-            casedf[casedf.disease == 0].x,
-            casedf[casedf.disease == 0].y,
-            bins=self.size,
-            range=[[0, self.size], [0, self.size]],
-        )[0]
-        chik_map = np.histogram2d(
-            casedf[casedf.disease == 1].x,
-            casedf[casedf.disease == 1].y,
-            bins=self.size,
-            range=[[0, self.size], [0, self.size]],
-        )[0]
-
-        fig, ax = plt.subplots()
-        ax.pcolor(dengue_map, cmap="Greens", alpha=0.5)
-        ax.pcolor(chik_map, cmap="Blues", alpha=0.5)
-        return fig, ax
+        return plot_epidemic_map(
+            self.casedf,
+            self.size,
+            dengue_center=self.dengue_center,
+            chik_center=self.chik_center,
+            dengue_radius=self.dengue_radius,
+            chik_radius=self.chik_radius,
+            save_path=save_path,
+            show=show,
+        )

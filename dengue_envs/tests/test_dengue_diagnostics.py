@@ -181,20 +181,23 @@ class MyEnvTestCase(unittest.TestCase):
         env.reset(seed=1)
         day1_seed1 = len(env.real_cases[env.real_cases.t == env.start_day])
         centers_seed1 = (env.dengue_center, env.chik_center, env.dengue_r0, env.chik_r0)
+        totals_seed1 = (env.world.dengue_total, env.world.chik_total)
 
         env.reset(seed=2)
         day1_seed2 = len(env.real_cases[env.real_cases.t == env.start_day])
         centers_seed2 = (env.dengue_center, env.chik_center, env.dengue_r0, env.chik_r0)
 
         self.assertNotEqual(centers_seed1, centers_seed2)
+        self.assertLess(env.chik_r0, env.dengue_r0)
+        self.assertLess(totals_seed1[1], totals_seed1[0])
 
         env.reset(seed=1)
         day1_repeat = len(env.real_cases[env.real_cases.t == env.start_day])
         centers_repeat = (env.dengue_center, env.chik_center, env.dengue_r0, env.chik_r0)
         self.assertEqual(centers_seed1, centers_repeat)
         self.assertEqual(day1_seed1, day1_repeat)
-        # Com R0 sorteado, seeds diferentes tendem a ter contagens distintas no dia 1.
-        self.assertNotEqual(day1_seed1, day1_seed2)
+        # Seeds diferentes => surtos distintos (centros/R0; contagens podem coincidir).
+        self.assertNotEqual(centers_seed1[:2], centers_seed2[:2])
 
 
 if __name__ == '__main__':

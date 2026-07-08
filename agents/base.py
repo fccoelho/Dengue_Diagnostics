@@ -14,7 +14,8 @@ Convenções:
 """
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Protocol, runtime_checkable
+from pathlib import Path
+from typing import Callable, Dict, List, Optional, Protocol, runtime_checkable
 
 import numpy as np
 
@@ -66,6 +67,46 @@ class AgentRunner(Protocol):
         ...
 
 
+def _artifact_dirs(artifacts_dir: Optional[str]):
+    """Deriva subpastas ``confusion_maps`` e ``epidemic_maps`` a partir da raiz."""
+    from agents.artifacts import artifact_dirs
+
+    return artifact_dirs(artifacts_dir)
+
+
+def _maybe_save_epidemic_map(
+    env,
+    seed: int,
+    epidemic_dir: Optional[Path],
+    *,
+    agent: Optional[str] = None,
+) -> None:
+    if epidemic_dir is None:
+        return
+    from agents.artifacts import save_epidemic_map
+
+    save_epidemic_map(
+        env,
+        seed,
+        output_dir=epidemic_dir,
+        agent=agent,
+        skip_if_exists=(agent is None),
+    )
+
+
+def _maybe_save_confusion_map(
+    env,
+    agent: str,
+    seed: int,
+    confusion_dir: Optional[Path],
+) -> None:
+    if confusion_dir is None:
+        return
+    from agents.artifacts import save_confusion_map
+
+    save_confusion_map(env, agent, seed, output_dir=confusion_dir)
+
+
 class EpisodeRunner:
     """Base para agentes sem treino que decidem uma ação por caso.
 
@@ -80,14 +121,20 @@ class EpisodeRunner:
         raise NotImplementedError
 
     def evaluate(
-        self, make_env: EnvFactory, seeds: List[int], env_config: dict
+        self,
+        make_env: EnvFactory,
+        seeds: List[int],
+        env_config: dict,
+        artifacts_dir: Optional[str] = None,
     ) -> List[Dict]:
         rows: List[Dict] = []
+        confusion_dir, epidemic_dir = _artifact_dirs(artifacts_dir)
         env = make_env(env_config)
         for seed in seeds:
             seed = int(seed)
             obs, info = env.reset(seed=seed)
             env.action_space.seed(seed)
+            _maybe_save_epidemic_map(env, seed, epidemic_dir)
 
             terminated = truncated = False
             while not (terminated or truncated):
@@ -95,6 +142,7 @@ class EpisodeRunner:
                 obs, reward, terminated, truncated, info = env.step(action)
 
             metrics = env.unwrapped.get_episode_metrics()
+            _maybe_save_confusion_map(env, self.name, seed, confusion_dir)
             row: Dict = {
                 "agent": self.name,
                 "seed": seed,
@@ -102,16 +150,19 @@ class EpisodeRunner:
             }
             row.update(metrics)
             rows.append(row)
-            env.close()
+        env.close()
         return rows
 
     def watch(
         self,
         env_config: dict,
         *,
-        seed: int = 100,
+        seed: Optional[int] = None,
         make_env=None,
         render_fps: int = 10,
+        artifacts_dir: Optional[str] = None,
+        save_confusion_map: bool = True,
+        save_epidemic_map: bool = True,
     ) -> Dict:
         """Assiste a UM episódio deste agente com renderização (janela Pygame).
 
@@ -124,7 +175,11 @@ class EpisodeRunner:
         return run_watch(
             env_config,
             act_fn=lambda obs, env: self.choose_action(env),
+            agent_name=self.name,
             seed=seed,
             make_env=make_env,
             render_fps=render_fps,
+            artifacts_dir=artifacts_dir,
+            save_confusion_map=save_confusion_map,
+            save_epidemic_map=save_epidemic_map,
         )

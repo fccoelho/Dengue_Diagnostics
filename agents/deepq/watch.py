@@ -81,10 +81,24 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Visualizar uma policy DQN treinada.")
     parser.add_argument("--policy", required=True, help="Caminho do .pth da policy.")
     parser.add_argument("--config", default=_DEFAULT_CONFIG, help="YAML do ambiente.")
-    parser.add_argument("--seed", type=int, default=100, help="Seed do cenário.")
+    parser.add_argument(
+        "--seed",
+        default="random",
+        help="Seed do cenario (int) ou 'random'.",
+    )
     parser.add_argument("--fps", type=int, default=10, help="Frames por segundo.")
     parser.add_argument(
-        "--device", default=None, help="cpu ou cuda (default: cuda se disponível)."
+        "--no-confusion-map",
+        action="store_true",
+        help="Nao salvar mapa de confusao ao final.",
+    )
+    parser.add_argument(
+        "--no-epidemic-map",
+        action="store_true",
+        help="Nao salvar mapa da epidemia (ground truth) ao iniciar.",
+    )
+    parser.add_argument(
+        "--device", default=None, help="cpu ou cuda (default: cuda se disponivel)."
     )
     args = parser.parse_args()
 
@@ -94,12 +108,20 @@ def main() -> None:
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
+    if args.seed == "random":
+        seed = None
+    else:
+        seed = int(args.seed)
+
     env_config = load_env_config(args.config)
     run_watch(
         env_config,
         setup=_make_setup(args.policy, device),
-        seed=args.seed,
+        agent_name="dqn",
+        seed=seed,
         render_fps=args.fps,
+        save_confusion_map=not args.no_confusion_map,
+        save_epidemic_map=not args.no_epidemic_map,
     )
 
 
