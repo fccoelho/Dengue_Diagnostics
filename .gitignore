@@ -163,3 +163,7 @@ cython_debug/
 /agents/deepq/files/tianshou-examples.ipynb
 /agents/deepq/files/dqn_dengue_policy.pth
 *.pth
+
+# Experiment outputs (resultados de benchmark e logs de treino)
+/results/
+/logs/

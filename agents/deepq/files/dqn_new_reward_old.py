@@ -12,8 +12,8 @@ from tianshou.utils import TensorboardLogger
 from tianshou.env import DummyVectorEnv
 
 # Importações do seu repositório original
-# Fábrica única de ambientes (env bruto + wrappers map_tensor/case_by_case).
-from dengue_envs.wrappers import make_env as build_env
+from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
+from dengue_wrapper import DengueWrapper, CaseByCaseWrapper
 from fcn_network import DengueNet
 
 # --- CONFIGURAÇÕES DO NOVO EXPERIMENTO EXPANDIDO ---
@@ -23,7 +23,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 # Hiperparâmetros Ajustados para Estabilidade em Espaços Maiores
 LR = 5e-5               # Taxa de aprendizado ligeiramente menor para evitar divergência
 GAMMA = 0.99            # Mantido para propagar bem o credit assignment do delay
-N_STEP = 5              # >= REWARD_DELAY_DAYS: cobre a janela do delay no bootstrap do DQN
+N_STEP = 4              # Aumentado para ajudar a capturar a dependência temporal do delay
 TARGET_UPDATE_FREQ = 1500
 BUFFER_SIZE = 1000     # NOVO: Buffer expandido para comportar mais estados
 BATCH_SIZE = 32        # NOVO: Batch size maior para lidar com a alta variância do grid expandido
@@ -47,7 +47,7 @@ NUM_TEST_ENVS = 2
 # Novas dimensões do Mundo Epidemiológico
 WORLD_SIZE = 300          # NOVO: Grid expandido (era 400)
 EPISIZE = 100             # NOVO: Mais casos ocorrendo simultaneamente (era 150)
-REWARD_DELAY_DAYS = 5     # Delay epidemiológico ativo: desfecho de confirm/discard paga em t+5
+REWARD_DELAY_DAYS = 0     # NOVO: Ativação do delay epidemiológico de 0 dias (sem delay)
 MIN_BORDER_DISTANCE = 80
 MAX_RADIUS = 100          # NOVO: Raios máximos adaptados ao novo tamanho de cidade
 MIN_RADIUS = 80
@@ -69,19 +69,21 @@ def make_env():
     dengue_radius = np.random.randint(MIN_RADIUS, MAX_RADIUS)
     chik_radius = np.random.randint(MIN_RADIUS, MAX_RADIUS)
 
-    # Inicializando o ambiente com as novas flags de escala e delay.
-    # A fábrica aplica os wrappers padrão (map_tensor + case_by_case).
-    return build_env(
+    # Inicializando o ambiente com as novas flags de escala e delay
+    env = DengueDiagnosticsEnv(
         size=WORLD_SIZE,
         episize=EPISIZE,
         epilength=60,
-        reward_delay_days=REWARD_DELAY_DAYS,
+        reward_delay_days=REWARD_DELAY_DAYS,  # Injetando o delay aqui
         clinical_specificity=(0.5, 0.95),
         dengue_center=dengue_center,
         chik_center=chik_center,
         dengue_radius=dengue_radius,
-        chik_radius=chik_radius,
+        chik_radius=chik_radius
     )
+    env = DengueWrapper(env)
+    env = CaseByCaseWrapper(env)
+    return env
 
 
 def train_large_grid_agent(seed):

@@ -7,7 +7,7 @@ from tianshou.policy import DQNPolicy
 from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
 from agents.deepq.files.dengue_wrapper import DengueWrapper, CaseByCaseWrapper
 from agents.deepq.files.fcn_network import DengueNet
-from agents.random.agent_random import AleatoryAgent
+from agents.random.agent_random_old import AleatoryAgent
 from agents.qlearning.qlearning_agent import QLearning_Agent
 
 

@@ -20,17 +20,23 @@ class World:
         chik_center=(90, 110),
         dengue_radius=10,
         chik_radius=10,
+        dengue_r0: float = 1.5,
+        chik_r0: float = 1.2,
+        random_state=None,
     ):
         """
         size: size of the world
         popsize: population size
         epilength: length of the epidemic in days
-        dengue_center: center of the dengue outbreak    in days
+        dengue_center: center of the dengue outbreak
         chik_center: center of the chikungunya outbreak
         dengue_radius: radius of the dengue outbreak
         chik_radius: radius of the chikungunya outbreak
+        dengue_r0 / chik_r0: número básico de reprodução de cada curva SIR
+        random_state: gerador NumPy (``env.np_random``) para posições espaciais
         """
         self.size = size  # World size
+        self._rng = random_state
 
         self.num_rows = size  # World represented as a 2D numpy array
         self.num_cols = size
@@ -39,9 +45,11 @@ class World:
         self.epilength = epilength  # Length of the epidemic in days
 
         self.dengue_center = dengue_center
-        self.dengue_radius = dengue_radius
+        self.dengue_radius = max(int(dengue_radius), 1)
         self.chik_center = chik_center
-        self.chik_radius = chik_radius
+        self.chik_radius = max(int(chik_radius), 1)
+        self.dengue_r0 = float(dengue_r0)
+        self.chik_r0 = float(chik_r0)
         # a, b = (myclip_a - loc) / scale, (myclip_b - loc) / scale
         self.dengue_dist_x = st.distributions.truncnorm(a=(0-self.dengue_center[0])/self.dengue_radius,
                                                         b=(size-1 - self.dengue_center[0])/self.dengue_radius,
@@ -65,9 +73,9 @@ class World:
                                                       scale=self.chik_radius
         )
 
-        # Cumulative Incidence curves
-        self.dengue_curve = self._get_epi_curve(R0=1.5)
-        self.chik_curve = self._get_epi_curve(R0=1.2)
+        # Cumulative Incidence curves (R0 controla quantos casos surgem por dia).
+        self.dengue_curve = self._get_epi_curve(R0=self.dengue_r0)
+        self.chik_curve = self._get_epi_curve(R0=self.chik_r0)
 
         self.case_series = []
         # Cases per day as a list of lists
@@ -79,6 +87,12 @@ class World:
         self.build_case_series()
         self.build_case_dataframe()
         # print(self.case_dict)
+
+    def _rvs(self, dist, n: int):
+        """Amostra ``n`` pontos da distribuição truncada usando o RNG do episódio."""
+        if n <= 0:
+            return np.array([], dtype=int)
+        return dist.rvs(n, random_state=self._rng)
 
     def _get_epi_curve(self, I0=10, R0=1.5):
         """
@@ -117,21 +131,19 @@ class World:
             ccases_t = int(np.round(self.chik_curve[t]))
 
             if t < 1:
-                dcases_x = self.dengue_dist_x.rvs(dcases_t)
-                dcases_y = self.dengue_dist_y.rvs(dcases_t)
-                ccases_x = self.chik_dist_x.rvs(ccases_t)
-                ccases_y = self.chik_dist_y.rvs(ccases_t)
+                dcases_x = self._rvs(self.dengue_dist_x, dcases_t)
+                dcases_y = self._rvs(self.dengue_dist_y, dcases_t)
+                ccases_x = self._rvs(self.chik_dist_x, ccases_t)
+                ccases_y = self._rvs(self.chik_dist_y, ccases_t)
                 self.dengue_total += dcases_t
                 self.chik_total += ccases_t
             else:
                 new_d = int(np.round(dcases_t - self.dengue_curve[t - 1]))
                 new_c = int(np.round(ccases_t - self.chik_curve[t - 1]))
-                dcases_x = self.dengue_dist_x.rvs(
-                    new_d
-                )  # New cases on day t, because curve is cumulative
-                dcases_y = self.dengue_dist_y.rvs(new_d)
-                ccases_x = self.chik_dist_x.rvs(new_c)
-                ccases_y = self.chik_dist_y.rvs(new_c)
+                dcases_x = self._rvs(self.dengue_dist_x, new_d)
+                dcases_y = self._rvs(self.dengue_dist_y, new_d)
+                ccases_x = self._rvs(self.chik_dist_x, new_c)
+                ccases_y = self._rvs(self.chik_dist_y, new_c)
                 self.dengue_total += new_d
                 self.chik_total += new_c
             dengue_cases = [

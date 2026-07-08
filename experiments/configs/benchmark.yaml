@@ -1,0 +1,18 @@
+# Configuração do benchmark de baselines.
+#
+# - `env_config`: caminho (relativo a este arquivo) para o YAML do ambiente.
+#   Todos os agentes são avaliados no MESMO ambiente para serem comparáveis.
+# - `agents`: lista de agentes a avaliar. `clinical` é o baseline clínico puro
+#   (aceita o diagnóstico clínico, sem ação) e serve de piso de referência.
+# - `seeds`: uma seed por episódio; para a mesma seed, todos os agentes veem o
+#   mesmo cenário (mundo + incerteza clínica reprodutíveis).
+# - `output_dir`: pasta (relativa à raiz do repositório) onde os CSVs são salvos.
+env_config: env/synthetic_default.yaml
+
+agents:
+  - clinical
+  - random
+
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+
+output_dir: results/baseline

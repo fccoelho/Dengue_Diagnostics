@@ -56,7 +56,8 @@ class MyEnvTestCase(unittest.TestCase):
         return None
 
     def test_test_results_persist_across_steps(self):
-        env = DengueDiagnosticsEnv(size=100, episize=40, epilength=8)
+        # lab_delay_days=0 isola a persistência (resultado aplicado no mesmo dia).
+        env = DengueDiagnosticsEnv(size=100, episize=40, epilength=8, lab_delay_days=0)
         env.reset(seed=42)
 
         case_id = self._first_active_case_id(env)
@@ -69,6 +70,28 @@ class MyEnvTestCase(unittest.TestCase):
         # Advancing a day with no action must NOT wipe the previous test result.
         env.step(tuple())
         self.assertEqual(env.obs_cases.loc[case_id, "testd"], status)
+
+    def test_lab_result_respects_delay(self):
+        # Com atraso, o laudo só fica disponível `lab_delay_days` depois do pedido.
+        delay = 3
+        env = DengueDiagnosticsEnv(
+            size=100, episize=40, epilength=30, lab_delay_days=delay
+        )
+        env.reset(seed=42)
+
+        case_id = self._first_active_case_id(env)
+        self.assertIsNotNone(case_id)
+
+        day_ordered = env.t
+        env.step(((case_id, 0),))  # pede o teste de dengue hoje
+        # O resultado ainda não chegou (fila pendente).
+        self.assertEqual(env.obs_cases.loc[case_id, "testd"], 0)
+
+        # Avança os dias até o laudo amadurecer.
+        while env.t <= day_ordered + delay:
+            env.step(tuple())
+
+        self.assertNotEqual(env.obs_cases.loc[case_id, "testd"], 0)
 
     def test_agent_diagnosis_persists(self):
         env = DengueDiagnosticsEnv(size=100, episize=40, epilength=8)
@@ -117,6 +140,61 @@ class MyEnvTestCase(unittest.TestCase):
             _, _, terminated, _, _ = env.step(action)
             steps += 1
         self.assertTrue(terminated)
+
+    def test_horizon_is_derived_from_epilength_and_delays(self):
+        # Horizonte = (epilength - 1) + max(reward_delay, lab_delay).
+        env = DengueDiagnosticsEnv(
+            size=100, episize=40, epilength=20, reward_delay_days=5, lab_delay_days=3
+        )
+        self.assertEqual(env.horizon, 19 + 5)
+
+        env2 = DengueDiagnosticsEnv(
+            size=100, episize=40, epilength=20, reward_delay_days=2, lab_delay_days=7
+        )
+        self.assertEqual(env2.horizon, 19 + 7)
+
+        # settle_days explícito tem prioridade.
+        env3 = DengueDiagnosticsEnv(
+            size=100, episize=40, epilength=20, reward_delay_days=5, settle_days=0
+        )
+        self.assertEqual(env3.horizon, 19)
+
+    def test_episode_terminates_exactly_at_horizon(self):
+        env = DengueDiagnosticsEnv(size=100, episize=40, epilength=8, settle_days=2)
+        env.reset(seed=5)
+        self.assertEqual(env.horizon, 7 + 2)
+        terminated = False
+        last_t = None
+        steps = 0
+        while not terminated and steps < 200:
+            last_t = env.t
+            _, _, terminated, _, _ = env.step(tuple())
+            steps += 1
+        # O passo que termina é o que processa o dia == horizon.
+        self.assertEqual(last_t, env.horizon)
+
+    def test_reset_regenerates_world_from_seed(self):
+        """Cada seed deve gerar um surto diferente; a mesma seed reproduz."""
+        env = DengueDiagnosticsEnv(
+            size=200, episize=80, epilength=20, randomize_outbreak=True
+        )
+        env.reset(seed=1)
+        day1_seed1 = len(env.real_cases[env.real_cases.t == env.start_day])
+        centers_seed1 = (env.dengue_center, env.chik_center, env.dengue_r0, env.chik_r0)
+
+        env.reset(seed=2)
+        day1_seed2 = len(env.real_cases[env.real_cases.t == env.start_day])
+        centers_seed2 = (env.dengue_center, env.chik_center, env.dengue_r0, env.chik_r0)
+
+        self.assertNotEqual(centers_seed1, centers_seed2)
+
+        env.reset(seed=1)
+        day1_repeat = len(env.real_cases[env.real_cases.t == env.start_day])
+        centers_repeat = (env.dengue_center, env.chik_center, env.dengue_r0, env.chik_r0)
+        self.assertEqual(centers_seed1, centers_repeat)
+        self.assertEqual(day1_seed1, day1_repeat)
+        # Com R0 sorteado, seeds diferentes tendem a ter contagens distintas no dia 1.
+        self.assertNotEqual(day1_seed1, day1_seed2)
 
 
 if __name__ == '__main__':
