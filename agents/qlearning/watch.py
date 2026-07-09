@@ -38,10 +38,10 @@ def main() -> None:
     )
     parser.add_argument("--fps", type=int, default=10, help="Frames por segundo.")
     parser.add_argument(
-        "--day-bucket-size",
-        type=int,
-        default=5,
-        help="Deve casar com o valor usado no treino.",
+        "--state-version",
+        default=None,
+        choices=["rich_v1", "compact_v1"],
+        help="Forcar versao de estado (default: ler do checkpoint).",
     )
     parser.add_argument(
         "--save-maps",
@@ -59,13 +59,18 @@ def main() -> None:
 
     q_path = Path(args.q_table)
     if q_path.exists():
-        agent = QLearningAgent.load(q_path, epsilon=0.0, day_bucket_size=args.day_bucket_size)
+        agent = QLearningAgent.load(q_path, epsilon=0.0)
+        if args.state_version and agent.encoder.version != args.state_version:
+            print(
+                f"[qlearning] aviso: checkpoint={agent.encoder.version!r} "
+                f"!= --state-version={args.state_version!r}"
+            )
     else:
         print(
             f"[qlearning] aviso: Q-table ausente em {q_path.resolve()}. "
             "Usando tabela vazia."
         )
-        agent = QLearningAgent(epsilon=0.0, day_bucket_size=args.day_bucket_size)
+        agent = QLearningAgent(epsilon=0.0)
 
     env_config = load_env_config(args.config)
 

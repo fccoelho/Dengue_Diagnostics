@@ -22,7 +22,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from agents.qlearning.agent import QLearningAgent, encode_state_from_env
+from agents.qlearning.agent import QLearningAgent
+from agents.qlearning.state import StateEncoder
 from dengue_envs.wrappers import make_env
 
 _DEFAULT_CONFIG = "experiments/configs/train/qlearning_default.yaml"
@@ -58,17 +59,26 @@ def train(config_path: str) -> Path:
     day_bucket_size = int(train_cfg.get("day_bucket_size", 5))
     save_every = int(train_cfg.get("save_every", 25))
     log_every = int(train_cfg.get("log_every", 10))
+    state_cfg = cfg.get("state", train_cfg.get("state", {}))
+    encoder = StateEncoder.from_config(state_cfg)
 
     output_dir = Path(cfg.get("output_dir", "results/qlearning"))
     output_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = output_dir / "q_table.pkl"
     log_path = output_dir / "training_log.csv"
 
-    loaded = _try_load(checkpoint)
+    loaded = _try_load(checkpoint, encoder=encoder)
+    if loaded is not None and loaded.encoder.version != encoder.version:
+        print(
+            f"[qlearning] aviso: checkpoint usa estado {loaded.encoder.version!r}, "
+            f"config pede {encoder.version!r}; reiniciando Q-table."
+        )
+        loaded = None
     agent = QLearningAgent(
         alpha=alpha,
         gamma=gamma,
         epsilon=eps_start,
+        encoder=encoder,
         day_bucket_size=day_bucket_size,
         q_table=loaded.q_table if loaded else None,
     )
@@ -77,7 +87,7 @@ def train(config_path: str) -> Path:
     env = make_env(env_config)
 
     print(f"[qlearning] treinando {episodes} episodios | env={env_config_path.name}")
-    print(f"[qlearning] checkpoint -> {checkpoint.resolve()}")
+    print(f"[qlearning] estado={encoder.version} | checkpoint -> {checkpoint.resolve()}")
 
     log_rows = []
     for ep in range(1, episodes + 1):
@@ -89,12 +99,12 @@ def train(config_path: str) -> Path:
         total_reward = 0.0
         steps = 0
 
-        state = encode_state_from_env(env, day_bucket_size=day_bucket_size)
+        state = agent.encode_env(env)
 
         while not (terminated or truncated):
             action = agent.choose_action(state, explore=True)
             next_obs, reward, terminated, truncated, _ = env.step(action)
-            next_state = encode_state_from_env(env, day_bucket_size=day_bucket_size)
+            next_state = agent.encode_env(env)
             agent.update(state, action, float(reward), next_state)
 
             total_reward += float(reward)
@@ -138,11 +148,11 @@ def train(config_path: str) -> Path:
     return checkpoint
 
 
-def _try_load(path: Path) -> QLearningAgent | None:
+def _try_load(path: Path, encoder: StateEncoder) -> QLearningAgent | None:
     if not path.exists():
         return None
     try:
-        return QLearningAgent.load(path, epsilon=0.0)
+        return QLearningAgent.load(path, epsilon=0.0, encoder=encoder)
     except Exception:
         return None
 

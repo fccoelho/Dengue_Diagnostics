@@ -1,48 +1,27 @@
 """Agente tabular Q-Learning sobre o ambiente novo (wrappers map_tensor + case_by_case).
 
-O agente decide **uma ação por caso** (`Discrete(6)`), igual ao random e ao DQN.
-O estado é uma chave discreta derivada do mapa tensor e do dia corrente — compacta
-o suficiente para uma Q-table, mas mais rica que o legado (`str(obs)+case_id`).
-
-Legado: `qlearning_agent_old.py` (env bruto, ação por dia inteiro).
+Decide **uma ação por caso** (`Discrete(6)`). Estado discretizado via ``StateEncoder``
+(``rich_v1`` por padrão). Legado: ``qlearning_agent_old.py``.
 """
 from __future__ import annotations
 
 import pickle
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
 
 from agents.base import EpisodeRunner
+from agents.qlearning.state import (
+    STATE_VERSION_COMPACT,
+    STATE_VERSION_RICH,
+    StateEncoder,
+    encode_state_from_env,
+)
 
 NUM_ACTIONS = 6
 DEFAULT_CHECKPOINT = Path("results/qlearning/q_table.pkl")
-
-
-def encode_state_from_env(env, *, day_bucket_size: int = 5) -> str:
-    """Discretiza o estado a partir do wrapper `CaseByCaseWrapper`.
-
-    Canais do mapa (ver `DengueWrapper`):
-      0 = diagnóstico clínico (+1)
-      1 = status teste dengue (+1)
-      2 = status teste chik (+1)
-    """
-    case_id, x, y = env.current_case
-    if case_id == 0:
-        return "terminal"
-
-    map_tensor = env._current_map_obs
-    if map_tensor is None:
-        return "unknown"
-
-    clinical = int(map_tensor[0, x, y])
-    testd = int(map_tensor[1, x, y])
-    testc = int(map_tensor[2, x, y])
-    day = int(env.unwrapped.t)
-    day_bucket = min(day // max(day_bucket_size, 1), 99)
-
-    return f"{day_bucket}|{clinical}|{testd}|{testc}"
+CHECKPOINT_FORMAT_VERSION = 2
 
 
 class QLearningAgent:
@@ -54,12 +33,14 @@ class QLearningAgent:
         alpha: float = 0.5,
         gamma: float = 0.5,
         epsilon: float = 0.15,
+        encoder: Optional[StateEncoder] = None,
         day_bucket_size: int = 5,
         q_table: Optional[Dict[str, np.ndarray]] = None,
     ):
         self.alpha = float(alpha)
         self.gamma = float(gamma)
         self.epsilon = float(epsilon)
+        self.encoder = encoder or StateEncoder.from_config({})
         self.day_bucket_size = int(day_bucket_size)
         self.q_table: Dict[str, np.ndarray] = q_table or {}
 
@@ -75,8 +56,15 @@ class QLearningAgent:
         return int(np.argmax(self.q_table[state]))
 
     def choose_action_from_env(self, env, *, explore: bool = True) -> int:
-        state = encode_state_from_env(env, day_bucket_size=self.day_bucket_size)
+        state = encode_state_from_env(
+            env, encoder=self.encoder, day_bucket_size=self.day_bucket_size
+        )
         return self.choose_action(state, explore=explore)
+
+    def encode_env(self, env) -> str:
+        return encode_state_from_env(
+            env, encoder=self.encoder, day_bucket_size=self.day_bucket_size
+        )
 
     def update(self, state: str, action: int, reward: float, next_state: str) -> None:
         self._ensure_state(state)
@@ -90,12 +78,21 @@ class QLearningAgent:
     def save(self, path: Union[str, Path], *, also_txt: bool = False) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "format_version": CHECKPOINT_FORMAT_VERSION,
+            "state_version": self.encoder.version,
+            "encoder_config": self.encoder.config_dict(),
+            "alpha": self.alpha,
+            "gamma": self.gamma,
+            "q_table": self.q_table,
+        }
         with open(path, "wb") as f:
-            pickle.dump(self.q_table, f)
+            pickle.dump(payload, f)
 
         if also_txt:
             txt_path = path.with_suffix(".txt")
             with open(txt_path, "w", encoding="utf-8") as f:
+                f.write(f"# state_version={self.encoder.version}\n")
                 for key, values in sorted(self.q_table.items()):
                     f.write(f"{key}: {values.tolist()}\n")
 
@@ -109,6 +106,7 @@ class QLearningAgent:
         alpha: float = 0.5,
         gamma: float = 0.5,
         epsilon: float = 0.0,
+        encoder: Optional[StateEncoder] = None,
         day_bucket_size: int = 5,
     ) -> "QLearningAgent":
         path = Path(path)
@@ -118,14 +116,39 @@ class QLearningAgent:
                 "Treine primeiro com `poetry run python agents/qlearning/train.py`."
             )
         with open(path, "rb") as f:
-            q_table = pickle.load(f)
+            raw = pickle.load(f)
+
+        q_table, loaded_encoder = cls._parse_checkpoint(raw, encoder)
+
         return cls(
             alpha=alpha,
             gamma=gamma,
             epsilon=epsilon,
+            encoder=loaded_encoder,
             day_bucket_size=day_bucket_size,
             q_table=q_table,
         )
+
+    @staticmethod
+    def _parse_checkpoint(
+        raw: Any, encoder_override: Optional[StateEncoder]
+    ) -> tuple[Dict[str, np.ndarray], StateEncoder]:
+        if isinstance(raw, dict) and "q_table" in raw:
+            q_table = raw["q_table"]
+            if encoder_override is not None:
+                enc = encoder_override
+            else:
+                enc = StateEncoder.from_config(raw.get("encoder_config", {}))
+                if "state_version" in raw and raw["state_version"] != enc.version:
+                    enc.version = raw["state_version"]
+            return q_table, enc
+
+        if isinstance(raw, dict):
+            # Checkpoint legado: dict puro state -> array
+            enc = encoder_override or StateEncoder.from_config({"version": STATE_VERSION_COMPACT})
+            return raw, enc
+
+        raise ValueError(f"Formato de checkpoint invalido: {type(raw)}")
 
 
 class QLearningAgentRunner(EpisodeRunner):
@@ -137,13 +160,16 @@ class QLearningAgentRunner(EpisodeRunner):
         self,
         *,
         q_table_path: Optional[Union[str, Path]] = None,
+        encoder: Optional[StateEncoder] = None,
+        state_config: Optional[Dict[str, Any]] = None,
         day_bucket_size: int = 5,
         epsilon: float = 0.0,
     ):
         self.q_table_path = Path(q_table_path) if q_table_path else DEFAULT_CHECKPOINT
+        self.encoder = encoder or StateEncoder.from_config(state_config)
         self.day_bucket_size = day_bucket_size
-        self._agent: Optional[QLearningAgent] = None
         self._epsilon = epsilon
+        self._agent: Optional[QLearningAgent] = None
 
     def _get_agent(self) -> QLearningAgent:
         if self._agent is None:
@@ -151,6 +177,7 @@ class QLearningAgentRunner(EpisodeRunner):
                 self._agent = QLearningAgent.load(
                     self.q_table_path,
                     epsilon=self._epsilon,
+                    encoder=self.encoder,
                     day_bucket_size=self.day_bucket_size,
                 )
             else:
@@ -160,6 +187,7 @@ class QLearningAgentRunner(EpisodeRunner):
                 )
                 self._agent = QLearningAgent(
                     epsilon=self._epsilon,
+                    encoder=self.encoder,
                     day_bucket_size=self.day_bucket_size,
                 )
         return self._agent

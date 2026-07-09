@@ -4,11 +4,20 @@
 #   poetry run python agents/qlearning/train.py --config experiments/configs/train/qlearning_default.yaml
 #
 # Saídas em output_dir:
-#   q_table.pkl       — checkpoint principal (usado pelo benchmark/watch)
+#   q_table.pkl       — checkpoint (inclui state_version + encoder_config)
 #   q_table.txt       — dump legível da tabela
 #   training_log.csv  — recompensa por episódio
 
 env_config: ../env/synthetic_default.yaml
+
+# Codificação de estado (rich_v1 = padrão completo; compact_v1 = legado ~4 campos)
+state:
+  version: rich_v1
+  local_radius: 2          # janela (2r+1)^2 ao redor do caso
+  day_early_max: 5         # fase "inicio" do surto (t <=)
+  day_mid_max: 15          # fase "meio" (t <=)
+  focus_near_frac: 0.12    # distância ao foco: perto/medio/longe
+  focus_mid_frac: 0.30
 
 train:
   episodes: 200
@@ -18,7 +27,7 @@ train:
   epsilon_start: 0.30
   epsilon_final: 0.05
   epsilon_decay_episodes: 150
-  day_bucket_size: 5
+  day_bucket_size: 5       # só usado se state.version = compact_v1
   save_every: 25
   log_every: 10
 

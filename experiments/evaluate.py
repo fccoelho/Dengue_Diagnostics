@@ -49,7 +49,11 @@ def _make_runner(name: str, bench: dict):
     cls = AGENT_REGISTRY[name]
     if name == "qlearning":
         checkpoints = bench.get("checkpoints", {})
-        return cls(q_table_path=checkpoints.get("qlearning"))
+        state_cfg = bench.get("qlearning_state") or bench.get("state")
+        return cls(
+            q_table_path=checkpoints.get("qlearning"),
+            state_config=state_cfg,
+        )
     return cls()
 
 
