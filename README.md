@@ -1,154 +1,116 @@
 # Dengue_Diagnostics
 
-This is a Gymnasium environment for learning optimal policies for accurately detecting dengue cases in the presence of
-other arbovirus cases such as chikungunya.
+Gymnasium environment for learning policies that diagnose dengue in the presence of chikungunya.
 
-## About this environment
+## About
 
-In the `DengueDiag-v0` environment, there are two epidemics going on in the same city, dengue and chikungunya. For every
-case reported, the agent has to decide whether to run a lab test (dengue or chik), confirm the case based on
-epidemiological evidence, accept the clinical diagnosis, or make a final decision (confirm as a true positive / discard
-as a false positive).
+In `DengueDiag-v0`, two epidemics run in the same city. For each reported case the agent chooses: lab test (dengue or chik), epidemiological confirm, accept the clinical diagnosis, or a final decision (confirm / discard).
 
-At every time step, the agent receives the list of cases reported up to that time and decides on an action for every new
-case reported at time step $t$ (assuming decisions for cases reported before $t$ were already made).
+Cases come from a **plugable generator** (`env.generator` in YAML):
+
+| Generator | Spatial layout | Time |
+|-----------|----------------|------|
+| `synthetic` (default) | SIR + truncated normals around foci | SIR |
+| `kriging` | Ordinary Kriging on Rio 2015–16 notifications (`P(cell \| disease)`) | SIR |
+
+Only **dengue** and **chikungunya** are modeled (no Zika in training).
+
+Active agents use `make_env` + wrappers. Archived code lives in `old/` (see `REFACTOR.md`). DQN/PPO are unchanged and not yet on the benchmark registry.
 
 ## Reward model
 
-The reward is computed by `dengue_envs.core.reward.RewardEngine` and has **three layers**:
+Computed by `dengue_envs.core.reward.RewardEngine` in three layers:
 
-1. **Immediate cost** (paid the same day) — every action pays its operational cost:
+1. **Immediate cost** (same day):
 
    | Action | Cost |
    |--------|------|
-   | Test for dengue (0) | 1.0 |
-   | Test for chik (1) | 1.0 |
+   | Test dengue (0) / chik (1) | 1.0 |
    | Epi confirm (2) | 0.5 |
    | Do nothing (3) | 0.1 |
-   | Confirm (4) | 0.0 |
-   | Discard (5) | 0.0 |
+   | Confirm (4) / Discard (5) | 0.0 |
 
-   Lab tests also model a **turnaround delay** (`lab_delay_days`, defaults to
-   `reward_delay_days`): when a test is ordered the sample is taken *today*, but
-   the result (and the update to `testd`/`testc`/`agent_diagnosis`) only becomes
-   available `lab_delay_days` later. Set `lab_delay_days=0` for immediate results.
+   Lab results arrive after `lab_delay_days` (default = `reward_delay_days`). Use `0` for immediate results.
 
-2. **Delayed decision outcome** (paid `reward_delay_days` later, default **5**) — the decisive actions only reveal
-   whether they were good after the lab/epidemiological result "matures":
+2. **Delayed decision** (`reward_delay_days`, default **5**): confirm/discard pay `+10` if correct; wrong confirm `-20`; discarding a real case `-30`.
 
-   - **Confirm**: correct when `agent_diagnosis == true disease` → `+reward_correct_decision` (default `+10`);
-     otherwise → `penalty_incorrect_decision` (default `-20`, a false positive).
-   - **Discard**: correct when the true disease is *other* → `+reward_correct_decision`; discarding a real
-     arbovirus case is a false negative and gets `penalty_missed_case` (default `-30`, the most dangerous error in
-     surveillance).
+3. **Final score**: `+1` per correct diagnosis; `-10` per wrong case that was never tested.
 
-3. **Final score** (paid once at the end of the episode):
+Weights are configurable via `make_env` / YAML. Episode ends at `(epilength - 1) + settle_days`.
 
-   - `+final_correct_bonus` (default `+1`) for every case whose `agent_diagnosis` matches the truth — the sum is
-     equivalent to `episize - misdiagnosed`.
-   - `penalty_untested_misdiagnosed` (default `-10`) for every case that ends up wrong **and was never tested**.
+### Observation / action
 
-All weights are parameters of `DengueDiagnosticsEnv.__init__` (and can be set through `make_env`/config), so the whole
-reward can be tuned without touching the environment loop. Setting `reward_delay_days=0` pays the decision outcomes
-immediately.
+Dict of per-case sequences (`clinical_diagnostic`, `testd`, `testc`, `epiconf`, `tnot`), wrapped for RL into a 4-channel map + one case at a time (`map_tensor` + `case_by_case`).
 
-### Observation Space
-
-The observation space is a `Dict` of sequences (one entry per reported case):
-
-```python
-{
-    "clinical_diagnostic": ((x, y, disease), ...),  # disease: 0 dengue, 1 chik, 2 other
-    "testd": ((case_id, status), ...),               # status: 0 not tested, 1 neg, 2 pos, 3 inconclusive
-    "testc": ((case_id, status), ...),
-    "epiconf": ((case_id, confirmed), ...),          # confirmed: 0 no, 1 yes
-    "tnot": ((case_id, day), ...),                    # day the case was reported
-}
-```
-
-For RL training this Dict is turned into a 4-channel tensor by `DengueWrapper` (see `dengue_envs/wrappers`).
-
-### Action Space
-
-There are 6 possible actions per case:
-
-- Test for dengue (0)
-- Test for chik (1)
-- Epi confirm (2): confirm based on epidemiological evidence
-- Do nothing (3): accept the clinical diagnosis
-- Confirm (4): confirm the case as a true positive
-- Discard (5): discard the case as a false positive
+Actions (per case): test dengue (0), test chik (1), epi confirm (2), do nothing (3), confirm (4), discard (5).
 
 ## Installation
 
-The project requires **Python >=3.12, <3.13**. To install:
+Requires **Python >=3.12, <3.13**:
 
 ```bash
 poetry env use python3.12
 poetry install
-```
-
-Run the test suite with:
-
-```bash
 poetry run pytest
 ```
 
 ## Project layout
 
 ```
-dengue_envs/
-├── data/        # world/epidemic generators (synthetic today; rio2016/kriging planned)
-├── core/        # clinical model, epi confirm, case store, RewardEngine, LabResultQueue
-├── envs/        # DengueDiagnosticsEnv (orchestrates step/reset, delegates rendering)
-├── wrappers/    # map_tensor, case_by_case and the make_env factory
-├── metrics/     # episode metrics (binary + multiclass) / confusion map
-├── rendering/   # PygameRenderer, sprites, image assets (assets/*.png)
-└── tests/
-agents/          # RL agents (DQN via Tianshou, random, clinical, qlearning, ppo)
+dengue_envs/      # env, core, wrappers, generators, rendering, metrics
+agents/           # clinical, random, qlearning (+ deepq/ppo not yet unified)
+experiments/      # YAML + evaluate.py
+old/              # archived legacy (not imported by the active path)
+REFACTOR.md       # what moved / what is active
+plano.md          # current priorities
 ```
 
-### Agents
+## Quick commands
 
-| Agent | Module | Train | Benchmark | Watch |
-|-------|--------|-------|-----------|-------|
-| Clinical (baseline) | `agents/clinical/` | — | yes | — |
-| Random (baseline) | `agents/random/` | — | yes | yes |
-| Q-Learning (tabular) | `agents/qlearning/` | `agents/qlearning/train.py` | yes* | yes |
-| DQN (deep) | `agents/deepq/` | `agents/deepq/files/agent_train.py` | planned | yes |
-
-\* Q-Learning no benchmark requer Q-table treinada (`results/qlearning/q_table.pkl`). Ver `agents/qlearning/README.md`.
-
-Benchmark all agents:
+**Benchmark** (clinical + random; uncomment `qlearning` after training):
 
 ```bash
 poetry run python experiments/evaluate.py --config experiments/configs/benchmark.yaml
 ```
 
-Train Q-Learning (not run automatically):
+**Q-Learning** — synthetic / Kriging:
 
 ```bash
 poetry run python agents/qlearning/train.py --config experiments/configs/train/qlearning_default.yaml
+poetry run python -m dengue_envs.data.build_kriging_surfaces
+poetry run python agents/qlearning/train.py --config experiments/configs/train/qlearning_kriging.yaml
 ```
 
-### Rendering
+**Visualize generators** (green = dengue, red = chik):
 
-Rendering lives entirely in `dengue_envs/rendering/` (not in the env):
+```bash
+poetry run python -m dengue_envs.data.view_generator --generator both --seed 42
+```
 
-- `assets/` — image icons (`dengue_test.png`, `chick_test.png`, ...); resolved via `rendering/assets.py` (`ASSETS_DIR`, `asset_path`, cached `load_image`).
-- `sprites.py` — `CaseSprite` / `CaseGroup`.
-- `pygame_renderer.py` — `PygameRenderer`: owns the window/surfaces and draws the map, the reward plot and the accuracy plot. The env only calls `create_sprites` / `update_sprites` / `render`.
+`--size` = map grid; `--episize` ≈ number of cases (SIR population).
 
-The accuracy plot shows the **multiclass** accuracy (exact class match over dengue/chik/other), not the lenient binary one.
+**Watch**:
+
+```bash
+poetry run python agents/qlearning/watch.py --q-table results/qlearning/q_table.pkl
+```
+
+More detail: `agents/qlearning/README.md`, `experiments/README.md`.
+
+### Agents
+
+| Agent | Train | Benchmark |
+|-------|-------|-----------|
+| Clinical / Random | — | yes |
+| Q-Learning | `agents/qlearning/train.py` | yes (needs `.pkl`) |
+| DQN / PPO | scripts under `agents/deepq`, `agents/ppo` | not registered yet |
 
 ## TODO / roadmap
 
-- [x] Delay in the reward (implemented in `RewardEngine`, active by default with `reward_delay_days=5`)
-- [x] Delay in the lab test results (`LabResultQueue`, `lab_delay_days`, defaults to the reward delay)
-- [x] Fix the discard reward semantics
-- [x] Final reward model (bonus `episize - misdiagnosed` + `-10` for untested & misdiagnosed)
-- [x] Principled episode horizon (`(epilength - 1) + settle_days` instead of a magic `+10`)
-- [ ] Simulated data based on 2016 outbreak (`Rio2016Generator`)
-- [ ] Kriging density surface for `epi_confirm` (no distribution assumption)
-- [ ] Compare against the health department's real decision workflow (introduction/methodology)
-- [ ] Evaluate over longer intervals
+- [x] Reward/lab delay, discard semantics, final score, episode horizon
+- [x] Kriging generator (dengue + chik) + `view_generator`
+- [x] Legacy out of the active path (`old/`)
+- [ ] Freeze reproducible baseline CSVs
+- [ ] DQN / PPO on the benchmark registry
+- [ ] Kriging intensity inside `epi_confirm`
+- [ ] Compare against the health department workflow

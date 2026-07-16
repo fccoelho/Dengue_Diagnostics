@@ -1,7 +1,7 @@
 """Agente tabular Q-Learning sobre o ambiente novo (wrappers map_tensor + case_by_case).
 
 Decide **uma ação por caso** (`Discrete(6)`). Estado discretizado via ``StateEncoder``
-(``rich_v1`` por padrão). Legado: ``qlearning_agent_old.py``.
+(``rich_v1`` por padrão; ``compact_v1`` opcional como baseline mínimo).
 """
 from __future__ import annotations
 
@@ -144,7 +144,7 @@ class QLearningAgent:
             return q_table, enc
 
         if isinstance(raw, dict):
-            # Checkpoint legado: dict puro state -> array
+            # Checkpoint antigo (só dict state→array): assume estado compacto.
             enc = encoder_override or StateEncoder.from_config({"version": STATE_VERSION_COMPACT})
             return raw, enc
 

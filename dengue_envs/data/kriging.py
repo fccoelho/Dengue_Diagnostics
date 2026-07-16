@@ -8,8 +8,10 @@ Fluxo típico (dados de notificação ponto a ponto, como ``zikario.gpkg``):
 4. Normalizar a superfície para uma distribuição de probabilidade espacial
    ``P(célula)`` (soma 1) e/ou ``P(doença | célula)``.
 
-Este módulo é pensado para exploração em notebook e, depois, para alimentar
-``KrigingDensityGenerator`` / ``epi_confirm``.
+Este módulo alimenta o notebook ``kriging_spatial_probability.ipynb`` e o
+``KrigingDensityGenerator`` (``kriging_generator.py``), que amostra casos para
+treino a partir do ``.npz`` exportado. Uso de intensidade no ``epi_confirm``
+ainda é um passo futuro.
 """
 from __future__ import annotations
 

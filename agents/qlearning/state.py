@@ -1,9 +1,9 @@
 """Codificação de estado tabular para Q-Learning.
 
 Duas variantes:
-- ``compact`` (legado): ``day|clinical|testd|testc`` — ~10 estados, pouco informativo.
-- ``rich`` (padrão): features clínicas, decisão, tempo, posição relativa e contexto
+- ``rich_v1`` (padrão): features clínicas, decisão, tempo, posição relativa e contexto
   espacial local — tudo **discretizado** (sem case_id, sem x/y brutos, sem mapa inteiro).
+- ``compact_v1`` (opcional): ``day|clinical|testd|testc`` — baseline mínimo (~10 estados).
 
 Checkpoints salvos incluem ``state_version`` + ``encoder_config`` para compatibilidade.
 """
@@ -224,7 +224,7 @@ class StateEncoder:
 
 
 def encode_state_compact(env, *, day_bucket_size: int = 5) -> str:
-    """Estado legado mínimo (4 campos)."""
+    """Estado mínimo de 4 campos (``compact_v1``)."""
     case_id, x, y = env.current_case
     if case_id == 0:
         return "terminal"

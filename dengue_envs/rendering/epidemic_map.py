@@ -15,7 +15,7 @@ import pandas as pd
 # disease: 0 = dengue, 1 = chik, 2 = outro
 _DISEASE_STYLE = {
     0: {"color": "green", "marker": ".", "label": "Dengue", "s": 12, "alpha": 0.7},
-    1: {"color": "darkorange", "marker": ".", "label": "Chikungunya", "s": 12, "alpha": 0.7},
+    1: {"color": "red", "marker": ".", "label": "Chikungunya", "s": 12, "alpha": 0.7},
     2: {"color": "gray", "marker": ".", "label": "Outro", "s": 8, "alpha": 0.4},
 }
 
@@ -63,7 +63,7 @@ def plot_epidemic_map(
             ax.pcolor(dengue_map.T, cmap="Greens", alpha=0.35)
         if not chik_df.empty:
             chik_map = np.histogram2d(chik_df.x, chik_df.y, bins=bins, range=rng)[0]
-            ax.pcolor(chik_map.T, cmap="Blues", alpha=0.30)
+            ax.pcolor(chik_map.T, cmap="Reds", alpha=0.30)
 
     for disease_id, style in _DISEASE_STYLE.items():
         subset = cases[cases.disease == disease_id]
@@ -97,7 +97,7 @@ def plot_epidemic_map(
             plt.Circle(
                 chik_center,
                 chik_radius,
-                color="darkorange",
+                color="red",
                 fill=False,
                 linestyle="--",
                 alpha=0.6,

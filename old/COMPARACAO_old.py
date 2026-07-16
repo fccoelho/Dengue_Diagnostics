@@ -7,8 +7,16 @@ from tianshou.policy import DQNPolicy
 from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
 from agents.deepq.files.dengue_wrapper import DengueWrapper, CaseByCaseWrapper
 from agents.deepq.files.fcn_network import DengueNet
-from agents.random.agent_random_old import AleatoryAgent
-from agents.qlearning.qlearning_agent import QLearning_Agent
+# Arquivo arquivado em old/ — imports apontam para cópias locais desta pasta.
+import sys
+from pathlib import Path as _Path
+
+_OLD_DIR = _Path(__file__).resolve().parent
+if str(_OLD_DIR) not in sys.path:
+    sys.path.insert(0, str(_OLD_DIR))
+
+from agent_random_old import AleatoryAgent  # noqa: E402
+from qlearning_agent_old import QLearning_Agent  # noqa: E402
 
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

@@ -10,7 +10,7 @@
 
 env_config: ../env/synthetic_default.yaml
 
-# Codificação de estado (rich_v1 = padrão completo; compact_v1 = legado ~4 campos)
+# Codificação de estado (rich_v1 = padrão; compact_v1 = baseline mínimo ~4 campos)
 state:
   version: rich_v1
   local_radius: 2          # janela (2r+1)^2 ao redor do caso

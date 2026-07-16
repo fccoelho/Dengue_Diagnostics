@@ -3,10 +3,6 @@
 Extração fiel da lógica de `DengueDiagnosticsEnv` (métodos
 `_apply_clinical_uncertainty`, `_dengue_lab_test`, `_chik_lab_test`,
 `_update_case_status`) para funções/métodos reutilizáveis e testáveis.
-
-IMPORTANTE (Fase 1): este módulo é NOVO e roda em paralelo ao ambiente legado.
-O `DengueDiagnosticsEnv` ainda usa seus próprios métodos internos; a ligação
-(env delegar para este módulo) será feita numa fase posterior, após validação.
 """
 from __future__ import annotations
 

@@ -11,10 +11,16 @@ Exemplo:
                  "reward_delay_days": 5, "start_day": 1},
         "wrappers": ["map_tensor", "case_by_case"],
     })
+
+Distribuição espacial (``env.generator``):
+  - ``synthetic`` (padrão): ``World`` SIR + truncnorm
+  - ``kriging``: amostra de ``P(célula|doença)`` do Ordinary Kriging
+    (requer ``surfaces_path`` apontando para o ``.npz``)
 """
 from __future__ import annotations
 
-from typing import Optional
+from pathlib import Path
+from typing import Callable, Optional
 
 from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
 from dengue_envs.wrappers.case_by_case import CaseByCaseWrapper
@@ -43,6 +49,9 @@ _ENV_KEYS = {
     "randomize_outbreak",
 }
 
+# Chaves do YAML que selecionam o gerador (não vão para o __init__ do env).
+_GENERATOR_KEYS = {"generator", "surfaces_path"}
+
 _WRAPPER_BUILDERS = {
     "map_tensor": DengueWrapper,
     "case_by_case": CaseByCaseWrapper,
@@ -50,6 +59,43 @@ _WRAPPER_BUILDERS = {
 
 # Pipeline padrão de RL usado por DQN/PPO.
 DEFAULT_WRAPPERS = ["map_tensor", "case_by_case"]
+
+
+def _make_world_builder(env_cfg: dict) -> Optional[Callable]:
+    """Retorna um ``world_builder(env)`` ou None (World sintético padrão)."""
+    generator = env_cfg.get("generator", "synthetic")
+    if generator in (None, "synthetic"):
+        return None
+
+    if generator == "kriging":
+        from dengue_envs.data.kriging_generator import (
+            DEFAULT_SURFACES_PATH,
+            KrigingDensityGenerator,
+            load_kriging_surfaces,
+        )
+
+        path = Path(env_cfg.get("surfaces_path", DEFAULT_SURFACES_PATH))
+        surfaces = load_kriging_surfaces(path)
+
+        def builder(env: DengueDiagnosticsEnv):
+            gen = KrigingDensityGenerator(
+                size=env.size,
+                episize=env.episize,
+                epilength=env.epilength,
+                surfaces=surfaces,
+            )
+            return gen.build_world(
+                random_state=env.np_random,
+                dengue_r0=env.dengue_r0,
+                chik_r0=env.chik_r0,
+            )
+
+        return builder
+
+    raise ValueError(
+        f"Gerador desconhecido: {generator!r}. "
+        "Disponíveis: 'synthetic', 'kriging'."
+    )
 
 
 def make_raw_env(config: Optional[dict] = None, **kwargs) -> DengueDiagnosticsEnv:
@@ -63,8 +109,9 @@ def make_raw_env(config: Optional[dict] = None, **kwargs) -> DengueDiagnosticsEn
         env_cfg.update(config.get("env", {}))
     env_cfg.update(kwargs)
 
+    world_builder = _make_world_builder(env_cfg)
     filtered = {k: v for k, v in env_cfg.items() if k in _ENV_KEYS}
-    return DengueDiagnosticsEnv(**filtered)
+    return DengueDiagnosticsEnv(**filtered, world_builder=world_builder)
 
 
 def make_env(config: Optional[dict] = None, **kwargs):

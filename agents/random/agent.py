@@ -6,10 +6,7 @@ Opera sobre o MESMO ambiente usado pelos demais agentes (env bruto + wrappers
 `CaseByCaseWrapper`.
 
 Como usa a mesma interface e as mesmas métricas (`get_episode_metrics`), seus
-resultados são diretamente comparáveis aos do baseline clínico e do DQN/PPO.
-
-Legado: as versões antigas ficaram em `agent_random_old.py` e
-`random_agent_old.py`.
+resultados são diretamente comparáveis aos do baseline clínico e do Q-Learning.
 """
 from __future__ import annotations
 

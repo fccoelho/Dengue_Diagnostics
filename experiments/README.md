@@ -9,12 +9,14 @@ YAML e resultados em um formato comum (comparável entre todos os agentes).
 experiments/
 ├── configs/
 │   ├── env/
-│   │   ├── synthetic_default.yaml   # ambiente sintético padrão
-│   │   └── synthetic_large.yaml     # grid/epidemia maiores
+│   │   ├── synthetic_default.yaml
+│   │   ├── synthetic_large.yaml
+│   │   └── kriging_rio.yaml         # espacialidade via Ordinary Kriging
 │   ├── train/
-│   │   └── qlearning_default.yaml   # hiperparâmetros do Q-Learning tabular
-│   └── benchmark.yaml               # quais agentes/seeds rodar e onde salvar
-├── evaluate.py                      # roda o benchmark e salva os CSVs
+│   │   ├── qlearning_default.yaml
+│   │   └── qlearning_kriging.yaml
+│   └── benchmark.yaml
+├── evaluate.py
 └── README.md
 ```
 
@@ -28,7 +30,7 @@ Da raiz do repositório:
 poetry run python experiments/evaluate.py --config experiments/configs/benchmark.yaml
 ```
 
-Isso avalia os agentes listados em `benchmark.yaml` (hoje `clinical` e `random`),
+Isso avalia os agentes listados em `benchmark.yaml` (hoje `clinical`, `random`, `qlearning`),
 usando o ambiente de `configs/env/synthetic_default.yaml`, e salva os resultados
 em `results/baseline/`.
 
@@ -44,7 +46,8 @@ Baselines disponíveis:
   `agents/qlearning/train.py`. Checkpoint em `checkpoints.qlearning`.
 
 Para trocar o ambiente, edite `env_config` no `benchmark.yaml` (ex.:
-`env/synthetic_large.yaml`) ou ajuste os YAMLs em `configs/env/`.
+`env/synthetic_large.yaml` ou `env/kriging_rio.yaml`). Kriging exige o `.npz`
+gerado com `poetry run python -m dengue_envs.data.build_kriging_surfaces`.
 
 ### Ranking e leitura dos resultados
 

@@ -52,6 +52,7 @@ class DengueDiagnosticsEnv(gym.Env):
             final_correct_bonus: float = 1.0,
             penalty_untested_misdiagnosed: float = -10.0,
             render_mode=None,
+            world_builder=None,
     ):
         """
 
@@ -78,10 +79,13 @@ class DengueDiagnosticsEnv(gym.Env):
             penalty_missed_case: penalidade por descartar um doente real (falso negativo)
             final_correct_bonus: bônus final por caso corretamente classificado
             penalty_untested_misdiagnosed: penalidade final por caso errado e nunca testado
+            world_builder: callable opcional ``(env) -> World-like`` (ex.: Kriging).
+                Se None, usa o ``World`` sintético clássico.
         """
         super().__init__()
         self.start_day = start_day
         self.t = start_day
+        self._world_builder = world_builder
 
         self.reward_delay = reward_delay_days
         self.costs = np.array([1.0, 1.0, 0.5, 0.1, 0.0, 0.0])
@@ -526,22 +530,37 @@ class DengueDiagnosticsEnv(gym.Env):
         )
 
     def _create_world(self) -> None:
-        """Gera um novo ``World`` a partir do RNG atual do episódio."""
+        """Gera um novo mundo a partir do RNG atual do episódio.
+
+        Com ``world_builder`` (ex.: Kriging), a espacialidade vem do gerador;
+        o SIR (R0) ainda pode ser randomizado em ``_sample_outbreak_params``.
+        """
         max_attempts = 25
         for attempt in range(max_attempts):
             self._sample_outbreak_params()
-            self.world = World(
-                self.size,
-                self.episize,
-                self.epilength,
-                self.dengue_center,
-                self.chik_center,
-                self.dengue_radius,
-                self.chik_radius,
-                dengue_r0=self.dengue_r0,
-                chik_r0=self.chik_r0,
-                random_state=self.np_random,
-            )
+            if self._world_builder is not None:
+                self.world = self._world_builder(self)
+                if not self._fixed_dengue_center:
+                    self.dengue_center = tuple(self.world.dengue_center)
+                if not self._fixed_chik_center:
+                    self.chik_center = tuple(self.world.chik_center)
+                if not self._fixed_dengue_radius:
+                    self.dengue_radius = int(self.world.dengue_radius)
+                if not self._fixed_chik_radius:
+                    self.chik_radius = int(self.world.chik_radius)
+            else:
+                self.world = World(
+                    self.size,
+                    self.episize,
+                    self.epilength,
+                    self.dengue_center,
+                    self.chik_center,
+                    self.dengue_radius,
+                    self.chik_radius,
+                    dengue_r0=self.dengue_r0,
+                    chik_r0=self.chik_r0,
+                    random_state=self.np_random,
+                )
             if self._epidemic_is_valid():
                 break
             if not self.randomize_outbreak or attempt == max_attempts - 1:

@@ -1,8 +1,4 @@
-"""Núcleo reutilizável do ambiente: clínica, confirmação epi, recompensa e casos.
-
-Módulos NOVOS (Fase 1) que espelham a lógica já validada do
-`DengueDiagnosticsEnv`, isolados para teste e reuso. O ambiente legado continua
-funcionando sem depender deste pacote; a ligação será feita numa fase posterior.
+"""Núcleo do ambiente: clínica, epi confirm, recompensa, lab queue e cases.
 """
 from dengue_envs.core.case_store import OBS_COLUMNS, sync_obs_cases
 from dengue_envs.core.clinical import ClinicalModel, update_case_status
