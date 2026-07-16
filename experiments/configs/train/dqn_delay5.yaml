@@ -1,0 +1,17 @@
+# DQN com delay de recompensa de 5 dias.
+# O runner de DQN será integrado na Fase 3 (agents/dqn/train.py); esta config já
+# define o contrato para quando isso acontecer.
+include:
+  - ../env/synthetic_default.yaml
+
+env:
+  reward_delay_days: 5
+
+train:
+  algorithm: dqn
+  seed: 42
+  epochs: 50
+  n_step: 5          # recomendado >= reward_delay_days
+  batch_size: 64
+  buffer_size: 20000
+  lr: 0.0001

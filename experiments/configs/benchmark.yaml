@@ -1,0 +1,13 @@
+# Benchmark comparativo: mesmo ambiente, vários algoritmos.
+# Algoritmos ainda não integrados (dqn, ppo) são listados como "não integrado"
+# no relatório, sem quebrar a execução.
+include:
+  - env/synthetic_default.yaml
+
+benchmark:
+  episodes: 5
+  seed: 42
+  agents:
+    - random
+    - dqn
+    - ppo
