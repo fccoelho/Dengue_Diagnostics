@@ -5,7 +5,8 @@ import numpy as np
 from tianshou.data import Batch
 from tianshou.policy import DQNPolicy
 from typing import Tuple
-from dengue_envs.wrappers import make_env as build_env
+from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
+from dengue_wrapper import DengueWrapper, CaseByCaseWrapper
 from fcn_network import DengueNet
 
 
@@ -37,12 +38,16 @@ def make_env():
     dengue_radius = np.random.randint(MIN_RADIUS, MAX_RADIUS)
     chik_radius = np.random.randint(MIN_RADIUS, MAX_RADIUS)
 
-    return build_env(
+    env = DengueDiagnosticsEnv(
         epilength=60,
         size=WORLD_SIZE,
         clinical_specificity=(0.5, 0.95),
-        render_mode="human",
+        render_mode="human"
     )
+
+    env = DengueWrapper(env)
+    env = CaseByCaseWrapper(env)
+    return env
 
 
 def load_policy(env):

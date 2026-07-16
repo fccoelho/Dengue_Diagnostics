@@ -7,7 +7,8 @@ from tianshou.policy import DQNPolicy
 from tianshou.data import Batch
 
 # Importações do seu repositório
-from dengue_envs.wrappers import make_env as build_env
+from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
+from dengue_wrapper import DengueWrapper, CaseByCaseWrapper
 from fcn_network import DengueNet
 
 # --- CONFIGURAÇÕES DO AMBIENTE (Devem ser idênticas ao treino) ---
@@ -30,7 +31,7 @@ def make_test_env():
     chik_center = (np.random.randint(MIN_BORDER_DISTANCE, WORLD_SIZE - MIN_BORDER_DISTANCE),
                    np.random.randint(MIN_BORDER_DISTANCE, WORLD_SIZE - MIN_BORDER_DISTANCE))
 
-    return build_env(
+    env = DengueDiagnosticsEnv(
         size=WORLD_SIZE,
         episize=EPISIZE,
         epilength=60,
@@ -40,8 +41,11 @@ def make_test_env():
         chik_center=chik_center,
         dengue_radius=np.random.randint(MIN_RADIUS, MAX_RADIUS),
         chik_radius=np.random.randint(MIN_RADIUS, MAX_RADIUS),
-        render_mode="human",  # LIGANDO A INTERFACE GRÁFICA
+        render_mode="human"  # LIGANDO A INTERFACE GRÁFICA
     )
+    env = DengueWrapper(env)
+    env = CaseByCaseWrapper(env)
+    return env
 
 
 def watch_agent():

@@ -73,10 +73,23 @@ def step_accuracy(true: List[dict], estimated: List[tuple]) -> Tuple[float, floa
 def episode_metrics(y_true, y_pred, total_tests: int, total_reward: float) -> Dict:
     """Métricas clínicas e econômicas ao fim do episódio.
 
-    Espelha `get_episode_metrics`, tratando dengue (classe 0) como "positivo".
+    `y_true` e `y_pred` devem estar ALINHADOS posição-a-posição (mesmo caso na
+    mesma posição). Cabe ao chamador garantir esse alinhamento (ex.: o ambiente
+    alinha por `case_id`). Aqui validamos apenas que têm o mesmo tamanho.
+
+    - "Acurácia": binária dengue (classe 0) vs. resto (chik/outro). Métrica
+      leniente — confusão chik↔outro NÃO conta como erro. Boa para "detectei
+      dengue?", mas mascara a distinção chik/outro.
+    - "Acurácia Multiclasse": fração de casos com a classe EXATA correta
+      (0/1/2). É a acurácia diagnóstica de 3 classes, mais rigorosa.
     """
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
+    if y_true.shape != y_pred.shape:
+        raise ValueError(
+            "y_true e y_pred devem ter o mesmo tamanho (alinhados por caso): "
+            f"{y_true.shape} vs {y_pred.shape}"
+        )
 
     TP = np.sum((y_true == 0) & (y_pred == 0))
     TN = np.sum((y_true != 0) & (y_pred != 0))
@@ -90,6 +103,8 @@ def episode_metrics(y_true, y_pred, total_tests: int, total_reward: float) -> Di
     precision = TP / (TP + FP + epsilon)
     f1_score = 2 * (precision * sensitivity) / (precision + sensitivity + epsilon)
     accuracy = (TP + TN) / len(y_true) if len(y_true) > 0 else 0.0
+    # Acurácia de 3 classes: exige acertar a classe exata (0=dengue, 1=chik, 2=outro).
+    multiclass_accuracy = float(np.mean(y_true == y_pred)) if len(y_true) > 0 else 0.0
 
     total_cases = len(y_true)
     test_cost = total_tests * 1.0
@@ -100,6 +115,7 @@ def episode_metrics(y_true, y_pred, total_tests: int, total_reward: float) -> Di
 
     return {
         "Acurácia": accuracy,
+        "Acurácia Multiclasse": multiclass_accuracy,
         "Sensibilidade (Dengue)": sensitivity,
         "Especificidade": specificity,
         "F1-Score": f1_score,

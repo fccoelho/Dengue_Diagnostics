@@ -32,7 +32,15 @@ _ENV_KEYS = {
     "chik_radius",
     "clinical_specificity",
     "start_day",
+    "lab_delay_days",
+    "settle_days",
+    "reward_correct_decision",
+    "penalty_incorrect_decision",
+    "penalty_missed_case",
+    "final_correct_bonus",
+    "penalty_untested_misdiagnosed",
     "render_mode",
+    "randomize_outbreak",
 }
 
 _WRAPPER_BUILDERS = {

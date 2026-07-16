@@ -5,7 +5,8 @@ from tianshou.data import Batch
 from tianshou.policy import DQNPolicy
 
 # Importe as suas classes
-from dengue_envs.wrappers import make_env as build_env
+from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
+from dengue_wrapper import DengueWrapper, CaseByCaseWrapper
 from fcn_network import DengueNet
 
 # --- CONFIGURAÇÕES ---
@@ -22,15 +23,18 @@ CHIK_CENTER = (300, 300)
 
 def make_eval_env():
     """Cria o ambiente para avaliação (sem renderização humana para ser rápido)"""
-    return build_env(
+    env = DengueDiagnosticsEnv(
         epilength=60,
         size=WORLD_SIZE,
         clinical_specificity=0.5,  # Fixar em 0.8 para o teste padrão
         dengue_center=DENGUE_CENTER,
         chik_center=CHIK_CENTER,
         # Render mode None pois usaremos matplotlib
-        render_mode=None,
+        render_mode=None
     )
+    env = DengueWrapper(env)
+    env = CaseByCaseWrapper(env)
+    return env
 
 
 def run_evaluation():

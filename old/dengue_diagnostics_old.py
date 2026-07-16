@@ -1,4 +1,7 @@
 # Basic packages
+import os
+import time
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,23 +12,8 @@ import gymnasium as gym
 import pygame
 
 from dengue_envs.data.generator import World
-from dengue_envs.metrics.episode_metrics import episode_metrics
-from dengue_envs.rendering import PygameRenderer, plot_epidemic_map
+from dengue_envs.viz import lineplot
 from gymnasium import spaces
-
-# Núcleo modular (Fase 1): o ambiente agora DELEGA a lógica de clínica,
-# sincronização de casos, confirmação epidemiológica e recompensa para
-# `dengue_envs.core`. Os métodos internos (`_dengue_lab_test`, `_epi_confirm`,
-# etc.) foram mantidos como finas camadas de compatibilidade que apenas chamam
-# o núcleo, preservando a API pública e o comportamento validado nos testes.
-from dengue_envs.core import (
-    ClinicalModel,
-    LabResultQueue,
-    RewardEngine,
-    epi_confirm,
-    sync_obs_cases,
-    update_case_status,
-)
 
 
 class DengueDiagnosticsEnv(gym.Env):
@@ -37,20 +25,12 @@ class DengueDiagnosticsEnv(gym.Env):
             episize: int = 150,
             epilength: int = 60,
             reward_delay_days: int = 5, 
-            dengue_center: Optional[Tuple[int, int]] = None,
-            chik_center: Optional[Tuple[int, int]] = None,
-            dengue_radius: Optional[int] = None,
-            chik_radius: Optional[int] = None,
-            randomize_outbreak: bool = True,
+            dengue_center=(100, 100),
+            chik_center=(300, 300),
+            dengue_radius=90,
+            chik_radius=90,
             clinical_specificity: Union[float, Tuple[float, float]] = 0.8,
             start_day: int = 1,
-            lab_delay_days: Optional[int] = None,
-            settle_days: Optional[int] = None,
-            reward_correct_decision: float = 10.0,
-            penalty_incorrect_decision: float = -20.0,
-            penalty_missed_case: float = -30.0,
-            final_correct_bonus: float = 1.0,
-            penalty_untested_misdiagnosed: float = -10.0,
             render_mode=None,
     ):
         """
@@ -59,83 +39,44 @@ class DengueDiagnosticsEnv(gym.Env):
             size: Size of the world
             episize: total number of cases in the epidemic
             epilength: length of the epidemic in days
-            dengue_center: centro do foco de dengue; ``None`` = sortear a cada reset
-            chik_center: centro do foco de chik; ``None`` = sortear a cada reset
-            dengue_radius / chik_radius: raio do foco; ``None`` = sortear a cada reset
-            randomize_outbreak: se True, sorteia R0 de cada curva SIR a cada reset
-                (epidemias com contagens diárias diferentes). Se False, usa R0 fixo.
+            dengue_center: center of the dengue outbreak
+            chik_center: center of the chikungunya outbreak
+            dengue_radius: radius of the dengue outbreak
+            chik_radius: radius of the chikungunya outbreak
             clinical_specificity: specificity of the clinical diagnosis
             render_mode: render mode
             reward_delay_days: delay in days for the reward to be paid
             start_day: first simulation day when the agent takes actions (default 1)
-            lab_delay_days: atraso (dias) até o resultado do laboratório ficar
-                disponível. Se None, usa o mesmo valor de reward_delay_days.
-            settle_days: dias extras após o último dia da epidemia para os
-                atrasos (recompensa/laboratório) amadurecerem antes de encerrar
-                o episódio. Se None, usa max(reward_delay_days, lab_delay_days).
-            reward_correct_decision: bônus (atrasado) por decisão correta
-            penalty_incorrect_decision: penalidade por confirmar errado (falso positivo)
-            penalty_missed_case: penalidade por descartar um doente real (falso negativo)
-            final_correct_bonus: bônus final por caso corretamente classificado
-            penalty_untested_misdiagnosed: penalidade final por caso errado e nunca testado
         """
         super().__init__()
         self.start_day = start_day
         self.t = start_day
 
         self.reward_delay = reward_delay_days
+        self.pending_rewards = {}  
         self.costs = np.array([1.0, 1.0, 0.5, 0.1, 0.0, 0.0])
-        # Motor de recompensa (custo imediato + desfechos atrasados + placar
-        # final). Detém a fila `pending_rewards`, exposta abaixo como
-        # propriedade de leitura.
-        self.reward_engine = RewardEngine(
-            costs=self.costs,
-            reward_delay_days=reward_delay_days,
-            reward_correct_decision=reward_correct_decision,
-            penalty_incorrect_decision=penalty_incorrect_decision,
-            penalty_missed_case=penalty_missed_case,
-            final_correct_bonus=final_correct_bonus,
-            penalty_untested_misdiagnosed=penalty_untested_misdiagnosed,
-        )
-        # Atraso do laboratório: se não informado, acompanha o delay da recompensa.
-        self.lab_delay_days = (
-            reward_delay_days if lab_delay_days is None else lab_delay_days
-        )
-        # Fila de resultados de laboratório pendentes (turnaround do exame).
-        self.lab_queue = LabResultQueue(self.lab_delay_days)
         self.size = size
         self.episize = episize
         self.epilength = epilength
-        # Horizonte do episódio: o último dia com casos novos é `epilength - 1`;
-        # depois dele damos `settle_days` para os atrasos (recompensa/laboratório)
-        # amadurecerem. Substitui o antigo `epilength + 10` arbitrário.
-        if settle_days is None:
-            settle_days = max(self.reward_delay, self.lab_delay_days)
-        self.settle_days = settle_days
-        self.horizon = (self.epilength - 1) + self.settle_days
-        # Parâmetros de foco: None => amostrados em cada reset (via np_random).
-        self._fixed_dengue_center = dengue_center is not None
-        self._fixed_chik_center = chik_center is not None
-        self._fixed_dengue_radius = dengue_radius is not None
-        self._fixed_chik_radius = chik_radius is not None
-        self.dengue_center = dengue_center if self._fixed_dengue_center else (0, 0)
-        self.chik_center = chik_center if self._fixed_chik_center else (0, 0)
-        self.dengue_radius = dengue_radius if self._fixed_dengue_radius else 90
-        self.chik_radius = chik_radius if self._fixed_chik_radius else 90
-        self.randomize_outbreak = randomize_outbreak
-        self.dengue_r0 = 1.5
-        self.chik_r0 = 1.2
-        # Aceita float (valor fixo) ou (min, max) como tupla/lista (ex.: vindo de YAML).
-        self.specificity_setting = (
-            tuple(clinical_specificity)
-            if isinstance(clinical_specificity, list)
-            else clinical_specificity
+        self.dengue_center = dengue_center
+        self.chik_center = chik_center
+        self.dengue_radius = dengue_radius
+        self.chik_radius = chik_radius
+        self.specificity_setting = clinical_specificity
+        if isinstance(self.specificity_setting, tuple):
+            low, high = self.specificity_setting
+            self.clinical_specificity = np.random.uniform(low, high)
+        else:
+            self.clinical_specificity = self.specificity_setting
+        self.world = World(
+            self.size,
+            self.episize,
+            self.epilength,
+            self.dengue_center,
+            self.chik_center,
+            self.dengue_radius,
+            self.chik_radius,
         )
-        self.clinical_specificity = 0.8
-        self.clinical_model = ClinicalModel(self.clinical_specificity)
-        self.world = None
-        self.real_cases = pd.DataFrame()
-        self.num_cases = 0
 
         # Observations are dictionaries as defined below.
         # Data are represented as sequences of cases.
@@ -144,8 +85,8 @@ class DengueDiagnosticsEnv(gym.Env):
                 "clinical_diagnostic": spaces.Sequence(
                     spaces.Tuple(
                         (
-                            spaces.Discrete(self.size),  # x coordinate
-                            spaces.Discrete(self.size),  # y coordinate
+                            spaces.Discrete(self.world.num_cols),  # x coordinate
+                            spaces.Discrete(self.world.num_rows),  # y coordinate
                             spaces.Discrete(3),  # Diagnostic: 0: dengue, 1: chik, 2: other
                         )
                     )
@@ -153,7 +94,7 @@ class DengueDiagnosticsEnv(gym.Env):
                 "testd": spaces.Sequence(
                     spaces.Tuple(
                         (
-                            spaces.Discrete(max(self.episize * 2, 1)),  # case id
+                            spaces.Discrete(self.episize),  # case id
                             spaces.Discrete(4)
                             # Dengue testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
                         )
@@ -161,7 +102,7 @@ class DengueDiagnosticsEnv(gym.Env):
                 ),
                 "testc": spaces.Sequence(
                     spaces.Tuple((
-                        spaces.Discrete(max(self.episize * 2, 1)),  # case id
+                        spaces.Discrete(self.episize),  # case id
                         spaces.Discrete(4)
                         # Chikungunya testing status: 0: not tested, 1: negative, 2: positive, 3: inconclusive
                     ))
@@ -169,7 +110,7 @@ class DengueDiagnosticsEnv(gym.Env):
                 "epiconf": spaces.Sequence(
                     spaces.Tuple(
                         (
-                            spaces.Discrete(max(self.episize * 2, 1)),  # case id
+                            spaces.Discrete(self.episize),  # case id
                             spaces.Discrete(2)  # Epidemiological confirmation: 0: no, 1: yes
                         )
                     )
@@ -177,7 +118,7 @@ class DengueDiagnosticsEnv(gym.Env):
                 "tnot": spaces.Sequence(
                     spaces.Tuple(
                         (
-                            spaces.Discrete(max(self.episize * 2, 1)),  # case id
+                            spaces.Discrete(self.episize),  # case id
                             spaces.Discrete(self.epilength)  # Day of the clinical diagnosis
                         )
                     )
@@ -185,8 +126,14 @@ class DengueDiagnosticsEnv(gym.Env):
             }
         )
 
+        self.real_cases = self.world.casedf.copy()
+        # Total number of cases actually generated (can exceed episize due to two
+        # overlapping epidemic curves), so case ids range over [0, num_cases).
+        self.num_cases = len(self.real_cases)
+
+        # We have 6 actions, corresponding to "test for dengue", "test for chik", "epi confirm", "Do nothing", confirm, discard
         self.action_space = spaces.Sequence(
-            spaces.Tuple((spaces.Discrete(max(self.episize * 2, 1)), spaces.Discrete(6)))
+            spaces.Tuple((spaces.Discrete(self.num_cases), spaces.Discrete(6)))  # case id, action
         )
         self.testd = []
         self.testc = []
@@ -198,34 +145,22 @@ class DengueDiagnosticsEnv(gym.Env):
         self.total_reward = 0
         self.accuracy = []
         self.mean_accuracy_history = []
-        self.multiclass_accuracy_history = []
         self.mape_history = []
 
         self.obs_cases = pd.DataFrame()
+        self._load_episode_state(self.start_day)
 
         self.obs = {"testd": 0, "testc": 1, "epiconf": 2, "tnot": 3, "nothing": 4, "confirm": 5, "discard": 6,
                     "clinical_diagnostic": 7}
 
-        # Primeiro episódio: gera o mundo a partir da seed 0 (reprodutível nos testes).
-        self.reset(seed=0)
-
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
-        self.renderer = None
+        self.clock = None  # self.metadata["render_fps"]
         # Initialize rendering
         if self.render_mode is not None:
             self._render_init(mode=self.render_mode)
 
         self.individual_rewards = [[0]]
-
-    @property
-    def pending_rewards(self):
-        """Fila de recompensas pendentes (mantida pelo `RewardEngine`).
-
-        Exposta como propriedade de leitura para compatibilidade com código que
-        inspecionava `env.pending_rewards` no ambiente monolítico antigo.
-        """
-        return self.reward_engine.pending_rewards
 
     def seed(self, seed: Optional[int] = None) -> List[int]:
         """
@@ -266,26 +201,55 @@ class DengueDiagnosticsEnv(gym.Env):
         self.dmap, self.cmap = self.world.get_maps_up_to_t(t)
 
     def _sync_obs_cases(self):
-        """Append newly reported cases while preserving prior tests/decisions.
+        """Append newly reported cases while preserving prior tests/decisions."""
+        empty_cols = ["t", "x", "y", "disease", "testd", "testc", "epiconf", "agent_diagnosis"]
+        if self.cases.empty:
+            if self.obs_cases is None or self.obs_cases.empty:
+                self.obs_cases = pd.DataFrame(columns=empty_cols)
+            return
 
-        Delega para `dengue_envs.core.case_store.sync_obs_cases`.
-        """
-        self.obs_cases = sync_obs_cases(
-            self.obs_cases, self.cases, self.clinical_model, self.np_random
-        )
+        if self.obs_cases is None or self.obs_cases.empty:
+            known = set()
+        else:
+            known = set(self.obs_cases.index)
+
+        new_cases = self.cases[~self.cases.index.isin(known)]
+        if new_cases.empty:
+            return
+
+        new_obs = self._apply_clinical_uncertainty(new_cases)
+        if self.obs_cases is None or self.obs_cases.empty:
+            self.obs_cases = new_obs
+        else:
+            self.obs_cases = pd.concat([self.obs_cases, new_obs])
 
     def _render_init(self, mode="human"):
         """
-        Inicializa a renderização delegando ao `PygameRenderer`.
+        Initialize rendering
         """
         if mode == "console":
-            self.renderer = None
             return
-        self.renderer = PygameRenderer(
-            self.world.size,
-            render_fps=self.metadata.get("render_fps", 10),
-            human=(mode == "human"),
+        pygame.init()
+        pygame.display.init()
+
+        # Setting display size
+        self.scaling_factor = 800 / self.world.size  # Scaling factor for the display
+        self.screen = pygame.display.set_mode(
+            size=(800, 800),
+            depth=32,
+            flags=pygame.SCALED,
         )
+        self.world_surface = pygame.Surface((self.world.size, self.world.size))
+        self.world_surface.set_colorkey((0, 0, 0))
+        self.dengue_group = CaseGroup("dengue", self.scaling_factor)
+        self.chik_group = CaseGroup("chik", self.scaling_factor)
+        self.all_tests = CaseGroup("all", self.scaling_factor)
+
+        self.plot_surface1 = pygame.Surface((400, 300))
+        self.plot_surface2 = pygame.Surface((400, 300))
+
+        if self.clock is None and self.render_mode == "human":
+            self.clock = pygame.time.Clock()
 
     def _get_obs(self):
         """
@@ -301,27 +265,89 @@ class DengueDiagnosticsEnv(gym.Env):
 
     def _apply_clinical_uncertainty(self, cases_df: pd.DataFrame) -> pd.DataFrame:
         """
-        Apply clinical uncertainty to newly reported cases.
-
-        Delega para `ClinicalModel.apply_uncertainty`.
+        Apply clinical uncertainty to newly reported cases: the clinical diagnosis
+        is subject to misdiagnosis based on the clinical specificity. Sampled once
+        per case so the observed diagnosis stays stable for the rest of the episode.
         """
-        return self.clinical_model.apply_uncertainty(cases_df, self.np_random)
+        obs_case_df = cases_df.copy()
+        for idx in obs_case_df.index:
+            true_disease = obs_case_df.at[idx, "disease"]
+            if self.np_random.uniform() < 0.01:
+                obs_case_df.at[idx, "disease"] = 2  # Other disease
+                continue
+            if true_disease == 0:
+                if self.np_random.uniform() > self.clinical_specificity:  # Misdiagnosed as chik
+                    obs_case_df.at[idx, "disease"] = 1
+            elif true_disease == 1:
+                if self.np_random.uniform() > self.clinical_specificity:  # Misdiagnosed as dengue
+                    obs_case_df.at[idx, "disease"] = 0
+
+        obs_case_df["agent_diagnosis"] = obs_case_df["disease"]
+
+        return obs_case_df
 
     def _calc_reward(self, true, estimated, action, terminated=False):
         """
         Calcula a recompensa com custos imediatos e agenda as decisões finais (delay).
-
-        Delega o cálculo para `RewardEngine.compute`, mantendo aqui apenas a
-        contabilidade acumulada do episódio (`total_reward`, `individual_rewards`).
         """
-        step_reward = self.reward_engine.compute(
-            action,
-            self.t,
-            self.real_cases,
-            self.obs_cases,
-            terminated=terminated,
-        )
+        PENALTY_INCORRECT_DECISION = -20.0
+        REWARD_CORRECT_DECISION = 10.0
+
+        immediate_reward = 0.0
+        delayed_reward_accum = 0.0
+
+        for case_id, action_id in action:
+            # 1. Aplica o Custo Imediato da Ação (subtraindo)
+            immediate_reward -= self.costs[action_id]
+
+            # Ignora ações sobre casos ainda não reportados
+            if case_id not in self.obs_cases.index:
+                continue
+
+            true_disease = int(self.real_cases.loc[case_id, "disease"])
+            agent_diagnosis = self.obs_cases.loc[case_id, "agent_diagnosis"]
+
+            is_correct = False
+            is_decision = False
+
+            # 2. Avalia Ações de Decisão (4, 5) para agendar no futuro
+            if action_id == 4:  # Confirmar
+                is_decision = True
+                if agent_diagnosis == true_disease:
+                    is_correct = True
+
+            elif action_id == 5:  # Descartar
+                is_decision = True
+                discarded = 1 if agent_diagnosis == 0 else 0
+                if discarded == true_disease:
+                    is_correct = True
+
+            # Prepara o valor que será agendado
+            if is_decision:
+                if is_correct:
+                    delayed_reward_accum += REWARD_CORRECT_DECISION
+                else:
+                    delayed_reward_accum += PENALTY_INCORRECT_DECISION
+
+        # 3. Agenda a recompensa para o futuro (t + delay)
+        if delayed_reward_accum != 0:
+            target_t = self.t + self.reward_delay
+            if target_t not in self.pending_rewards:
+                self.pending_rewards[target_t] = 0.0
+            self.pending_rewards[target_t] += delayed_reward_accum
+
+        # 4. Resgata as recompensas que "venceram" no timestep atual
+        matured_reward = self.pending_rewards.pop(self.t, 0.0)
+
+        # 5. Se for o fim do episódio, força o resgate de tudo que sobrou na fila
+        if terminated:
+            matured_reward += sum(self.pending_rewards.values())
+            self.pending_rewards.clear()
+
+        # Recompensa do step é a soma dos gastos de hoje com os desfechos que venceram hoje
+        step_reward = immediate_reward + matured_reward
         self.total_reward += step_reward
+        
         self.individual_rewards.append([])
         return step_reward
 
@@ -336,7 +362,6 @@ class DengueDiagnosticsEnv(gym.Env):
         if len(true) == 0:
             self.accuracy.append(0.0)
             self.mean_accuracy_history.append(0.0)
-            self.multiclass_accuracy_history.append(0.0)
             self.mape_history.append(0.0)
             return 0.0
 
@@ -375,17 +400,8 @@ class DengueDiagnosticsEnv(gym.Env):
 
         mean_accuracy = (accuracy_dengue + accuracy_chik) / 2
 
-        # Acurácia MULTICLASSE (3 classes): fração de casos com a classe exata
-        # (dengue/chik/outro) correta. É a que alimenta o gráfico de acurácia,
-        # pois não mascara a confusão chik<->outro como a binária faz.
-        correct_multiclass = sum(
-            1 for t, e in zip(true, estimated) if t["disease"] == e[2]
-        )
-        multiclass_accuracy = correct_multiclass / total_cases
-
         self.accuracy.append(mean_accuracy)
         self.mean_accuracy_history.append(mean_accuracy)
-        self.multiclass_accuracy_history.append(multiclass_accuracy)
 
         true_numdengue = len([c for c in true if c["disease"] == 0])
         estimated_numdengue = len([c for c in estimated if c[2] == 0])
@@ -416,154 +432,83 @@ class DengueDiagnosticsEnv(gym.Env):
     def _dengue_lab_test(self, case_id):
         """
         Returns the dengue test result for a case, conditioned on the TRUE disease.
-
-        Delega para `ClinicalModel.dengue_lab_test`.
+        1: Negative, 2: Positive, 3: Inconclusive
+        (10% inconclusive, then 90% sensitivity / 90% specificity)
         """
         true_disease = int(self.real_cases.loc[case_id, "disease"])
-        return self.clinical_model.dengue_lab_test(true_disease, self.np_random)
+        if self.np_random.uniform() < 0.1:
+            return 3  # Inconclusive
+        if true_disease == 0:  # Really dengue -> 90% chance positive
+            return 2 if self.np_random.uniform() < 0.9 else 1
+        return 1 if self.np_random.uniform() < 0.9 else 2  # Not dengue -> 90% negative
 
     def _chik_lab_test(self, case_id):
         """
         Returns the chikungunya test result for a case, conditioned on the TRUE disease.
-
-        Delega para `ClinicalModel.chik_lab_test`.
+        1: Negative, 2: Positive, 3: Inconclusive
+        (10% inconclusive, then 90% sensitivity / 90% specificity)
         """
         true_disease = int(self.real_cases.loc[case_id, "disease"])
-        return self.clinical_model.chik_lab_test(true_disease, self.np_random)
+        if self.np_random.uniform() < 0.1:
+            return 3  # Inconclusive
+        if true_disease == 1:  # Really chik -> 90% chance positive
+            return 2 if self.np_random.uniform() < 0.9 else 1
+        return 1 if self.np_random.uniform() < 0.9 else 2  # Not chik -> 90% negative
 
     def _update_case_status(self, action, index, result):
         """
-        Atualiza o status do caso e o diagnóstico do agente com base nos
-        resultados dos testes. Delega para `core.clinical.update_case_status`.
+        Atualiza o status do caso e o diagnóstico do agente com base
+        nos resultados dos testes.
         """
-        update_case_status(self.obs_cases, action, index, result)
+        if action == 0:  # Teste de Dengue
+            self.obs_cases.loc[index, "testd"] = result
+            if result == 2:  # Positivo para Dengue
+                self.obs_cases.loc[index, "agent_diagnosis"] = 0
+            elif result == 1:  # Negativo para Dengue
+                # Se não é Dengue e a estimativa era Dengue, vira Chik
+                if self.obs_cases.loc[index, "agent_diagnosis"] == 0:
+                    self.obs_cases.loc[index, "agent_diagnosis"] = 1
+            # Se for 3 (Inconclusivo), o agent_diagnosis não muda
 
-    def _apply_lab_results(self, entries):
-        """Aplica ao `obs_cases` uma lista de resultados de laboratório."""
-        for action_id, case_id, result in entries:
-            if case_id in self.obs_cases.index:
-                self._update_case_status(action_id, case_id, result)
+        elif action == 1:  # Teste de Chik
+            self.obs_cases.loc[index, "testc"] = result
+            if result == 2:  # Positivo para Chik
+                self.obs_cases.loc[index, "agent_diagnosis"] = 1
+            elif result == 1:  # Negativo para Chik
+                # Se não é Chik e a estimativa era Chik, vira Dengue
+                if self.obs_cases.loc[index, "agent_diagnosis"] == 1:
+                    self.obs_cases.loc[index, "agent_diagnosis"] = 0
+            # Se for 3 (Inconclusivo), o agent_diagnosis não muda
 
-    def _apply_matured_lab_results(self, t):
-        """Aplica os resultados de laboratório que ficam disponíveis no dia `t`."""
-        self._apply_lab_results(self.lab_queue.pop_matured(t))
-
-    def _flush_lab_results(self):
-        """Libera todos os resultados pendentes (fim do episódio)."""
-        self._apply_lab_results(self.lab_queue.flush())
+        elif action == 2:  # Epi confirm
+            self.obs_cases.loc[index, "epiconf"] = result
+            # Esta ação não altera o 'agent_diagnosis'
 
     def _epi_confirm(self, case_id):
         """
         Returns the epidemiological confirmation for a case based on the local
         case density of the currently suspected disease.
         1: confirmed by epidemiological evidence, 0: not confirmed
-
-        Delega para `core.epi_confirm.epi_confirm`.
         """
         x, y = self.get_case_xy(case_id)
+        x, y = int(x), int(y)
         clinical = int(self.obs_cases.loc[case_id, "disease"])
-        return epi_confirm(clinical, x, y, self.dmap, self.cmap)
-
-    def _sample_outbreak_params(self) -> None:
-        """Sorteia focos espaciais e R0 quando não foram fixados na config."""
-        margin = min(50, max(10, self.size // 8))
-        lo, hi = margin, self.size - margin
-        max_radius = max(margin + 1, self.size // 4)
-        radius_lo = max(5, margin // 2)
-        radius_hi = max(radius_lo + 1, max_radius)
-
-        if not self._fixed_dengue_center:
-            self.dengue_center = (
-                int(self.np_random.integers(lo, hi)),
-                int(self.np_random.integers(lo, hi)),
-            )
-        if not self._fixed_chik_center:
-            self.chik_center = (
-                int(self.np_random.integers(lo, hi)),
-                int(self.np_random.integers(lo, hi)),
-            )
-        if not self._fixed_dengue_radius:
-            self.dengue_radius = int(self.np_random.integers(radius_lo, radius_hi + 1))
-        if not self._fixed_chik_radius:
-            self.chik_radius = int(self.np_random.integers(radius_lo, radius_hi + 1))
-
-        if self.randomize_outbreak:
-            # Dengue: surto principal (R0 claramente epidêmico, > 1).
-            self.dengue_r0 = float(self.np_random.uniform(1.45, 1.85))
-            # Chik: sempre menor que dengue (65–88% do R0 da dengue), simulando
-            # um surto secundário mais contido.
-            chik_frac = float(self.np_random.uniform(0.65, 0.88))
-            self.chik_r0 = max(1.12, self.dengue_r0 * chik_frac)
-            if self.chik_r0 >= self.dengue_r0:
-                self.chik_r0 = self.dengue_r0 - 0.10
-        else:
-            self.dengue_r0 = 1.5
-            self.chik_r0 = 1.2
-
-    def _epidemic_is_valid(self) -> bool:
-        """Verifica se o ``World`` gerado tem surtos não triviais e realistas."""
-        w = self.world
-        # Sempre epidêmico: R0 > 1 e chik claramente menor que dengue.
-        if self.dengue_r0 <= 1.05 or self.chik_r0 <= 1.05:
-            return False
-        if self.chik_r0 >= self.dengue_r0:
-            return False
-        # Volume mínimo de casos (evita curvas degeneradas).
-        if w.dengue_total < 15 or w.chik_total < 8:
-            return False
-        if w.chik_total >= w.dengue_total:
-            return False
-        # Pelo menos alguns casos nos primeiros dias ativos do agente (t=1).
-        if w.casedf is None or w.casedf.empty:
-            return False
-        early = w.casedf[w.casedf["t"] <= 1]
-        return len(early) >= 5
-
-    def _update_action_space(self) -> None:
-        """Atualiza o espaço de ações quando o total de casos muda."""
-        self.action_space = spaces.Sequence(
-            spaces.Tuple((spaces.Discrete(self.num_cases), spaces.Discrete(6)))
-        )
-
-    def _create_world(self) -> None:
-        """Gera um novo ``World`` a partir do RNG atual do episódio."""
-        max_attempts = 25
-        for attempt in range(max_attempts):
-            self._sample_outbreak_params()
-            self.world = World(
-                self.size,
-                self.episize,
-                self.epilength,
-                self.dengue_center,
-                self.chik_center,
-                self.dengue_radius,
-                self.chik_radius,
-                dengue_r0=self.dengue_r0,
-                chik_r0=self.chik_r0,
-                random_state=self.np_random,
-            )
-            if self._epidemic_is_valid():
-                break
-            if not self.randomize_outbreak or attempt == max_attempts - 1:
-                break
-        self.real_cases = self.world.casedf.copy()
-        self.num_cases = len(self.real_cases)
-        self._update_action_space()
+        if clinical == 0:  # Dengue suspicion
+            return 1 if self.dmap[x, y] > 1 else 0
+        if clinical == 1:  # Chik suspicion
+            return 1 if self.cmap[x, y] > 1 else 0
+        return 0
 
     def reset(self, seed: int = None, options=None, reset_data: bool = False) -> Tuple[Dict, Dict]:
         """
         Resets the environment to the initial state
         Args:
-            reset_data: legado; ignorado — o mundo é sempre recriado no reset.
-            options: dict opcional; ``regenerate_world=False`` mantém o mundo
-                anterior (útil para debug).
+            reset_data: If the world data is supposed to re-created as well. Default is False.
 
         Returns:
 
         """
         super().reset(seed=seed)
-        options = options or {}
-        regenerate_world = options.get("regenerate_world", True)
 
         if isinstance(self.specificity_setting, tuple):
             # Se for uma tupla (min, max), sorteia um valor uniforme
@@ -572,11 +517,18 @@ class DengueDiagnosticsEnv(gym.Env):
         else:
             # Se for um float, usa esse valor fixo
             self.clinical_specificity = self.specificity_setting
-        # Recria o modelo clínico com a especificidade (re)amostrada.
-        self.clinical_model = ClinicalModel(self.clinical_specificity)
 
-        if regenerate_world or self.world is None:
-            self._create_world()
+        if reset_data:  # Re-Creates the world if requested
+            self.world = World(
+                self.size,
+                self.episize,
+                self.epilength,
+                self.dengue_center,
+                self.chik_center,
+                self.dengue_radius,
+                self.chik_radius,
+            )
+            self.real_cases = self.world.casedf.copy()
 
         self.testd = []
         self.testc = []
@@ -585,13 +537,9 @@ class DengueDiagnosticsEnv(gym.Env):
         self.rewards = []
         self.accuracy = []
         self.mean_accuracy_history = []
-        self.multiclass_accuracy_history = []
         self.mape_history = []
         self.total_reward = 0
-        self.reward_engine.reset()
-        self.lab_queue.reset()
-        if getattr(self, "renderer", None) is not None:
-            self.renderer.reset()
+        self.pending_rewards = {}
         self.individual_rewards = [[0]]
 
         # Clear observed cases so a fresh episode re-samples clinical uncertainty
@@ -627,14 +575,14 @@ class DengueDiagnosticsEnv(gym.Env):
             # Ignore actions targeting cases that have not been reported yet
             if case_id not in self.obs_cases.index:
                 continue
-            if action_id == 0:  # Teste de Dengue: amostra colhida hoje, laudo atrasa
+            if action_id == 0:  # Teste de Dengue
                 test_result = self._dengue_lab_test(case_id)
                 self.testd.append((case_id, test_result))
-                self.lab_queue.schedule(0, case_id, test_result, self.t)
-            elif action_id == 1:  # Teste de Chik: amostra colhida hoje, laudo atrasa
+                self._update_case_status(0, case_id, test_result)
+            elif action_id == 1:  # Teste de Chik
                 test_result = self._chik_lab_test(case_id)
                 self.testc.append((case_id, test_result))
-                self.lab_queue.schedule(1, case_id, test_result, self.t)
+                self._update_case_status(1, case_id, test_result)
             elif action_id == 2:  # Epi confirm
                 epi_result = self._epi_confirm(case_id)
                 self.epiconf.append((case_id, epi_result))
@@ -650,15 +598,6 @@ class DengueDiagnosticsEnv(gym.Env):
                 self.obs_cases.loc[case_id, "agent_diagnosis"] = 2
                 self.final.append(0)
 
-        terminated = self.t >= self.horizon
-
-        # Resultados de laboratório respeitam o atraso: aplicamos hoje os que
-        # amadureceram e, no fim do episódio, liberamos todos os pendentes.
-        if terminated:
-            self._flush_lab_results()
-        else:
-            self._apply_matured_lab_results(self.t)
-
         estimated_for_accuracy = tuple(
             (c.x, c.y, c.agent_diagnosis)
             for c in self.obs_cases.itertuples()
@@ -668,6 +607,7 @@ class DengueDiagnosticsEnv(gym.Env):
 
         self.calc_accuracy(true_cases, estimated_for_accuracy)
 
+        terminated = self.t >= self.epilength + 10
         reward = self._calc_reward(
             self.cases.to_dict(orient="records"),
             estimated_for_accuracy,
@@ -678,9 +618,33 @@ class DengueDiagnosticsEnv(gym.Env):
 
         self.rewards.append(self.total_reward)
 
-        if self.render_mode == "human" and self.renderer is not None:
-            self.renderer.create_sprites(self.cases, self.t)
-            self.renderer.update_sprites(action)
+        if self.render_mode == "human":
+            self._create_sprites()
+
+            self.update_sprites(action)
+
+            self.accuracy_plot = lineplot(
+                range(1, self.t + 1), self.mean_accuracy_history, "Step", "Accuracy", "Accuracy", "plot2"
+            )
+
+            self.total_reward_plot = lineplot(
+                range(1, self.t + 1), self.rewards, "Step", "Total Reward", "Total Reward", "plot1"
+            )
+
+            self.plot_surface1.blit(
+                pygame.transform.scale(
+                    pygame.image.load(self.total_reward_plot, "PNG"), self.plot_surface1.get_rect().size
+                ),
+                (0, 0),
+            )
+
+            self.plot_surface2.blit(
+                pygame.transform.scale(
+                    pygame.image.load(self.accuracy_plot, "PNG"), self.plot_surface2.get_rect().size
+                ),
+                (0, 0),
+            )
+
             self.render()
 
         # Update the timestep
@@ -700,48 +664,103 @@ class DengueDiagnosticsEnv(gym.Env):
         return observation, reward, terminated, False, info
 
     def update_sprites(self, actions):
-        """Delega ao renderer a atualização dos ícones dos sprites."""
-        if self.renderer is not None:
-            self.renderer.update_sprites(actions)
+        # Update the sprites in the dengue group
+        for sprite in self.dengue_group.sprites():
+            for id, a in actions:
+                if sprite.case_id == id:
+                    sprite.mark_as_tested(int(a))
+
+        for sprite in self.chik_group.sprites():
+            for id, a in actions:
+                if sprite.case_id == id:
+                    sprite.mark_as_tested(int(a))
 
     def render(self):
-        """Renderiza o frame atual, delegando ao `PygameRenderer`.
-
-        O gráfico de acurácia representa a acurácia MULTICLASSE (3 classes).
         """
-        if self.renderer is None:
-            return
-        self.renderer.render(
-            self.t,
-            self.rewards,
-            self.multiclass_accuracy_history,
-            accuracy_label="Multiclass Accuracy",
+        Render the environment with a legend on the right side
+        """
+        pygame.event.pump()
+
+        self.dengue_group.draw(self.world_surface)
+        self.chik_group.draw(self.world_surface)
+
+        # Clear the screen
+        self.screen.fill((255, 255, 255))
+
+        number_font = pygame.font.SysFont(None, 32)
+        timestep_display = number_font.render(
+            f"Step {self.t}", True, (0, 0, 0), (255, 255, 255)
+        )
+        self.screen.blit(
+            timestep_display,
+            (int((self.screen.get_width() - timestep_display.get_width()) / 2), 0),
         )
 
-    def _create_sprites(self):
-        """Delega ao renderer a criação de sprites para os casos do dia `t`."""
-        if self.renderer is not None:
-            self.renderer.create_sprites(self.cases, self.t)
-
-    def plot_epidemic_map(self, title="Mapa da Epidemia (Ground Truth)", save_path=None, show=False):
-        """Mapa espacial da epidemia VERDADEIRA (``real_cases``).
-
-        Delega para ``dengue_envs.rendering.epidemic_map.plot_epidemic_map``,
-        funcionando com qualquer gerador cujo ``casedf`` siga o esquema padrão.
-        """
-        return plot_epidemic_map(
-            self.real_cases,
-            self.size,
-            dengue_center=self.dengue_center,
-            chik_center=self.chik_center,
-            dengue_radius=self.dengue_radius,
-            chik_radius=self.chik_radius,
-            title=title,
-            save_path=save_path,
-            show=show,
+        # Blit as superfícies que já foram preparadas no step()
+        self.screen.blit(
+            self.plot_surface1, (0, 500), special_flags=pygame.BLEND_ALPHA_SDL2
         )
 
-    def plot_confusion_map(self, title="Mapa de Confusão Espacial", save_path=None, show=False):
+        self.screen.blit(
+            self.plot_surface2, (400, 500), special_flags=pygame.BLEND_ALPHA_SDL2
+        )
+
+        # Draw the world surface
+        self.screen.blit(
+            self.world_surface, (0, 0), special_flags=pygame.BLEND_ALPHA_SDL2
+        )
+
+        # Create the legend on the right side
+        legend_x = self.screen.get_width() - 200  # X position of the legend (right side)
+        legend_y = 120  # Y position of the first legend item
+        legend_margin = 40  # Space between items in the legend
+
+        # Define image mappings and their descriptions
+        image_legend = [
+            ("dengue_test.png", "Dengue Test"),
+            ("chick_test.png", "Chik Test"),
+            ("epi_test.png", "Inconclusive"),
+            ("no_test.png", "No Test"),
+            ("confirm_test.png", "Confirm"),
+            ("discard_test.png", "Discard"),
+        ]
+
+        # Render the legend
+        for image_file, description in image_legend:
+            number_font_legend = pygame.font.SysFont(None, 18)
+
+            # Load the image
+            image = pygame.image.load(os.path.join(os.path.dirname(__file__), image_file)).convert_alpha()
+            image = pygame.transform.scale(image, (10, 10))
+            self.screen.blit(image, (legend_x, legend_y))
+
+            # Render the description text
+            legend_text = number_font_legend.render(description, True, (0, 0, 0))
+            self.screen.blit(legend_text, (legend_x + 40, legend_y))
+
+            # Move to the next item in the legend
+            legend_y += legend_margin
+
+        # Update the display
+        pygame.display.update()
+
+        # Control the frame rate
+        self.clock.tick(10)
+
+    def _create_sprites(self) -> object:
+        """
+        Create sprites for the cases, based on the contents of self.cases
+        """
+        for case in self.cases[self.cases.t == self.t].itertuples():
+            disease = "dengue" if case.disease == 0 else "chik"
+            clr = (0, 255, 0) if disease == "dengue" else (255, 0, 0)
+            spr = CaseSprite(case.Index, case.x, case.y, case.t, disease, clr, 2, 1, self)
+            if disease == "dengue":
+                spr.add(self.dengue_group)
+            else:
+                spr.add(self.chik_group)
+
+    def plot_confusion_map(self, title="Mapa de Confusão Espacial", save_path=None):
         """
         Gera um mapa espacial colorindo os casos baseados no resultado da classificação
         (TP, TN, FP, FN, Erro de Classe).
@@ -749,7 +768,7 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         if self.obs_cases.empty:
             print("Erro: Não há casos no histórico para plotar.")
-            return None
+            return
 
         # Listas para guardar as coordenadas de cada categoria
         coords = {
@@ -839,29 +858,127 @@ class DengueDiagnosticsEnv(gym.Env):
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
             print(f"Mapa salvo em: {save_path}")
 
-        if show:
-            plt.show()
-        else:
-            plt.close(fig)
-
         return fig, ax
 
     def get_episode_metrics(self):
         """
-        Calcula métricas detalhadas (clínicas e econômicas) ao final do episódio.
+        Calcula métricas detalhadas (Clínicas e Econômicas) ao final do episódio.
         Deve ser chamado apenas quando done=True.
-
-        Verdade e predição são alinhadas por `case_id` (índice), evitando
-        comparações posicionais frágeis. Delega o cálculo para
-        `dengue_envs.metrics.episode_metrics`.
         """
-        idx = self.obs_cases.index
-        # Alinha a doença VERDADEIRA de cada caso observado pelo seu id.
-        y_true = self.real_cases.loc[idx, "disease"].to_numpy()
-        y_pred = self.obs_cases["agent_diagnosis"].to_numpy()
+        # 1. Recuperar Verdade vs Estimativa
+        y_true = self.cases['disease'].values  # 0: Dengue, 1: Chik, 2: Outro
+        y_pred = self.obs_cases['agent_diagnosis'].values
 
+        # 2. Calcular Matriz de Confusão para Dengue (Classe 0)
+        # Consideramos Dengue como "Positivo" e (Chik + Outro) como "Negativo" para estas métricas
+        TP = np.sum((y_true == 0) & (y_pred == 0))
+        TN = np.sum((y_true != 0) & (y_pred != 0))
+        FP = np.sum((y_true != 0) & (y_pred == 0))
+        FN = np.sum((y_true == 0) & (y_pred != 0))
+
+        epsilon = 1e-7  # Para evitar divisão por zero
+
+        # 3. Métricas Clínicas
+        sensitivity = TP / (TP + FN + epsilon)  # Recall (Dengue)
+        specificity = TN / (TN + FP + epsilon)
+        precision = TP / (TP + FP + epsilon)
+        f1_score = 2 * (precision * sensitivity) / (precision + sensitivity + epsilon)
+        accuracy = (TP + TN) / len(y_true)
+
+        # 4. Métricas Econômicas
+        # Contar total de testes realizados (listas testd e testc guardam histórico)
         total_tests = len(self.testd) + len(self.testc)
-        return episode_metrics(y_true, y_pred, total_tests, self.total_reward)
+        total_cases = len(y_true)
+
+        # Custo total (baseado nos custos definidos no __init__)
+        # Assumindo: Teste=1.0, Confirm/Discard=0.0, DoNothing=0.1
+        # Se quiser usar o self.total_reward acumulado, pode usar, mas aqui calculamos custo "bruto" de operação
+        test_cost = total_tests * 1.0
+
+        # Custo Médio por Diagnóstico Correto (Total Gasto / Total Acertos)
+        total_correct = TP + TN
+        cost_per_correct_diagnosis = test_cost / (total_correct + epsilon)
+
+        # Taxa de Redução de Testes (Comparado a testar todos para ambas doenças = 2 testes por pessoa)
+        # Cenário base: Testar tudo = 2 * total_cases
+        potential_tests = total_cases * 2
+        test_reduction_rate = 1 - (total_tests / potential_tests)
+
+        return {
+            "Acurácia": accuracy,
+            "Sensibilidade (Dengue)": sensitivity,
+            "Especificidade": specificity,
+            "F1-Score": f1_score,
+            "Precisão": precision,
+            "Custo Total de Testes": test_cost,
+            "Testes Realizados": total_tests,
+            "Custo por Acerto": cost_per_correct_diagnosis,
+            "Redução de Testes (%)": test_reduction_rate * 100,
+            "Recompensa Total": self.total_reward
+        }
+
+class CaseSprite(pygame.sprite.Sprite):
+    def __init__(
+            self,
+            id: int,
+            x: int,
+            y: int,
+            t: int,
+            disease_name: str,
+            color: tuple,
+            size: int,
+            scaling_factor: float,
+            env: DengueDiagnosticsEnv,
+    ):
+        super().__init__()
+        self.case_id = id
+        self.image = pygame.Surface((size, size))
+        self.position = (x, y)
+        self.disease_name = disease_name
+        self.image.fill(color)
+        self.rect = self.image.get_rect()
+        self.rect.center = (x * scaling_factor, y * scaling_factor)
+        self.env = env  # And this line
+
+    def mark_as_tested(self, status: int):
+        """
+        Mark the case as tested
+        """
+        if status == 0:  # dengue
+            self.image = pygame.image.load(
+                os.path.join(os.path.dirname(__file__),"dengue_test.png")).convert_alpha()
+        elif status == 1:  # chik
+            self.image = pygame.image.load(
+                os.path.join(os.path.dirname(__file__),"chick_test.png")).convert_alpha()
+        elif status == 2:  # inconclusive
+            self.image = pygame.image.load(
+                os.path.join(os.path.dirname(__file__),"epi_test.png")).convert_alpha()
+        elif status == 3:
+            self.image = pygame.image.load(
+                os.path.join(os.path.dirname(__file__), "no_test.png")).convert_alpha()
+        elif status == 4:
+            self.image = pygame.image.load(
+                os.path.join(os.path.dirname(__file__), "confirm_test.png")).convert_alpha()
+        elif status == 5:
+            self.image = pygame.image.load(
+                os.path.join(os.path.dirname(__file__), "discard_test.png")).convert_alpha()
+        self.rect = self.image.get_rect(center=self.rect.center)
+
+    def update(self, *args, **kwargs):
+        pass
+
+class CaseGroup(pygame.sprite.RenderPlain):
+    def __init__(self, name, scaling_factor):
+        super().__init__()
+        self.scaling_factor = scaling_factor
+        self.name = name  # Name of the disease
+
+    @property
+    def cases(self):
+        return self.sprites()
+
+    def update(self, *args, **kwargs):
+        pass
 
 
 if __name__ == "__main__":
@@ -888,4 +1005,5 @@ if __name__ == "__main__":
     pygame.quit()
 
 
+# TODO fazer com o delay na recompensa
 # TODO avaliar em intervalos maiores

@@ -11,8 +11,8 @@ from tianshou.trainer import OffpolicyTrainer
 from tianshou.utils import TensorboardLogger
 
 # Seus módulos
-# Fábrica única de ambientes (env bruto + wrappers map_tensor/case_by_case).
-from dengue_envs.wrappers import make_env as build_env
+from dengue_envs.envs.dengue_diagnostics import DengueDiagnosticsEnv
+from dengue_wrapper import DengueWrapper, CaseByCaseWrapper
 from fcn_network import DengueNet
 
 # --- CONFIGURAÇÕES GERAIS ---
@@ -68,15 +68,18 @@ def make_env():
     dengue_radius = np.random.randint(MIN_RADIUS, MAX_RADIUS)
     chik_radius = np.random.randint(MIN_RADIUS, MAX_RADIUS)
 
-    return build_env(
+    env = DengueDiagnosticsEnv(
         epilength=60,
         size=WORLD_SIZE,
         clinical_specificity=(0.5, 0.95),
         dengue_center=dengue_center,
         chik_center=chik_center,
         dengue_radius=dengue_radius,
-        chik_radius=chik_radius,
+        chik_radius=chik_radius
     )
+    env = DengueWrapper(env)
+    env = CaseByCaseWrapper(env)
+    return env
 
 
 def train_one_agent(seed):
