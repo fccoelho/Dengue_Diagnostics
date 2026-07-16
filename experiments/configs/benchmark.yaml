@@ -13,12 +13,11 @@ env_config: env/synthetic_default.yaml
 agents:
   - clinical
   - random
-  # Descomente após treinar (agents/qlearning/train.py):
-  # - qlearning
+  - qlearning
 
 # Checkpoints opcionais para agentes treinados.
-# checkpoints:
-#   qlearning: results/qlearning/q_table.pkl
+checkpoints:
+  qlearning: results/qlearning/q_table.pkl
 
 seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
 

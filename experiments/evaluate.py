@@ -69,9 +69,29 @@ def _order_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df[ordered + extras]
 
 
+def _validate_benchmark_config(bench: dict, config_path: Path) -> None:
+    """Exige chaves do YAML de benchmark; detecta uso acidental de YAML de treino."""
+    missing = [k for k in ("env_config", "agents", "seeds") if k not in bench]
+    if not missing:
+        return
+    hint = ""
+    if "train" in bench or "state" in bench and "agents" not in bench:
+        hint = (
+            "\n\nParece um YAML de *treino* (ex.: qlearning_default.yaml). "
+            "Para avaliar agentes use:\n"
+            "  poetry run python experiments/evaluate.py "
+            "--config experiments/configs/benchmark.yaml"
+        )
+    raise ValueError(
+        f"Config de benchmark inválido: {config_path}\n"
+        f"Chaves obrigatórias ausentes: {missing}.{hint}"
+    )
+
+
 def run_benchmark(config_path: str) -> pd.DataFrame:
     config_path = Path(config_path).resolve()
     bench = load_yaml(config_path)
+    _validate_benchmark_config(bench, config_path)
 
     # O caminho do env é relativo ao arquivo de benchmark.
     env_config_path = (config_path.parent / bench["env_config"]).resolve()
