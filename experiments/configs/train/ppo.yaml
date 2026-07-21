@@ -1,0 +1,11 @@
+# PPO (a ser integrado na Fase 3, reaproveitando o mesmo wrapper do DQN).
+include:
+  - ../env/synthetic_default.yaml
+
+train:
+  algorithm: ppo
+  seed: 42
+  epochs: 50
+  gamma: 0.99
+  gae_lambda: 0.95
+  lr: 0.0003

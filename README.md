@@ -1,49 +1,126 @@
 # Dengue_Diagnostics
-This is a Gymnasium environment for learning optimal policies for acurately detecting dengue cases in the presence of 
-other arbovirus cases such as chikungunya.
 
-## About this environment
-In the `DengueDiag-v0` environment, there is two epidemics going on on the same city, dengue and chikungunya. The agent
-has to decide, for every case reported, whether to test for dengue or chikungunya, or not to test at all, accepting 
-accepting the clinical diagnosis of the Doctor that reported the case. 
-The agent receives a reward of -1 for every test performed, and a reward of episize (total number of cases reported) - the
-number of cases misdiagnosed. The agent receives a reward of -10 (?) for every case that is not tested and is misdiagnosed.
+Gymnasium environment for learning policies that diagnose dengue in the presence of chikungunya.
 
-At every time step, the agent receives aa list of the cases reported up to that time, and has to decide on an action for 
-every new case reported at time step $t$. Assuming that the agent has already decide on an action for the cases reported before time $t$.
+## About
 
-### Observation Space
-The observation space is comprised of 4 arrays:
-```python
-{
-    "clinical_diagnostic": obs_cases,
-    "testd": [0] * len(obs_cases),
-    "testc": [0] * len(obs_cases),
-    "t": [np.nan] * len(obs_cases),
-}
-```
+In `DengueDiag-v0`, two epidemics run in the same city. For each reported case the agent chooses: lab test (dengue or chik), epidemiological confirm, accept the clinical diagnosis, or a final decision (confirm / discard).
 
-- `clinical_diagnostics` is a tuple  with all the cases reported up to time `t`. Each element consists of a tuple (x,y, disease)
-where disease is either 0 (dengue), 1 (chikungunya) or 2 (other). 
-- `testd` is a tuple of 0s and 1s, where 1 means that the case was tested for dengue.
-- `testc` is a tuple of 0s and 1s, where 1 means that the case was tested for chikungunya.
-- `t` is a tuple of the time at which each case was reported.
-### Action Space
-There are 6 possible actions: 
-- Test for dengue (0): test the case for dengue,
-- Test for chik (1): test the case for chikungunya,
-- Epi confirm (2): confirm the case based on epidemiological evidence 
-- Do nothing (3): do not test the case and accept the clinical diagnosis
-- Confirm (4): confirm the case as a true positive
-- Discard (5): discard the case as a false positive.
+Cases come from a **plugable generator** (`env.generator` in YAML):
+
+| Generator | Spatial layout | Time |
+|-----------|----------------|------|
+| `synthetic` (default) | SIR + truncated normals around foci | SIR |
+| `kriging` | Ordinary Kriging on Rio 2015–16 notifications (`P(cell \| disease)`) | SIR |
+
+Only **dengue** and **chikungunya** are modeled (no Zika in training).
+
+Active agents use `make_env` + wrappers. Archived legacy code has been removed from the working tree (it remains available in the git history). DQN is now unified on the benchmark registry; PPO is still legacy and not yet registered.
+
+## Reward model
+
+Computed by `dengue_envs.core.reward.RewardEngine` in three layers:
+
+1. **Immediate cost** (same day):
+
+   | Action | Cost |
+   |--------|------|
+   | Test dengue (0) / chik (1) | 1.0 |
+   | Epi confirm (2) | 0.5 |
+   | Do nothing (3) | 0.1 |
+   | Confirm (4) / Discard (5) | 0.0 |
+
+   Lab results arrive after `lab_delay_days` (default = `reward_delay_days`). Use `0` for immediate results.
+
+2. **Delayed decision** (`reward_delay_days`, default **5**): confirm/discard pay `+10` if correct; wrong confirm `-20`; discarding a real case `-30`.
+
+3. **Final score**: `+1` per correct diagnosis; `-10` per wrong case that was never tested.
+
+Weights are configurable via `make_env` / YAML. Episode ends at `(epilength - 1) + settle_days`.
+
+### Observation / action
+
+Dict of per-case sequences (`clinical_diagnostic`, `testd`, `testc`, `epiconf`, `tnot`), wrapped for RL into a 4-channel map + one case at a time (`map_tensor` + `case_by_case`).
+
+Actions (per case): test dengue (0), test chik (1), epi confirm (2), do nothing (3), confirm (4), discard (5).
 
 ## Installation
-To install the environment, run the following command in the root directory of the repository:
-```
+
+Requires **Python >=3.12, <3.13**:
+
+```bash
+poetry env use python3.12
 poetry install
-pip install -e .
+poetry run pytest
 ```
 
-## Usage
-To use the environment, import it as follows:
+## Project layout
+
 ```
+dengue_envs/      # env, core, wrappers, generators, rendering, metrics
+agents/           # clinical, random, qlearning, deepq (ppo not yet unified)
+experiments/      # YAML + evaluate.py
+plano.md          # current priorities
+```
+
+Legacy code and the round-by-round history (former `old/` folder) were removed
+from the working tree and live only in the git history.
+
+## Quick commands
+
+**Benchmark** (`clinical`, `random`, `qlearning` are active; uncomment `dqn` after training it):
+
+```bash
+poetry run python experiments/evaluate.py --config experiments/configs/benchmark.yaml
+```
+
+**Q-Learning** — synthetic / Kriging:
+
+```bash
+poetry run python agents/qlearning/train.py --config experiments/configs/train/qlearning_default.yaml
+poetry run python -m dengue_envs.data.build_kriging_surfaces
+poetry run python agents/qlearning/train.py --config experiments/configs/train/qlearning_kriging.yaml
+```
+
+**Visualize generators** (green = dengue, red = chik):
+
+```bash
+poetry run python -m dengue_envs.data.view_generator --generator both --seed 42
+```
+
+`--size` = map grid; `--episize` ≈ number of cases (SIR population).
+
+**Watch**:
+
+```bash
+poetry run python agents/qlearning/watch.py --q-table results/qlearning/q_table.pkl
+```
+
+More detail: `agents/qlearning/README.md`, `experiments/README.md`.
+
+### Agents
+
+| Agent | Train | Benchmark |
+|-------|-------|-----------|
+| Clinical / Random | — | yes |
+| Q-Learning | `agents/qlearning/train.py` | yes (needs `.pkl`) |
+| DQN | `agents/deepq/train.py` | yes (needs `.pth`; descomente em `benchmark.yaml`) |
+| PPO | `agents/ppo` (legado) | not registered yet |
+
+Train / watch DQN:
+
+```bash
+poetry run python agents/deepq/train.py --config experiments/configs/train/dqn_delay5.yaml
+poetry run python agents/deepq/watch.py --policy results/dqn/policy_best.pth --seed 100
+```
+
+## TODO / roadmap
+
+- [x] Reward/lab delay, discard semantics, final score, episode horizon
+- [x] Kriging generator (dengue + chik) + `view_generator`
+- [x] Legacy removed from the working tree (kept in git history)
+- [x] DQN on the agent framework + benchmark registry
+- [ ] Freeze reproducible baseline CSVs
+- [ ] PPO on the benchmark registry
+- [ ] Kriging intensity inside `epi_confirm`
+- [ ] Compare against the health department workflow

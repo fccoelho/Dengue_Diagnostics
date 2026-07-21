@@ -1,0 +1,9 @@
+# Baseline aleatório (totalmente funcional nesta fase).
+# Reaproveita o ambiente padrão e define a seção de treino.
+include:
+  - ../env/synthetic_default.yaml
+
+train:
+  algorithm: random
+  seed: 42
+  episodes: 5
