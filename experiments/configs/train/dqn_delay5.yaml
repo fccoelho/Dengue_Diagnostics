@@ -1,9 +1,11 @@
-# DQN com delay de recompensa de 5 dias.
-# O runner de DQN será integrado na Fase 3 (agents/dqn/train.py); esta config já
-# define o contrato para quando isso acontecer.
-include:
-  - ../env/synthetic_default.yaml
+# DQN com delay de recompensa de 5 dias (n_step >= delay).
+#
+# Uso:
+#   poetry run python agents/deepq/train.py --config experiments/configs/train/dqn_delay5.yaml
 
+env_config: ../env/synthetic_default.yaml
+
+# Garante delay ligado mesmo se o YAML do env mudar.
 env:
   reward_delay_days: 5
 
@@ -11,7 +13,22 @@ train:
   algorithm: dqn
   seed: 42
   epochs: 50
-  n_step: 5          # recomendado >= reward_delay_days
+  n_step: 5
   batch_size: 64
   buffer_size: 20000
   lr: 0.0001
+  gamma: 0.99
+  target_update_freq: 1500
+  step_per_epoch: 10000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 1.0
+  eps_train_final: 0.05
+  eps_train_decay: 50000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 2
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn

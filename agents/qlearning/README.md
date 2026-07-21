@@ -12,7 +12,7 @@ Uma ação por caso (`Discrete(6)`), no mesmo formato do random.
 | `train.py` | Treino CLI |
 | `watch.py` | Visualização Pygame |
 
-Cópias antigas do agente (env bruto) estão em `old/qlearning_agent_old.py` — não use no path ativo.
+Cópias antigas do agente (env bruto) foram removidas do working tree — continuam no histórico do git.
 
 ## Estado (`rich_v1`)
 

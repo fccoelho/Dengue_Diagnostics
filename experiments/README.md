@@ -30,9 +30,9 @@ Da raiz do repositório:
 poetry run python experiments/evaluate.py --config experiments/configs/benchmark.yaml
 ```
 
-Isso avalia os agentes listados em `benchmark.yaml` (hoje `clinical`, `random`, `qlearning`),
-usando o ambiente de `configs/env/synthetic_default.yaml`, e salva os resultados
-em `results/baseline/`.
+Isso avalia os agentes listados em `benchmark.yaml` (hoje `clinical`, `random`,
+`qlearning`; `dqn` opcional), usando o ambiente de
+`configs/env/synthetic_default.yaml`, e salva os resultados em `results/baseline/`.
 
 Baselines disponíveis:
 
@@ -44,6 +44,10 @@ Baselines disponíveis:
 - `qlearning` — Q-Learning tabular (uma ação por caso, mesmo wrapper do DQN).
   Requer Q-table treinada; descomente em `benchmark.yaml` após rodar
   `agents/qlearning/train.py`. Checkpoint em `checkpoints.qlearning`.
+- `dqn` — Deep Q-Network (Tianshou). Treine com
+  `poetry run python agents/deepq/train.py` e descomente `dqn` no
+  `benchmark.yaml`. Checkpoint em `checkpoints.dqn`
+  (`results/dqn/policy_best.pth`).
 
 Para trocar o ambiente, edite `env_config` no `benchmark.yaml` (ex.:
 `env/synthetic_large.yaml` ou `env/kriging_rio.yaml`). Kriging exige o `.npz`

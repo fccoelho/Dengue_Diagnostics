@@ -1,16 +1,15 @@
-"""Runners de algoritmos acionados por configuração.
+"""Runners de algoritmos acionados por configuração (`experiments/train.py`).
 
-Define um contrato comum (`AgentRunner`) e um registro para despachar por nome
-de algoritmo. Nesta fase, o `RandomRunner` está totalmente funcional (serve de
-baseline e prova o pipeline YAML -> env -> execução). Os runners de DQN e PPO
-são stubs explícitos: a integração real será feita na Fase 3, reaproveitando os
-scripts em `agents/`.
+O path canônico de treino do DQN é ``agents/deepq/train.py``. Este módulo
+mantém um despacho por nome para o CLI `experiments.train` e o baseline random.
 """
 from __future__ import annotations
 
+import tempfile
 from typing import Any, Callable, Dict, Protocol
 
 import numpy as np
+import yaml
 
 from experiments.config import build_env_factory, get_train_config
 
@@ -23,11 +22,7 @@ class AgentRunner(Protocol):
 
 
 class RandomRunner:
-    """Executa uma política aleatória por N episódios e reporta a recompensa.
-
-    Não "treina" (não há parâmetros), mas fecha o ciclo config -> env -> métrica,
-    servindo de baseline reprodutível.
-    """
+    """Executa uma política aleatória por N episódios e reporta a recompensa."""
 
     name = "random"
 
@@ -45,7 +40,6 @@ class RandomRunner:
                 terminated = truncated = False
                 total = 0.0
                 steps = 0
-                # Salvaguarda contra episódios longos/infinitos.
                 max_steps = int(train.get("max_steps", 100000))
                 while not (terminated or truncated) and steps < max_steps:
                     action = env.action_space.sample()
@@ -68,8 +62,39 @@ class RandomRunner:
         }
 
 
+class DQNRunner:
+    """Delega ao treino canônico ``agents.deepq.train`` (Tianshou + YAML)."""
+
+    name = "dqn"
+
+    def run(self, env_factory: Callable[[], Any], config: Dict[str, Any]) -> Dict[str, Any]:
+        del env_factory  # o treino reconstrói o env a partir do YAML
+        from agents.deepq.train import train
+
+        train_cfg = dict(get_train_config(config))
+        payload = {
+            "env": dict(config.get("env", {})),
+            "wrappers": config.get("wrappers", ["map_tensor", "case_by_case"]),
+            "train": train_cfg,
+            "output_dir": train_cfg.get(
+                "output_dir", config.get("output_dir", "results/dqn")
+            ),
+        }
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".yaml", delete=False, encoding="utf-8"
+        ) as fh:
+            yaml.safe_dump(payload, fh, allow_unicode=True)
+            tmp_path = fh.name
+        checkpoint = train(tmp_path)
+        return {
+            "algorithm": self.name,
+            "checkpoint": str(checkpoint),
+            "output_dir": str(payload["output_dir"]),
+        }
+
+
 class _NotImplementedRunner:
-    """Placeholder para algoritmos ainda não fiados ao pipeline (Fase 3)."""
+    """Placeholder para algoritmos ainda não fiados ao pipeline."""
 
     def __init__(self, name: str, hint: str):
         self.name = name
@@ -84,24 +109,19 @@ class _NotImplementedRunner:
 
 _REGISTRY: Dict[str, Callable[[], AgentRunner]] = {
     "random": RandomRunner,
-    "dqn": lambda: _NotImplementedRunner(
-        "dqn",
-        "Integração prevista para a Fase 3 (unificar agents/deepq em agents/dqn/train.py).",
-    ),
+    "dqn": DQNRunner,
     "ppo": lambda: _NotImplementedRunner(
         "ppo",
-        "Integração prevista para a Fase 3 (adaptar agents/ppo ao CaseByCaseWrapper).",
+        "Adaptar agents/ppo ao CaseByCaseWrapper (mesmo contrato do DQN).",
     ),
 }
 
 
 def available_algorithms() -> list:
-    """Lista os algoritmos registrados."""
     return sorted(_REGISTRY.keys())
 
 
 def get_runner(algorithm: str) -> AgentRunner:
-    """Retorna uma instância de runner para o algoritmo informado."""
     if algorithm not in _REGISTRY:
         raise ValueError(
             f"Algoritmo desconhecido: {algorithm!r}. "
@@ -111,7 +131,6 @@ def get_runner(algorithm: str) -> AgentRunner:
 
 
 def run_from_config(config: Dict[str, Any]) -> Dict[str, Any]:
-    """Constrói o ambiente pela config e executa o algoritmo escolhido."""
     train = get_train_config(config)
     runner = get_runner(train["algorithm"])
     env_factory = build_env_factory(config)

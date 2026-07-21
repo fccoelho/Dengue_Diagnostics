@@ -15,7 +15,7 @@ Cases come from a **plugable generator** (`env.generator` in YAML):
 
 Only **dengue** and **chikungunya** are modeled (no Zika in training).
 
-Active agents use `make_env` + wrappers. Archived code lives in `old/` (see `REFACTOR.md`). DQN/PPO are unchanged and not yet on the benchmark registry.
+Active agents use `make_env` + wrappers. Archived legacy code has been removed from the working tree (it remains available in the git history). DQN is now unified on the benchmark registry; PPO is still legacy and not yet registered.
 
 ## Reward model
 
@@ -58,16 +58,17 @@ poetry run pytest
 
 ```
 dengue_envs/      # env, core, wrappers, generators, rendering, metrics
-agents/           # clinical, random, qlearning (+ deepq/ppo not yet unified)
+agents/           # clinical, random, qlearning, deepq (ppo not yet unified)
 experiments/      # YAML + evaluate.py
-old/              # archived legacy (not imported by the active path)
-REFACTOR.md       # what moved / what is active
 plano.md          # current priorities
 ```
 
+Legacy code and the round-by-round history (former `old/` folder) were removed
+from the working tree and live only in the git history.
+
 ## Quick commands
 
-**Benchmark** (clinical + random; uncomment `qlearning` after training):
+**Benchmark** (`clinical`, `random`, `qlearning` are active; uncomment `dqn` after training it):
 
 ```bash
 poetry run python experiments/evaluate.py --config experiments/configs/benchmark.yaml
@@ -103,14 +104,23 @@ More detail: `agents/qlearning/README.md`, `experiments/README.md`.
 |-------|-------|-----------|
 | Clinical / Random | — | yes |
 | Q-Learning | `agents/qlearning/train.py` | yes (needs `.pkl`) |
-| DQN / PPO | scripts under `agents/deepq`, `agents/ppo` | not registered yet |
+| DQN | `agents/deepq/train.py` | yes (needs `.pth`; descomente em `benchmark.yaml`) |
+| PPO | `agents/ppo` (legado) | not registered yet |
+
+Train / watch DQN:
+
+```bash
+poetry run python agents/deepq/train.py --config experiments/configs/train/dqn_delay5.yaml
+poetry run python agents/deepq/watch.py --policy results/dqn/policy_best.pth --seed 100
+```
 
 ## TODO / roadmap
 
 - [x] Reward/lab delay, discard semantics, final score, episode horizon
 - [x] Kriging generator (dengue + chik) + `view_generator`
-- [x] Legacy out of the active path (`old/`)
+- [x] Legacy removed from the working tree (kept in git history)
+- [x] DQN on the agent framework + benchmark registry
 - [ ] Freeze reproducible baseline CSVs
-- [ ] DQN / PPO on the benchmark registry
+- [ ] PPO on the benchmark registry
 - [ ] Kriging intensity inside `epi_confirm`
 - [ ] Compare against the health department workflow

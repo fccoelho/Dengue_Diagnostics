@@ -2,7 +2,7 @@ import unittest
 from importlib.metadata import files
 
 import torch
-from agents.deepq.files.fcn_network import DengueNet  # Certifique-se que o nome do arquivo está correto
+from agents.deepq.network import DengueNet
 
 
 class TestDengueNet(unittest.TestCase):

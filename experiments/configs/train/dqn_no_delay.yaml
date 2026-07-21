@@ -1,9 +1,13 @@
 # DQN sem delay de recompensa (recompensa imediata).
-include:
-  - ../env/synthetic_default.yaml
+#
+# Uso:
+#   poetry run python agents/deepq/train.py --config experiments/configs/train/dqn_no_delay.yaml
+
+env_config: ../env/synthetic_default.yaml
 
 env:
   reward_delay_days: 0
+  lab_delay_days: 0
 
 train:
   algorithm: dqn
@@ -13,3 +17,18 @@ train:
   batch_size: 64
   buffer_size: 20000
   lr: 0.0001
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_epoch: 10000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 1.0
+  eps_train_final: 0.05
+  eps_train_decay: 50000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 2
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn_no_delay

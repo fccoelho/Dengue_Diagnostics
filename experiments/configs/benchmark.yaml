@@ -14,10 +14,13 @@ agents:
   - clinical
   - random
   - qlearning
+  # Descomente após treinar: poetry run python agents/deepq/train.py
+  # - dqn
 
 # Checkpoints opcionais para agentes treinados.
 checkpoints:
   qlearning: results/qlearning/q_table.pkl
+  dqn: results/dqn/policy_best.pth
 
 seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
 

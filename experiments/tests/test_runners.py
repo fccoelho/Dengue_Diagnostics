@@ -1,6 +1,7 @@
 import unittest
 
 from experiments.runners import (
+    DQNRunner,
     RandomRunner,
     available_algorithms,
     get_runner,
@@ -29,10 +30,10 @@ class RunnerRegistryTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_runner("does_not_exist")
 
-    def test_dqn_runner_is_stub(self):
+    def test_dqn_runner_registered(self):
         runner = get_runner("dqn")
-        with self.assertRaises(NotImplementedError):
-            runner.run(lambda: None, SMALL_CFG)
+        self.assertIsInstance(runner, DQNRunner)
+        self.assertEqual(runner.name, "dqn")
 
     def test_ppo_runner_is_stub(self):
         runner = get_runner("ppo")

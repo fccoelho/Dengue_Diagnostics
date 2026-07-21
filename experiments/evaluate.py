@@ -32,28 +32,32 @@ from dengue_envs.wrappers import make_env
 
 from agents.base import ID_COLUMNS, PRIMARY_METRIC, RESULT_COLUMNS
 from agents.clinical.agent import ClinicalOnlyAgentRunner
+from agents.deepq.agent import DQNAgentRunner
 from agents.qlearning.agent import QLearningAgentRunner
 from agents.random.agent import RandomAgentRunner
 
 # Registro de agentes disponíveis (nome -> classe runner).
-# Novos algoritmos (dqn, ppo, ...) entram aqui conforme migrados.
+# Novos algoritmos (ppo, ...) entram aqui conforme migrados.
 AGENT_REGISTRY = {
     "clinical": ClinicalOnlyAgentRunner,
     "random": RandomAgentRunner,
     "qlearning": QLearningAgentRunner,
+    "dqn": DQNAgentRunner,
 }
 
 
 def _make_runner(name: str, bench: dict):
     """Instancia o runner; agentes com checkpoint usam `checkpoints` no YAML."""
     cls = AGENT_REGISTRY[name]
+    checkpoints = bench.get("checkpoints", {})
     if name == "qlearning":
-        checkpoints = bench.get("checkpoints", {})
         state_cfg = bench.get("qlearning_state") or bench.get("state")
         return cls(
             q_table_path=checkpoints.get("qlearning"),
             state_config=state_cfg,
         )
+    if name == "dqn":
+        return cls(policy_path=checkpoints.get("dqn"))
     return cls()
 
 
