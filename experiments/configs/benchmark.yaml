@@ -13,9 +13,7 @@ env_config: env/synthetic_default.yaml
 agents:
   - clinical
   - random
-  - qlearning
-  # Descomente após treinar: poetry run python agents/deepq/train.py
-  # - dqn
+  - dqn
 
 # Checkpoints opcionais para agentes treinados.
 checkpoints:

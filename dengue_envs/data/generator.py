@@ -22,6 +22,7 @@ class World:
         chik_radius=10,
         dengue_r0: float = 1.5,
         chik_r0: float = 1.2,
+        other_prevalence: float = 0.0,
         random_state=None,
     ):
         """
@@ -33,6 +34,8 @@ class World:
         dengue_radius: radius of the dengue outbreak
         chik_radius: radius of the chikungunya outbreak
         dengue_r0 / chik_r0: número básico de reprodução de cada curva SIR
+        other_prevalence: fração dos casos NOTIFICADOS que não são arbovirose
+            (síndromes febris de outra etiologia). 0.0 desliga.
         random_state: gerador NumPy (``env.np_random``) para posições espaciais
         """
         self.size = size  # World size
@@ -50,6 +53,12 @@ class World:
         self.chik_radius = max(int(chik_radius), 1)
         self.dengue_r0 = float(dengue_r0)
         self.chik_r0 = float(chik_r0)
+        if not 0.0 <= other_prevalence < 1.0:
+            raise ValueError(
+                f"other_prevalence deve estar em [0,1); recebido {other_prevalence}"
+            )
+        self.other_prevalence = float(other_prevalence)
+        self.other_total = 0
         # a, b = (myclip_a - loc) / scale, (myclip_b - loc) / scale
         self.dengue_dist_x = st.distributions.truncnorm(a=(0-self.dengue_center[0])/self.dengue_radius,
                                                         b=(size-1 - self.dengue_center[0])/self.dengue_radius,
@@ -154,7 +163,38 @@ class World:
                 {"t": t, "x": int(x), "y": int(y), "disease": 1, "testd": 0, "testc": 0,"epiconf": 0}
                 for x, y in zip(ccases_x, ccases_y)
             ]
-            self.case_series.append(dengue_cases + chik_cases)
+            other_cases = self._build_other_cases(t, len(dengue_cases) + len(chik_cases))
+            self.case_series.append(dengue_cases + chik_cases + other_cases)
+
+    def _build_other_cases(self, t: int, n_arbo: int):
+        """Casos notificados como suspeitos que NÃO são arbovirose.
+
+        Representam síndromes febris de outra etiologia que entram na vigilância
+        pelo mesmo critério clínico (febre + sintomas inespecíficos). Sem eles, um
+        laudo negativo para dengue implica logicamente chikungunya, o segundo
+        exame vira redundante e a ação de descartar é sempre incorreta.
+
+        Duas escolhas de modelagem, ambas deliberadas:
+
+        - **Espaço uniforme**: doença febril de fundo não é agrupada por vetor,
+          então não segue os focos do surto. (Idealmente seguiria a densidade
+          populacional, que este ambiente não modela.)
+        - **Tempo proporcional aos arbovirais**: mantém a prevalência estável ao
+          longo do episódio, em vez de criar um segundo surto artificial.
+        """
+        if self.other_prevalence <= 0 or n_arbo <= 0:
+            return []
+        # other/(other+arbo) = p  =>  other = arbo * p/(1-p)
+        n_other = int(np.round(n_arbo * self.other_prevalence / (1.0 - self.other_prevalence)))
+        if n_other <= 0:
+            return []
+        xs = self._rng.integers(0, self.size, n_other)
+        ys = self._rng.integers(0, self.size, n_other)
+        self.other_total += n_other
+        return [
+            {"t": t, "x": int(x), "y": int(y), "disease": 2, "testd": 0, "testc": 0, "epiconf": 0}
+            for x, y in zip(xs, ys)
+        ]
 
     def build_case_dataframe(self):
         """

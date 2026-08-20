@@ -1,0 +1,9 @@
+# Benchmark no ambiente v3 (inclui casos que NAO sao arbovirose).
+env_config: env/synthetic_v3.yaml
+agents: [clinical, random, confirmall, testonce, testtwice, qlearning, dqn]
+checkpoints:
+  qlearning: results/qlearning_v2/q_table.pkl
+  dqn: results/dqn_v9_phase2/policy_best.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/baseline_v9
+save_artifacts: false

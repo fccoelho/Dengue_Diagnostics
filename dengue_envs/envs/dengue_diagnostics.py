@@ -26,6 +26,13 @@ from dengue_envs.core import (
     sync_obs_cases,
     update_case_status,
 )
+from dengue_envs.core.clinical import (
+    INCONCLUSIVE,
+    PCR_INCONCLUSIVE_PROB,
+    PCR_SENSITIVITY,
+    PCR_SPECIFICITY,
+    ClinicalQualitySampler,
+)
 
 
 class DengueDiagnosticsEnv(gym.Env):
@@ -43,6 +50,15 @@ class DengueDiagnosticsEnv(gym.Env):
             chik_radius: Optional[int] = None,
             randomize_outbreak: bool = True,
             clinical_specificity: Union[float, Tuple[float, float]] = 0.8,
+            clinical_quality=None,
+            lab_sensitivity: float = PCR_SENSITIVITY,
+            lab_specificity: float = PCR_SPECIFICITY,
+            lab_inconclusive_prob: float = PCR_INCONCLUSIVE_PROB,
+            max_case_revisits: int = 2,
+            other_prevalence: float = 0.0,
+            other_recognition_prob: float = 0.15,
+            test_cost: float = 5.0,
+            epi_confirm_cost: float = 0.5,
             start_day: int = 1,
             lab_delay_days: Optional[int] = None,
             settle_days: Optional[int] = None,
@@ -50,7 +66,11 @@ class DengueDiagnosticsEnv(gym.Env):
             penalty_incorrect_decision: float = -20.0,
             penalty_missed_case: float = -30.0,
             final_correct_bonus: float = 1.0,
-            penalty_untested_misdiagnosed: float = -10.0,
+            penalty_misdiagnosed: float = -3.0,
+            penalty_untested_misdiagnosed: float = 0.0,
+            penalty_unresolved: float = -10.0,
+            shaping_conclude_bonus: float = 0.0,
+            force_decision_after_tests: bool = False,
             render_mode=None,
             world_builder=None,
     ):
@@ -88,7 +108,15 @@ class DengueDiagnosticsEnv(gym.Env):
         self._world_builder = world_builder
 
         self.reward_delay = reward_delay_days
-        self.costs = np.array([1.0, 1.0, 0.5, 0.1, 0.0, 0.0])
+        # Custos por ação: [teste_dengue, teste_chik, epi_confirm, nada,
+        # conclude_dengue, conclude_chik, conclude_other].
+        # `test_cost` é o preço do exame de laboratório e é o parâmetro que
+        # define se existe ESCASSEZ: com ele baixo, testar todo mundo é quase
+        # sempre ótimo e o problema de alocação desaparece.
+        self.test_cost = float(test_cost)
+        self.costs = np.array(
+            [self.test_cost, self.test_cost, epi_confirm_cost, 0.1, 0.0, 0.0, 0.0]
+        )
         # Motor de recompensa (custo imediato + desfechos atrasados + placar
         # final). Detém a fila `pending_rewards`, exposta abaixo como
         # propriedade de leitura.
@@ -99,7 +127,10 @@ class DengueDiagnosticsEnv(gym.Env):
             penalty_incorrect_decision=penalty_incorrect_decision,
             penalty_missed_case=penalty_missed_case,
             final_correct_bonus=final_correct_bonus,
+            penalty_misdiagnosed=penalty_misdiagnosed,
             penalty_untested_misdiagnosed=penalty_untested_misdiagnosed,
+            penalty_unresolved=penalty_unresolved,
+            shaping_conclude_bonus=shaping_conclude_bonus,
         )
         # Atraso do laboratório: se não informado, acompanha o delay da recompensa.
         self.lab_delay_days = (
@@ -135,11 +166,41 @@ class DengueDiagnosticsEnv(gym.Env):
             if isinstance(clinical_specificity, list)
             else clinical_specificity
         )
+        # `clinical_quality` (novo): amostra sensibilidade E especificidade do
+        # médico de distribuições Beta, com níveis médios low/medium/high.
+        # Se ausente, mantém o caminho legado (`clinical_specificity`).
+        self.clinical_quality = (
+            ClinicalQualitySampler(clinical_quality) if clinical_quality else None
+        )
+        # Desempenho do exame (RT-PCR por padrão; configurável por YAML).
+        self.lab_sensitivity = float(lab_sensitivity)
+        self.lab_specificity = float(lab_specificity)
+        self.lab_inconclusive_prob = float(lab_inconclusive_prob)
+        # Quantas vezes um caso pode retornar ao agente após um laudo (ver
+        # `take_pending_revisits`). 0 reproduz o comportamento antigo.
+        self.max_case_revisits = int(max_case_revisits)
+        # Fração dos casos notificados que NÃO são arbovirose (síndromes febris
+        # de outra etiologia). Com 0.0 o ambiente é estritamente binário e a ação
+        # de descartar nunca é correta.
+        self.other_prevalence = float(other_prevalence)
+        self.other_recognition_prob = float(other_recognition_prob)
+        # Após os dois exames o caso já foi investigado até o fim; deixar o agente
+        # adiar não agrega informação, só custo. Com esta flag o wrapper restringe
+        # o espaço de ação a confirmar/descartar nesse estado.
+        self.force_decision_after_tests = bool(force_decision_after_tests)
         self.clinical_specificity = 0.8
-        self.clinical_model = ClinicalModel(self.clinical_specificity)
+        self.clinical_sensitivity = 0.8
+        self.clinical_model = self._build_clinical_model()
         self.world = None
         self.real_cases = pd.DataFrame()
         self.num_cases = 0
+        self.lab_agreements = 0
+        self.lab_informative = 0
+        self.pending_revisit = []
+        self.finalized_cases = set()
+        self.revisit_counts = {}
+        # Ações aplicadas no dia corrente (modo por caso), só para o renderer.
+        self._day_actions = []
 
         # Observations are dictionaries as defined below.
         # Data are represented as sequences of cases.
@@ -190,7 +251,7 @@ class DengueDiagnosticsEnv(gym.Env):
         )
 
         self.action_space = spaces.Sequence(
-            spaces.Tuple((spaces.Discrete(max(self.episize * 2, 1)), spaces.Discrete(6)))
+            spaces.Tuple((spaces.Discrete(max(self.episize * 2, 1)), spaces.Discrete(7)))
         )
         self.testd = []
         self.testc = []
@@ -243,13 +304,32 @@ class DengueDiagnosticsEnv(gym.Env):
         self.np_random, seed = gym.utils.seeding.np_random(seed)
         return [seed]
 
+    @property
+    def real_cases(self):
+        return self._real_cases
+
+    @real_cases.setter
+    def real_cases(self, df):
+        self._real_cases = df
+        # Cache O(1) para get_case_xy. `real_cases` é estático dentro de um
+        # episódio, então mapeamos case_id -> x/y uma única vez por
+        # (re)atribuição. Antes, get_case_xy fazia `.loc[case_id, ["x","y"]]`
+        # a cada chamada (reindex do pandas), o que respondia por ~85% do
+        # tempo de env.step (~35k chamadas a cada 300 steps).
+        if df is not None and not df.empty and {"x", "y"}.issubset(df.columns):
+            self._case_x = df["x"].to_dict()
+            self._case_y = df["y"].to_dict()
+        else:
+            self._case_x = {}
+            self._case_y = {}
+
     def get_case_id(self, case):
         x = case[0]
         y = case[1]
         return self.real_cases[(self.real_cases.x == x) & (self.real_cases.y == y)].index[0]
 
     def get_case_xy(self, case_id):
-        return self.real_cases.loc[case_id, ["x", "y"]].values
+        return np.array([self._case_x[case_id], self._case_y[case_id]])
 
     def _cases_at_t(self, t: int) -> Tuple:
         if self.obs_cases.empty:
@@ -324,6 +404,7 @@ class DengueDiagnosticsEnv(gym.Env):
             self.real_cases,
             self.obs_cases,
             terminated=terminated,
+            concluded=self.finalized_cases,
         )
         self.total_reward += step_reward
         self.individual_rewards.append([])
@@ -408,14 +489,17 @@ class DengueDiagnosticsEnv(gym.Env):
         return mean_accuracy
 
     def _get_info(self):
-        """
-        Returns the current map of cases for each disease
-        """
+        """Info auxiliar do passo (Gymnasium).
 
-        return {
-            "dengue_grid": self.dmap,
-            "chik_grid": self.cmap,
-        }
+        NÃO inclua aqui arrays grandes (como os grids ``dmap``/``cmap`` de
+        400×400): bibliotecas de RL (Tianshou, SB3, ...) guardam o ``info`` de
+        CADA transição no replay buffer. Um grid float64 por passo estoura a
+        RAM — 20k passos × 400×400×8 B ≈ 25 GB por grid. Os mapas seguem
+        acessíveis por ``env.unwrapped.dmap`` / ``.cmap`` quando necessários
+        (ex.: renderização, análise). Ver histórico: antes esta função
+        devolvia ``dengue_grid``/``chik_grid`` e inviabilizava o treino.
+        """
+        return {}
 
     def _dengue_lab_test(self, case_id):
         """
@@ -443,10 +527,149 @@ class DengueDiagnosticsEnv(gym.Env):
         update_case_status(self.obs_cases, action, index, result)
 
     def _apply_lab_results(self, entries):
-        """Aplica ao `obs_cases` uma lista de resultados de laboratório."""
+        """Aplica ao `obs_cases` uma lista de resultados de laboratório.
+
+        Além de aplicar o laudo, acumula a **concordância** entre o laboratório e
+        o palpite clínico. Essa razão é uma estimativa direta (e observável) da
+        competência do médico do episódio — variável latente que domina o retorno
+        e que o agente, sem isto, não tem como estimar.
+        """
         for action_id, case_id, result in entries:
-            if case_id in self.obs_cases.index:
-                self._update_case_status(action_id, case_id, result)
+            if case_id not in self.obs_cases.index:
+                continue
+            before = int(self.obs_cases.loc[case_id, "agent_diagnosis"])
+            self._update_case_status(action_id, case_id, result)
+            after = int(self.obs_cases.loc[case_id, "agent_diagnosis"])
+            # Laudo inconclusivo não altera nada e não informa sobre o médico.
+            if result != INCONCLUSIVE:
+                self.lab_informative += 1
+                if before == after:
+                    self.lab_agreements += 1
+
+            # O caso volta ao agente para que ele decida DE POSSE do resultado.
+            self._schedule_revisit(case_id)
+
+    def _schedule_revisit(self, case_id) -> None:
+        """Reagenda um caso para nova decisão, se ainda fizer sentido.
+
+        Não retorna se já foi encerrado (confirmar/descartar) nem se estourou
+        `max_case_revisits` — o limite evita laços de testes repetidos.
+        """
+        if self.max_case_revisits <= 0:
+            return
+        if case_id in self.finalized_cases:
+            return
+        if self.revisit_counts.get(case_id, 0) >= self.max_case_revisits:
+            return
+        if case_id in self.pending_revisit:
+            return
+        self.revisit_counts[case_id] = self.revisit_counts.get(case_id, 0) + 1
+        self.pending_revisit.append(case_id)
+
+    def take_pending_revisits(self):
+        """Devolve (e limpa) os casos que aguardam nova decisão após o laudo.
+
+        É o que permite o fluxo "testar hoje, decidir quando o resultado chegar".
+        Antes, cada caso era apresentado ao agente uma única vez, então pedir
+        exame significava abrir mão de decidir sobre aquele caso — o resultado
+        era aplicado automaticamente e o agente nunca mais o via.
+        """
+        ids = [c for c in self.pending_revisit if c not in self.finalized_cases]
+        self.pending_revisit = []
+        return ids
+
+    def _build_clinical_model(self) -> ClinicalModel:
+        """Monta o `ClinicalModel` com a competência do médico + desempenho do exame."""
+        return ClinicalModel(
+            self.clinical_specificity,
+            clinical_sensitivity=self.clinical_sensitivity,
+            sensitivity=self.lab_sensitivity,
+            specificity=self.lab_specificity,
+            inconclusive_prob=self.lab_inconclusive_prob,
+            other_recognition_prob=self.other_recognition_prob,
+        )
+
+    def action_mask(self, case_id) -> np.ndarray:
+        """Ações permitidas para um caso (1 = permitida), no formato do Tianshou.
+
+        Restringe às três ações conclusivas em dois casos:
+
+        1. **Investigação completa** — os dois exames já voltaram; adiar só
+           acumularia custo sem agregar informação.
+        2. **Última apresentação** — o orçamento de revisitas se esgotou, ou
+           seja, o caso não voltará mais. Sem isto ele terminaria o episódio
+           sem conclusão, pagando ``penalty_unresolved``; era a origem de 52%
+           dos casos órfãos (o agente testava e o caso simplesmente sumia da
+           fila).
+
+        Fora desses estados, todas as sete ações seguem disponíveis.
+        """
+        mask = np.ones(7, dtype=np.int8)
+        if not self.force_decision_after_tests:
+            return mask
+        if case_id not in self.obs_cases.index:
+            return mask
+        row = self.obs_cases.loc[case_id]
+        both_tested = int(row["testd"]) != 0 and int(row["testc"]) != 0
+        last_visit = self.revisit_counts.get(case_id, 0) >= self.max_case_revisits
+        if both_tested or last_visit:
+            mask[:] = 0
+            mask[4] = 1  # conclude dengue
+            mask[5] = 1  # conclude chik
+            mask[6] = 1  # conclude other
+        return mask
+
+    def case_features(self, case_id) -> np.ndarray:
+        """Atributos do caso que o agente está decidindo AGORA (12 posições).
+
+        Sem isto o agente é surdo ao próprio caso: a observação só lhe diz ONDE
+        o caso está (coordenadas), não COMO ele é. Os atributos existem no mapa,
+        mas o ``AdaptiveAvgPool2d`` do encoder resume 400x400 em 6x6, e a célula
+        individual do caso se dissolve na média — medimos que alterar o
+        diagnóstico clínico do caso atual muda as features do mapa em 2e-04.
+
+        Isso explica o comportamento observado: o agente aprendia QUANTO testar,
+        mas nunca QUAIS casos testar, porque não conseguia distingui-los.
+
+        Codificação (one-hot):
+          - diagnóstico clínico atual: dengue / chik / outro          (3)
+          - status do exame de dengue: não feito / neg / pos / inconc (4)
+          - status do exame de chik:   não feito / neg / pos / inconc (4)
+          - confirmação epidemiológica                                (1)
+        """
+        vec = np.zeros(12, dtype=np.float32)
+        if case_id not in self.obs_cases.index:
+            return vec
+        row = self.obs_cases.loc[case_id]
+        diag = int(row["agent_diagnosis"])
+        if 0 <= diag <= 2:
+            vec[diag] = 1.0
+        testd = int(row["testd"])
+        if 0 <= testd <= 3:
+            vec[3 + testd] = 1.0
+        testc = int(row["testc"])
+        if 0 <= testc <= 3:
+            vec[7 + testc] = 1.0
+        vec[11] = float(int(row["epiconf"]) != 0)
+        return vec
+
+    def clinical_evidence(self) -> Tuple[float, float]:
+        """``(taxa_de_concordância, força_da_evidência)`` sobre o médico atual.
+
+        - taxa: fração dos laudos informativos que confirmaram o palpite clínico.
+          Estima a competência do médico. Vale 0,5 (neutro) enquanto não há laudo.
+        - força: quantos laudos informativos já voltaram, saturando em 30 — diz ao
+          agente o quanto ele pode confiar na taxa acima.
+
+        Sem isso, a competência do médico é uma variável latente: para a mesma
+        observação o retorno varia de -524 a +1550, o que torna o alvo de TD
+        irredutivelmente ruidoso.
+        """
+        if self.lab_informative <= 0:
+            return 0.5, 0.0
+        rate = self.lab_agreements / self.lab_informative
+        strength = min(self.lab_informative / 30.0, 1.0)
+        return float(rate), float(strength)
 
     def _apply_matured_lab_results(self, t):
         """Aplica os resultados de laboratório que ficam disponíveis no dia `t`."""
@@ -526,7 +749,7 @@ class DengueDiagnosticsEnv(gym.Env):
     def _update_action_space(self) -> None:
         """Atualiza o espaço de ações quando o total de casos muda."""
         self.action_space = spaces.Sequence(
-            spaces.Tuple((spaces.Discrete(self.num_cases), spaces.Discrete(6)))
+            spaces.Tuple((spaces.Discrete(self.num_cases), spaces.Discrete(7)))
         )
 
     def _create_world(self) -> None:
@@ -559,6 +782,7 @@ class DengueDiagnosticsEnv(gym.Env):
                     self.chik_radius,
                     dengue_r0=self.dengue_r0,
                     chik_r0=self.chik_r0,
+                    other_prevalence=self.other_prevalence,
                     random_state=self.np_random,
                 )
             if self._epidemic_is_valid():
@@ -584,15 +808,23 @@ class DengueDiagnosticsEnv(gym.Env):
         options = options or {}
         regenerate_world = options.get("regenerate_world", True)
 
-        if isinstance(self.specificity_setting, tuple):
-            # Se for uma tupla (min, max), sorteia um valor uniforme
+        if self.clinical_quality is not None:
+            # Novo: um "médico" por episódio, com sensibilidade e especificidade
+            # amostradas de distribuições Beta (níveis low/medium/high).
+            self.clinical_sensitivity, self.clinical_specificity = (
+                self.clinical_quality.sample(self.np_random)
+            )
+        elif isinstance(self.specificity_setting, tuple):
+            # Legado: tupla (min, max) -> uniforme, mesma taxa nos dois sentidos.
             low, high = self.specificity_setting
             self.clinical_specificity = self.np_random.uniform(low=low, high=high)
+            self.clinical_sensitivity = self.clinical_specificity
         else:
-            # Se for um float, usa esse valor fixo
+            # Legado: float fixo
             self.clinical_specificity = self.specificity_setting
-        # Recria o modelo clínico com a especificidade (re)amostrada.
-        self.clinical_model = ClinicalModel(self.clinical_specificity)
+            self.clinical_sensitivity = self.clinical_specificity
+        # Recria o modelo clínico com os valores (re)amostrados.
+        self.clinical_model = self._build_clinical_model()
 
         if regenerate_world or self.world is None:
             self._create_world()
@@ -602,6 +834,15 @@ class DengueDiagnosticsEnv(gym.Env):
         self.epiconf = []
         self.final = []
         self.rewards = []
+        # Evidência acumulada sobre a competência do médico (ver _apply_lab_results).
+        self.lab_agreements = 0
+        self.lab_informative = 0
+        # Casos cujo laudo chegou e que voltam ao agente para decisão.
+        self.pending_revisit = []
+        # Casos já encerrados por confirmar/descartar (não retornam mais).
+        self.finalized_cases = set()
+        self.revisit_counts = {}
+        self._day_actions = []
         self.accuracy = []
         self.mean_accuracy_history = []
         self.multiclass_accuracy_history = []
@@ -629,11 +870,81 @@ class DengueDiagnosticsEnv(gym.Env):
         return self.individual_rewards[t]
 
 
+    def _apply_action_effects(self, case_id, action_id) -> None:
+        """Aplica os efeitos de UMA ação sobre UM caso (sem calcular recompensa).
+
+        Extraído do laço de ``step`` para que a mesma lógica sirva ao modo
+        agregado (todas as ações do dia de uma vez) e ao modo por caso
+        (``apply_case_action``), sem duplicação.
+        """
+        # Ignora ações sobre casos que ainda não foram notificados.
+        if case_id not in self.obs_cases.index:
+            return
+
+        if action_id == 0:  # Teste de Dengue: amostra colhida hoje, laudo atrasa
+            test_result = self._dengue_lab_test(case_id)
+            self.testd.append((case_id, test_result))
+            self.lab_queue.schedule(0, case_id, test_result, self.t)
+        elif action_id == 1:  # Teste de Chik: amostra colhida hoje, laudo atrasa
+            test_result = self._chik_lab_test(case_id)
+            self.testc.append((case_id, test_result))
+            self.lab_queue.schedule(1, case_id, test_result, self.t)
+        elif action_id == 2:  # Epi confirm
+            epi_result = self._epi_confirm(case_id)
+            self.epiconf.append((case_id, epi_result))
+            self._update_case_status(2, case_id, epi_result)
+            # `epi_confirm` é investigativo, não conclusivo: o caso precisa
+            # RETORNAR para o agente decidir de posse da evidência. Sem
+            # isto a ação era um beco sem saída — consumia a única
+            # apresentação do caso e o deixava sem conclusão (37% dos casos
+            # órfãos vinham daqui). Mesma correção já feita para os exames.
+            self._schedule_revisit(case_id)
+        elif action_id == 3:  # Do nothing
+            # O agent_diagnosis permanece como o palpite clínico
+            pass
+        elif action_id in (4, 5, 6):  # Conclude DENGUE / CHIK / OTHER
+            # Ação decisiva: a alegação é a própria ação (não o palpite
+            # clínico corrente), o que permite ao agente discordar do
+            # médico com base em outra evidência (ex.: posição espacial)
+            # sem precisar gastar um exame para "editar" o diagnóstico.
+            claimed = action_id - 4
+            self.obs_cases.loc[case_id, "agent_diagnosis"] = claimed
+            self.final.append(0 if claimed == 2 else 1)
+            self.finalized_cases.add(case_id)
+
+    def apply_case_action(self, case_id, action_id) -> float:
+        """Aplica UMA ação e devolve a recompensa **atribuível a ela**.
+
+        É a peça que permite atribuição de crédito por caso: o
+        ``CaseByCaseWrapper`` decide um caso por passo, mas no modo agregado as
+        ações do dia eram acumuladas e só rendiam um escalar no fim do dia —
+        cada decisão individual recebia recompensa zero e o total do dia caía
+        num único passo, misturado ao desfecho de dezenas de outros casos.
+
+        Não avança o tempo: o avanço do dia continua sendo feito por
+        ``step(())`` (tupla vazia), que libera laudos maturados, atualiza o
+        mundo e paga o que pertence ao dia.
+        """
+        self._apply_action_effects(case_id, action_id)
+        # Registra para o renderer, que espera as ações do dia inteiro.
+        self._day_actions.append((case_id, action_id))
+        reward = self.reward_engine.case_reward(
+            case_id, action_id, self.t, self.real_cases, self.obs_cases
+        )
+        self.total_reward += reward
+        return reward
+
     def step(self, action):
         """
         Apply the actions for every case at the current timestep (t)
         and the returns the observation(state at t+1), reward, termination status and info
-        action: [list of decisions (2-tuples) for all current cases]: 0: test for dengue, 1: test for chik, 2: epi confirm, 3: Does nothing, 4: Confirm, 5: Discard
+        action: [list of decisions (2-tuples) for all current cases]:
+            0: test for dengue, 1: test for chik, 2: epi confirm, 3: does nothing,
+            4: conclude DENGUE, 5: conclude CHIK, 6: conclude OTHER (not arbovirus)
+
+        Chamado com tupla vazia, apenas **avança o dia** (libera laudos, paga o
+        que venceu, atualiza o mundo) — é assim que o modo por caso o utiliza,
+        depois de já ter aplicado as ações via ``apply_case_action``.
         """
         if not self.action_space.contains(action):
             raise ValueError(f"Invalid action {action} for {self.action_space}")
@@ -643,31 +954,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.cases_t = self._cases_at_t(self.t)
         # apply the actions
         for case_id, action_id in action:
-            # Ignore actions targeting cases that have not been reported yet
-            if case_id not in self.obs_cases.index:
-                continue
-            if action_id == 0:  # Teste de Dengue: amostra colhida hoje, laudo atrasa
-                test_result = self._dengue_lab_test(case_id)
-                self.testd.append((case_id, test_result))
-                self.lab_queue.schedule(0, case_id, test_result, self.t)
-            elif action_id == 1:  # Teste de Chik: amostra colhida hoje, laudo atrasa
-                test_result = self._chik_lab_test(case_id)
-                self.testc.append((case_id, test_result))
-                self.lab_queue.schedule(1, case_id, test_result, self.t)
-            elif action_id == 2:  # Epi confirm
-                epi_result = self._epi_confirm(case_id)
-                self.epiconf.append((case_id, epi_result))
-                self._update_case_status(2, case_id, epi_result)
-            elif action_id == 3:  # Do nothing
-                # O agent_diagnosis permanece como o palpite clínico
-                pass
-            elif action_id == 4:  # Confirm
-                # Ação decisiva: O agente confirma o 'agent_diagnosis' atual.
-                self.final.append(1)
-            elif action_id == 5:  # Discard
-                # Descarta como falso positivo: diagnóstico do agente vira "Outro" (2)
-                self.obs_cases.loc[case_id, "agent_diagnosis"] = 2
-                self.final.append(0)
+            self._apply_action_effects(case_id, action_id)
 
         terminated = self.t >= self.horizon
 
@@ -683,15 +970,17 @@ class DengueDiagnosticsEnv(gym.Env):
             for c in self.obs_cases.itertuples()
         )
 
+        # `to_dict` é caro (percorre o DataFrame em Python); calcula uma vez só
+        # e reusa nos dois consumidores em vez de recomputar idêntico.
         true_cases = self.cases.to_dict(orient="records")
 
         self.calc_accuracy(true_cases, estimated_for_accuracy)
 
         reward = self._calc_reward(
-            self.cases.to_dict(orient="records"),
+            true_cases,
             estimated_for_accuracy,
             action,
-            terminated=terminated 
+            terminated=terminated
         )
         # print(f"Reward: {reward} \t Total Reward: {self.total_reward}")
 
@@ -699,8 +988,13 @@ class DengueDiagnosticsEnv(gym.Env):
 
         if self.render_mode == "human" and self.renderer is not None:
             self.renderer.create_sprites(self.cases, self.t)
-            self.renderer.update_sprites(action)
+            # No modo por caso as ações já foram aplicadas antes deste passo e
+            # chegam aqui em `_day_actions`; no modo agregado vêm em `action`.
+            self.renderer.update_sprites(tuple(action) or tuple(self._day_actions))
             self.render()
+
+        # O dia terminou: zera o registro de ações usado pelo renderer.
+        self._day_actions = []
 
         # Update the timestep
         self.t += 1

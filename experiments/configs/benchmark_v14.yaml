@@ -1,0 +1,17 @@
+# Benchmark no ambiente v4 — DQN v13 (n_step 30, ver §11.4/§12).
+#
+# ATENCAO: os numeros daqui NAO sao comparaveis com os do v3/v11. Alem da
+# atribuicao por caso, a correcao do vazamento em `_advance_empty_days` (ver
+# REFATORACAO_AMBIENTE.md, §10.2) muda o valor absoluto de TODAS as politicas.
+# Por isso todos os baselines sao re-rodados aqui, em vez de reaproveitados.
+#
+# Ressalva sobre o `qlearning`: a q-table foi treinada no regime antigo, entao
+# ela e' avaliada aqui, mas nao re-treinada -- e' um piso, nao um teto.
+env_config: env/synthetic_v4.yaml
+agents: [clinical, random, confirmall, testonce, testtwice, qlearning, dqn]
+checkpoints:
+  qlearning: results/qlearning_v2/q_table.pkl
+  dqn: results/dqn_v14/policy_best.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/baseline_v14
+save_artifacts: false

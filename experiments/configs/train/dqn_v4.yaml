@@ -1,0 +1,55 @@
+# DQN no ambiente v2 (RT-PCR + retorno do caso após o laudo + exame caro).
+#
+# Panorama do ambiente (10 seeds, políticas fixas):
+#   nada                 -95,2   | acurácia 0,690 |   0 testes
+#   confirmall          +128,8   | acurácia 0,690 |   0 testes
+#   1 teste -> confirmar +739,2  | acurácia 0,960 | 280 testes   <- melhor fixa
+#   [oráculo]           +995,0                                   <- margem +255,8
+#
+# A margem do oráculo é o que o agente tem para capturar: escolher POR EPISÓDIO
+# (e idealmente por caso) entre confirmar direto e gastar o exame.
+#
+# `context_features: true` porque a competência do médico continua latente e é
+# ela que define a escolha certa (ver ACHADOS.md, seções 3.4 e 3.6).
+
+env_config: ../env/synthetic_v2.yaml
+
+context_features: true
+
+# Reescala a recompensa SÓ NO TREINO. Medido neste ambiente: a recompensa por
+# passo tem desvio ~21 e chega a -287, e o retorno do episódio fica na casa dos
+# milhares. Fazer a rede prever alvos dessa magnitude com erro quadrático gera
+# gradientes enormes — é a causa provável das oscilações vistas em todas as
+# rodadas anteriores (+1019 -> -7245 entre épocas). Com 0,05 o desvio por passo
+# cai para ~1,0, que é a escala usual para DQN.
+# Multiplicar por constante positiva NÃO muda a política ótima; a avaliação e o
+# benchmark seguem rodando na escala original.
+reward_scale: 0.05
+
+train:
+  algorithm: dqn
+  seed: 42
+  epochs: 20
+  step_per_epoch: 5000
+  n_step: 5
+  batch_size: 64
+  buffer_size: 6000
+  test_buffer_per_env: 1000
+  # 20 episódios por avaliação: com 2 a medição capta o médico sorteado, não a
+  # política, e o save_best_fn acaba premiando sorte.
+  test_episodes: 20
+  lr: 0.0001
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 1.0
+  eps_train_final: 0.05
+  eps_train_decay: 50000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 2
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn_v4

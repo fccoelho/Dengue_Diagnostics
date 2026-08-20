@@ -1,0 +1,53 @@
+# DQN com a função de recompensa RECALIBRADA (v2).
+#
+# Mudança em relação à v1: o erro de diagnóstico passa a ser punido sempre
+# (`penalty_misdiagnosed = -3`), e não apenas quando o caso nunca foi testado
+# (`penalty_untested_misdiagnosed`, agora 0). Antes, pedir exame isentava da
+# punição mesmo com laudo inconclusivo, o que tornava "testar tudo" quase ótimo
+# e contradizia a premissa de economizar testes.
+#
+# Sob a v2 o ótimo passa a depender do estado (verificado empiricamente):
+#   médico ruim (<0,65) -> testar   |   médico bom (>0,70) -> confirmar
+# Política fixa boa = +129; oráculo que conhece o médico = +599. Essa é a
+# margem que o agente tem para aprender.
+#
+# Uso:
+#   poetry run python agents/deepq/train.py --config experiments/configs/train/dqn_v2.yaml
+
+env_config: ../env/synthetic_default.yaml
+
+env:
+  reward_delay_days: 5
+
+train:
+  algorithm: dqn
+  seed: 42
+  # ~100k passos de ambiente: cabe numa noite (~3-4 h) e já é suficiente para
+  # a política sair do regime trivial.
+  epochs: 20
+  step_per_epoch: 5000
+  n_step: 5
+  batch_size: 64
+  # Pico de RAM ~= 3x o buffer (o Tianshou copia o buffer inteiro em algumas
+  # operações). 6000 -> ~11,5 GB de pico.
+  buffer_size: 6000
+  # Buffer do collector de TESTE, por env. Sem isto o Tianshou aloca 10 000 por
+  # env (~12,8 GB com mapa 400x400) só para avaliar. 1000 cobre um episódio.
+  test_buffer_per_env: 1000
+  lr: 0.0001
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 1.0
+  eps_train_final: 0.05
+  # Decaimento em ~50% do treino, para explorar bem antes de fixar a política.
+  eps_train_decay: 50000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 2
+  vector_env: dummy
+  prefill_steps: 1000
+
+# Pasta separada: preserva o checkpoint da v1 como referência da recompensa antiga.
+output_dir: results/dqn_v2

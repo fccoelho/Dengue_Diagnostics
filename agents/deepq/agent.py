@@ -1,7 +1,9 @@
 """Agente DQN (Tianshou 2.x) no ambiente novo (map_tensor + case_by_case).
 
-Decide **uma ação por caso** (`Discrete(6)`), no mesmo contrato do random /
-Q-Learning. Checkpoint = ``state_dict`` da ``DiscreteQLearningPolicy``.
+Decide **uma ação por caso** (`Discrete(7)`), no mesmo contrato do random /
+Q-Learning. `action_shape` é lido de `env.action_space.n` (ver `build_policy`),
+então a rede se adapta automaticamente ao tamanho do espaço de ação.
+Checkpoint = ``state_dict`` da ``DiscreteQLearningPolicy``.
 """
 from __future__ import annotations
 
@@ -16,7 +18,7 @@ from agents.base import EpisodeRunner
 from agents.deepq.network import DengueNet
 
 DEFAULT_CHECKPOINT = Path("results/dqn/policy_best.pth")
-NUM_ACTIONS = 6
+NUM_ACTIONS = 7
 
 
 def observation_from_env(env) -> dict:
@@ -46,7 +48,13 @@ def build_policy(
     """Cria uma ``DiscreteQLearningPolicy`` + ``DengueNet`` para o espaço do env."""
     map_shape = env.observation_space.spaces["map"].shape
     action_shape = env.action_space.n
-    net = DengueNet(map_shape, action_shape, device=device).to(device)
+    # Detecta o ramo de contexto pelo próprio espaço de observação, para que o
+    # mesmo código sirva com e sem `context_features`.
+    ctx_space = env.observation_space.spaces.get("context")
+    context_dim = int(ctx_space.shape[0]) if ctx_space is not None else 0
+    net = DengueNet(
+        map_shape, action_shape, device=device, context_dim=context_dim
+    ).to(device)
     return DiscreteQLearningPolicy(
         model=net,
         action_space=env.action_space,

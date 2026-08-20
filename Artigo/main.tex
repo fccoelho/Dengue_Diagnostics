@@ -1,0 +1,400 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc} 
+\usepackage[portuguese,brazilian]{babel}
+\usepackage[lmargin=3cm,tmargin=3cm,rmargin=2cm,bmargin=2cm]{geometry} 
+\usepackage[T1]{fontenc} 
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{indentfirst}
+\usepackage{graphicx}
+\usepackage{amsmath,amsthm,amsfonts,amssymb,dsfont,mathtools} 
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage[num]{abntex2cite}
+
+% --- Título e Autores ---
+\title{\textbf{Modelos de decisão para testagem de casos suspeitos de arboviroses por Aprendizagem por Reforço}}
+
+\author{
+    Zuilho R. C. Segundo \quad Iasmim F. de Almeida\quad  Flávio C. Coelho  \\[0.3cm]
+    \small Escola de Matemática Aplicada, Fundação Getulio Vargas (FGV EMAp) \\
+    \small Rio de Janeiro, Brasil \\
+}
+
+\date{} % Usa a variável 2025 que você definiu ou remova para data atual
+
+% --- Início do Documento ---
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent A co-circulação de dengue e chikungunya impõe um dilema recorrente à vigilância epidemiológica: o diagnóstico clínico diferencial é pouco específico, enquanto a confirmação laboratorial é escassa e cara. Este trabalho formula a alocação de exames como um processo de decisão sequencial sob incerteza e avalia agentes de Aprendizagem por Reforço nesse cenário. Desenvolvemos um ambiente compatível com a interface Gymnasium em que duas epidemias coexistem espacialmente, o diagnóstico clínico é ruidoso --- com sensibilidade e especificidade amostradas por médico a partir de distribuições Beta --- e os laudos laboratoriais retornam com atraso, devolvendo o caso ao agente para decisão. A distribuição espacial pode ser sintética ou estimada por \textit{Ordinary Kriging} sobre notificações reais do Rio de Janeiro (2015--2016). Comparamos um agente \textit{Deep Q-Network} com Q-Learning tabular, uma política aleatória e quatro políticas fixas triviais que estabelecem piso e teto de desempenho. O agente DQN superou o Q-Learning, a política aleatória e o diagnóstico clínico isolado, e obteve o menor custo por diagnóstico correto entre as políticas que realizam exames (0,449 contra 1,037), solicitando 65\% menos exames e elevando a acurácia de 0,690 para 0,784. Não superou, entretanto, a melhor política fixa: embora tenha aprendido \emph{quanto} investigar, não aprendeu \emph{quem} investigar. Mostramos que a competência da triagem clínica --- variável latente não observável pelo agente --- responde por cerca de 97\% da variância dos resultados, o que caracteriza o problema como de observabilidade parcial e delimita o que arquiteturas sem memória podem alcançar.
+
+\noindent \textbf{Palavras-chave:} Aprendizagem por Reforço. Arboviroses. Modelos de Decisão. Alocação de Recursos. Vigilância Epidemiológica.
+\end{abstract}
+
+\section{Introduction}
+Arboviral diseases are among the most complex and persistent challenges for global public health, imposing a severe epidemiological burden, particularly in tropical and subtropical regions such as Brazil \cite{govbr_arboviroses}. Diseases like dengue, chikungunya, and Zika, which share the biological vector \textit{Aedes aegypti}, manifest in large-scale cyclic epidemics that periodically overwhelm healthcare systems. These outbreaks generate profound socioeconomic impacts, ranging from substantial losses in labor productivity to exponential increases in direct hospitalization and emergency treatment costs \cite{donateli_visualizacao_2023, ministério2024boletim}. The simultaneous co-circulation of these viruses significantly aggravates the epidemiological landscape, creating an overlap of clinical profiles that hinders real-time surveillance and demands rapid, coordinated public health responses. Dengue, specifically, remains a pressing endemic and epidemic threat, requiring continuous investments in vector control strategies and preventive clinical management to mitigate the morbidity and mortality associated with severe forms of the disease \cite{junior_epidemiology_2022}.
+
+A critical and limiting obstacle in the efficient management of these epidemics lies in the intrinsic difficulty of clinical differential diagnosis, which is aggravated by the scarcity of resources for mass laboratory confirmation. The definition of a suspected case recommended by the Ministry of Health, typically based on sudden fever associated with arthralgia, myalgia, or rash, has high sensitivity for capturing infected individuals, but low specificity for distinguishing the exact viral etiology \cite{govbr_chick}. In simultaneous transmission scenarios, differentiating between dengue and chikungunya based solely on anamnesis and physical examination becomes a highly error-prone task \cite{arrubla-hoyos_methodology_2024}. These factors frequently result in underreporting or incorrect classifications, which compromises the understanding of transmission dynamics and the formulation of public policies. Furthermore, in rapidly expanding outbreaks, universal laboratory confirmation, considered the diagnostic gold standard in this study, becomes financially and logistically unfeasible, forcing health managers to restrict the use of diagnostic tests. Often, this prioritization occurs reactively and inefficiently, resulting in the indiscriminate use of valuable supplies in clinically evident cases, while atypical or epidemiologically strategic cases remain unconfirmed \cite{junior_epidemiology_2022}.
+
+Consequently, the allocation of laboratory tests transcends the purely clinical sphere and constitutes a complex sequential decision-making challenge under uncertainty. The choice to test a suspected case, rely on epidemiological linkage, wait for additional clinical information, or assign a final diagnosis is not an isolated event. It consumes finite resources and affects the quality of future epidemiological surveillance \cite{yu_deep_2023}. While previous approaches have focused mainly on case classification or outbreak prediction, few studies have addressed laboratory test allocation as a sequential decision-making problem under epidemiological uncertainty. This scenario can be formally framed as a stochastic optimization and dynamic control problem, in which the decision-making agent must balance the immediate logistical cost of testing against the latent risk of incorrect diagnosis and delayed public health response \cite{yaesoubi_generalized_2011}. Moreover, because the true state of the epidemic is only partially observable due to reporting delays, clinical uncertainty, and asymptomatic infections, dynamic health policies require models capable of reasoning from incomplete information and updating decisions over time \cite{yaesoubi_generalized_2011,sutton2018reinforcement}.
+
+To address this gap, this work proposes developing and validating an intelligent agent based on Deep Reinforcement Learning (DRL) to optimize diagnostic and laboratory test allocation policies for suspected arbovirus cases. Unlike static predictive models focused solely on classification, the central hypothesis is that a computational agent, trained via the Deep Q-Network (DQN) algorithm within an epidemiological simulation environment compatible with the Gymnasium interface \cite{noauthor_gymnasium_nodate, lapan2020deep}, can autonomously learn dynamic testing policies by identifying spatiotemporal patterns. The primary contribution of this research consists of formalizing spatialized differential diagnosis as a Markov Decision Process (MDP) and implementing a convolutional neural network architecture, \textit{DengueNet}, capable of simultaneously processing global risk maps and local patient characteristics \cite{frommeyer_reinforcement_2025}. The efficacy of the proposed model is comparatively evaluated against baseline strategies, such as random and tabular agents. By introducing an algorithmic approach capable of supporting the intelligent prioritization of laboratory tests, this study offers an innovative tool for epidemiological surveillance, aiming to maximize diagnostic accuracy and economic efficiency during arbovirus outbreaks.
+
+
+\section{Methodology}
+
+\subsection*{Study Design and Experimental Framework}
+
+This study evaluates the efficacy of Reinforcement Learning algorithms for supporting diagnostic decision-making and laboratory test allocation in suspected arbovirus cases through computational experiments (Figure \ref{fig:fluxograma_metodos}). The methodological framework was organized into four main phases. First, we developed a stochastic simulation model to generate synthetic dengue and chikungunya outbreaks with controlled temporal and spatial overlap. Second, this simulated epidemiological scenario was formulated as a discrete-time Markov Decision Process (MDP), allowing diagnostic and testing decisions to be represented as sequential actions under uncertainty \cite{sutton2018reinforcement}. Third, we implemented and trained different decision-making agents, ranging from simple baseline policies to deep reinforcement learning models. Finally, we evaluated each agent according to diagnostic performance, cumulative reward, and the logistical cost associated with laboratory test requests.
+
+
+\begin{figure}[h!]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{img/fluxograma_metodos.png}
+    \caption{Flowchart of the experimental design, detailing the stages from the generation of simulated data (spatial SIR) to the training and evaluation of the Reinforcement Learning agents.}
+    \label{fig:fluxograma_metodos}
+\end{figure}
+
+\subsection*{Simulated Data Generation}
+\label{subsec:sim_casos}
+
+The temporal dynamics of the epidemic were modeled using a compartmental SIR (Susceptible, Infected, and Recovered) system \cite{side2015sir, derouich_model_2003}. The patient flow is governed by Ordinary Differential Equations (ODEs) that depend on the infection ($\beta$) and recovery ($\gamma$) rates. To simulate the simultaneous occurrence of arboviral diseases, we generated independent outbreaks of dengue ($\beta = 0.006$, $\gamma = 0.004$) and chikungunya ($\beta = 0.0048$, $\gamma = 0.004$), resulting in incidence curves with different propagation velocities. These parameters were chosen to generate controlled synthetic epidemics with partially overlapping temporal dynamics, rather than to reproduce a specific real-world outbreak.
+
+The system was solved numerically to extract the cumulative incidence curve $C(t)$. The discretization of this curve provided the number of new daily cases $N_{dis}(t)$ for each disease \cite{derouich_model_2003}. Each scenario spans 60 epidemiological days and is parameterized to generate approximately 150 cases per disease, according to the equation:
+
+$$N_{dis}(t) = \text{round}(C_{dis}(t) - C_{dis}(t-1)), \quad \text{for } t \ge 1$$
+
+This dynamic model results in curves with an initial exponential growth followed by logistic saturation, as illustrated in Figure \ref{fig:epidemic_evolution}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.9\textwidth]{img/evolucao_epidemia.png}
+\caption{Simulated epidemiological dynamics. Shaded areas indicate daily incidence and its peaks; lines represent cumulative incidence and the logistic saturation of the SIR model.}
+\label{fig:epidemic_evolution}
+\end{figure}
+
+Daily cases were spatially distributed across a $400 \times 400$ two-dimensional grid. This grid represents an abstract spatial domain designed to evaluate whether the agent can exploit spatial clustering and overlap between diseases, rather than a specific geographical territory. Allocation occurred by sampling from a bivariate truncated normal distribution, defining an epicenter ($\mu_{x}, \mu_{y}$) and a dispersion standard deviation ($\sigma_{x}, \sigma_{y}$) for each virus:
+
+\begin{align*}
+c_x &\sim \mathcal{N}*{T}(\mu*{x,dis}, \sigma_{x,dis}^2, 0, L-1) \
+c_y &\sim \mathcal{N}*{T}(\mu*{y,dis}, \sigma_{y,dis}^2, 0, L-1)
+\end{align*}
+
+\begin{figure}[hbt!]
+\centering
+\includegraphics[width=0.5\linewidth]{img/casos.png}
+\caption{Example of the spatial distribution of simulated cases on the $400 \times 400$ grid, highlighting the spatial overlap between dengue (green) and chikungunya (red) cases.}
+\label{fig:distribuicao_casos}
+\end{figure}
+
+\subsubsection*{Spatial distribution from real notification data}
+
+Besides the synthetic layout described above, the environment supports a second, plug-in generator based on \textbf{Ordinary Kriging} fitted to dengue and chikungunya notifications reported in Rio de Janeiro during 2015--2016. The interpolated surfaces are normalized into a per-disease spatial probability $P(\text{cell} \mid \text{disease})$, from which cases are sampled. This lets us contrast an idealized geometry (truncated normals around two foci) against an empirical urban distribution, while holding every other parameter fixed. Zika is excluded, since the environment models only dengue and chikungunya.
+
+\subsubsection*{Clinical uncertainty: modeling the physician}
+
+To simulate the uncertainty of real-world medical triage, the individual's true disease status is hidden from the agent and replaced by a noisy preliminary clinical classification. Taking dengue as the positive class, this classification is governed by two parameters of the attending physician:
+
+\begin{align*}
+\text{sensitivity} &= P(\text{clinically labeled dengue} \mid \text{truly dengue}) \\
+\text{specificity} &= P(\text{clinically labeled chikungunya} \mid \text{truly chikungunya})
+\end{align*}
+
+Rather than fixing a single confusion rate, each episode draws an independent ``physician'' from \textbf{Beta distributions} --- the natural choice for quantities bounded in $[0,1]$. We parameterize each Beta by its mean $\mu$ and a concentration $\kappa$, so that $a = \mu\kappa$ and $b = (1-\mu)\kappa$, which allows the average competence to be set directly while $\kappa$ controls the spread across physicians. Three competence levels were defined (Table \ref{tab:clinical_levels}), combining controlled heterogeneity with a tunable mean.
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Level} & \textbf{Mean sensitivity} & \textbf{Mean specificity} \\ \midrule
+Low & 0.60 & 0.60 \\
+Medium & 0.75 & 0.75 \\
+High & 0.90 & 0.90 \\ \bottomrule
+\end{tabular}
+\caption{Clinical competence levels. Each physician's sensitivity and specificity are drawn from Beta distributions with these means and concentration $\kappa = 20$ (standard deviation $\approx 0.09$).}
+\label{tab:clinical_levels}
+\end{table}
+
+This design is deliberate: physician competence turned out to be the dominant source of variance in the results (Section \ref{subsec:confounder}), so being able to hold it at a controlled level is what makes environments comparable at matched difficulty.
+
+\subsubsection*{Laboratory confirmation}
+
+Laboratory tests are modeled after RT-PCR, the molecular assay adopted here as the diagnostic gold standard: sensitivity $0.95$, specificity $0.98$, and a $2\%$ rate of indeterminate results. An indeterminate report leaves the working diagnosis unchanged. These values are configurable parameters of the environment rather than hard-coded constants.
+
+
+\subsection*{Decision Environment Formulation}
+We mapped the diagnostic problem to a discrete-time Markov Decision Process (MDP) using the Gymnasium library \cite{noauthor_gymnasium_nodate, towers_gymnasium_2023}. Each time step $t$ represents an epidemiological day \cite{sutton2018reinforcement}. Because the true state of the epidemic is hidden by symptom noise and laboratory test delays, the agent does not have direct access to the true state $S_t$. Instead, it makes decisions based on an observation $O_t$. 
+
+This observation comprises two structures: a $400 \times 400 \times 4$ global spatial tensor, which maps symptomatic diagnoses and the history of previously performed tests; and a local numerical vector (mask), which indicates the exact coordinates of the patient being evaluated at that moment.
+
+The action space is discrete and offers six options for each suspected case (Figure \ref{fig:decision_flow}). The actions are divided into three categories:
+\begin{itemize}
+    \item \textbf{Wait:} advances time without intervention, keeping the clinical guess.
+    \item \textbf{Investigate:} requests a laboratory test (dengue or chikungunya) or an epidemiological confirmation. Testing incurs an immediate cost, and the report only becomes available after a delay.
+    \item \textbf{Conclude:} defines the patient's final diagnosis (confirm or discard). The model's prediction is then validated against the environment's true (hidden) data.
+\end{itemize}
+
+\subsubsection*{Case lifecycle}
+\label{subsec:lifecycle}
+
+Making the decision flow explicit matters, because it constrains what any policy can achieve. A case enters the agent's queue on the day it is notified. If the agent orders a laboratory test, the sample is collected immediately but the report matures only after \texttt{lab\_delay\_days}. \textbf{When the report arrives, the case returns to the agent}, which then decides in possession of the result. A case leaves the queue when the agent confirms or discards it, or when the episode ends; the number of returns per case is capped to prevent unbounded re-testing loops.
+
+This return mechanism is a substantive change from a single-visit formulation. If each case were presented only once, ordering a test would mean forfeiting the decision on that case --- the report would be applied automatically and the agent would never see the case again. Under such a design, testing and deciding are mutually exclusive, which artificially caps attainable accuracy (Section \ref{subsec:ceiling}).
+
+Because only two diseases are modeled, a single test of either type is informative in both directions: a positive dengue test sets the diagnosis to dengue, while a negative one shifts it to chikungunya (and symmetrically for the chikungunya assay). Ordering both assays is therefore largely redundant.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.95\textwidth]{img/agent_decision.png}
+    \caption{Agent Decision Flow.}
+    \label{fig:decision_flow}
+\end{figure}
+
+The reward function reflects the logistical and clinical dilemmas of epidemiological surveillance and is organized in three layers: an immediate operational cost, a delayed decision outcome, and a terminal score.
+
+\paragraph{Layer 1 --- Immediate cost.} Every action charges its operational cost at the moment it is taken:
+
+\begin{equation}
+    C(a) = \begin{cases}
+        c_{test} & a \in \{0, 1\} \quad \text{(laboratory test)}\\
+        0.5 & a = 2 \quad \text{(epidemiological confirmation)}\\
+        0.1 & a = 3 \quad \text{(wait)}\\
+        0.0 & a \in \{4, 5\} \quad \text{(confirm / discard)}
+    \end{cases}
+    \label{eq:costs}
+\end{equation}
+
+\paragraph{Layer 2 --- Delayed decision outcome.} Only the conclusive actions are scored, and the outcome is credited $\tau$ days later ($\tau = 5$), reproducing the lag between a decision and its epidemiological consequence. Let $y_c$ be the true pathology, $\hat{y}_c$ the agent's working diagnosis and $\varnothing$ the label ``not an arbovirus'':
+
+\begin{equation}
+    R_{dec}(c, a) = \begin{cases}
+        +10 & a = 4 \land \hat{y}_c = y_c \quad \text{(correct confirmation)}\\
+        -20 & a = 4 \land \hat{y}_c \neq y_c \quad \text{(false positive)}\\
+        +10 & a = 5 \land y_c = \varnothing \quad \text{(correct exclusion)}\\
+        -30 & a = 5 \land y_c \neq \varnothing \quad \text{(missed real case)}
+    \end{cases}
+    \label{eq:decision}
+\end{equation}
+
+Note that discarding is evaluated against the \emph{true} pathology, not against an inverted label: excluding a patient who did have an arbovirus is a surveillance false negative and carries the heaviest penalty, reflecting the asymmetric clinical risk \cite{yu_deep_2023}.
+
+\paragraph{Layer 3 --- Terminal score.} At the end of the episode each case contributes $+1$ if the final diagnosis is correct and $-3$ otherwise:
+
+\begin{equation}
+    R_{final} = \sum_{c} \Big( 1 \cdot \mathbb{I}[\hat{y}_c = y_c] - 3 \cdot \mathbb{I}[\hat{y}_c \neq y_c] \Big)
+    \label{eq:terminal}
+\end{equation}
+
+An earlier formulation penalized only those errors on cases that had \emph{never been tested}. That turned the test into an exemption: ordering an assay removed the penalty even when the report came back indeterminate and changed nothing, rewarding the act of testing rather than the information it provided. Penalizing the error itself removes this distortion.
+
+\paragraph{Test cost and scarcity.} The parameter $c_{test}$ governs whether the allocation problem exists at all. With a cheap assay, testing every patient is almost always optimal and there is nothing to allocate. We calibrated $c_{test}$ empirically by sweeping its value and measuring how often ``test'' beats ``confirm directly'' across episodes; at $c_{test} = 7.0$ the two options split evenly (5 of 10 scenarios each), which is the regime where choosing correctly is worth the most. Lower values ($1.0$, $5.0$) made testing preferable in 9--10 of 10 scenarios, collapsing the decision.
+
+\subsection*{Evaluated Agents}
+
+Diagnostic performance was compared against a set of reference policies. Beyond the random baseline, we include four \emph{trivial fixed policies}, which are essential to interpret the results: without them, a learned agent can appear competent merely by being better than chance.
+
+\begin{itemize}
+    \item \textbf{Random:} chooses any of the six actions with equal probability, $\pi_{rnd}(a|s) = 1/|\mathcal{A}| \approx 0.166$.
+    \item \textbf{Clinical:} always waits, thereby accepting the physician's diagnosis without ordering any test. It measures what clinical triage delivers on its own and is the reference floor.
+    \item \textbf{Confirm-all:} confirms every case without testing. It does not improve accuracy, but collects the decision reward whenever triage happens to be right.
+    \item \textbf{Test-all:} orders a test on every visit and never concludes. Under the case-return mechanism this policy is degenerate --- the same case comes back and is tested again --- and serves only to expose the cost of indiscriminate testing.
+    \item \textbf{Test-once:} orders one test per case and confirms when the report arrives. This is the strongest fixed policy and the bar a learned agent must clear.
+\end{itemize}
+
+The second model utilized the tabular Q-Learning algorithm \cite{watkins1992q}, updating the value of each state-action pair via the Bellman equation:
+
+$$ Q(S_t, A_t) \leftarrow Q(S_t, A_t) + \alpha \left[ R_{t+1} + \gamma \max_{a'} Q(S_{t+1}, a') - Q(S_t, A_t) \right] $$
+
+However, the grid dimensions ($400 \times 400$) caused the state space to grow explosively. The resulting matrix became excessively sparse, rendering learning intractable due to the curse of dimensionality \cite{bellman1957dynamic}. To overcome this obstacle, we implemented the third architecture: the Deep Q-Network (DQN).
+
+\subsection*{DQN Architecture and Training}
+\label{subsec:deepqnet}
+To handle the high dimensionality of the state space, we adopted the Deep Q-Network algorithm \cite{mnih2015human}. We replaced the tabular matrix with a non-linear approximation architecture using Convolutional Neural Networks (CNNs) \cite{goodfellow2016deep}, which we named DengueNet. The convolutional layers process the spatial tensor to automatically extract densities and geographical clusters, eliminating the need for manual heatmap annotation.
+
+Training was conducted using the Tianshou library \cite{weng2021tianshou}. The optimization of the network weights $\theta_i$ sought to minimize the loss function $L_i(\theta_i)$, calculated via the Mean Squared Error relative to the target network $\theta_{i}^-$:
+
+$$ L_i(\theta_i) = \mathbb{E} \left[ \left( r + \gamma \max_{a'} Q(s', a'; \theta_{i}^-) - Q(s, a; \theta_i) \right)^2 \right] $$
+
+The convolutional stack ends with an \textit{adaptive average pooling} layer, which fixes the feature vector at $64 \times 6 \times 6$ regardless of grid size. Without it, a $400 \times 400$ map flattens into roughly $1.35 \times 10^5$ features and the first dense layer alone accounts for $69.4$M parameters --- over $99.9\%$ of the network. Pooling reduces the architecture to $1.25$M parameters, cutting checkpoints from $\sim$555\,MB to 5\,MB.
+
+We used an \textit{Experience Replay Buffer} of 6,000 transitions and an \textit{epsilon-greedy} exploration schedule decaying linearly from 1.0 to 0.05. Since the environment generates multiple patients per day but the DQN outputs one decision at a time, the \texttt{CaseByCaseWrapper} module serializes the daily cases and submits each patient sequentially to the network.
+
+\paragraph{Reward scaling.} Because delayed outcomes for dozens of cases mature on the same day, the per-step reward has a standard deviation of $\approx 21$ and ranges from $-287$ to $+121$, so episode returns reach the order of $10^3$. Fitting targets of that magnitude with a squared-error loss produced unstable training, with test reward swinging between $+1019$ and $-7245$ in consecutive epochs. We therefore scale rewards by a constant factor ($0.05$) \emph{during training only}, bringing the per-step standard deviation close to unity. Multiplying by a positive constant does not change the optimal policy; evaluation and all reported figures use the original scale.
+
+\paragraph{Contextual features.} Physician competence is latent, yet it determines whether testing is worthwhile. We therefore expose to the agent a two-element summary of the evidence accumulated within the episode: the running agreement rate between laboratory reports and the clinical guess, and the strength of that evidence (number of informative reports, saturating at 30). This statistic tracks the physician's true competence with a correlation of $+0.99$. The information was already implicit in the observation, but scattered across a sparse $400 \times 400$ map and thus impractical to extract by convolution. A side effect is desirable: to estimate competence the agent must spend some tests early, which introduces a natural exploration--exploitation trade-off.
+
+\subsection*{Evaluation Protocol}
+
+Models were validated on 10 held-out epidemic scenarios, each identified by a fixed seed. Because a given seed reproduces the same world, the same physician and the same clinical noise for every agent, comparisons are \textbf{paired}, which is considerably more powerful than comparing independent means --- a necessary precaution given the variance discussed in Section \ref{subsec:confounder}.
+
+The primary metric is the mean cumulative reward per episode, which aggregates the logistical and clinical trade-offs of the policy. Secondary metrics are multiclass accuracy, F1-score, the number of laboratory tests requested, and the \textbf{cost per correct diagnosis} --- the ratio that most directly expresses allocation efficiency.
+
+One caveat applies to the accuracy metric: although computed over three classes (dengue, chikungunya, other), the ground truth contains only dengue and chikungunya. The ``other'' label appears solely in predictions, either through clinical noise or when the agent discards a case. In practice the metric is therefore binary, and any ``other'' assignment counts as an error.
+
+\subsection*{Computational Implementation and Reproducibility}
+The experiments were developed in Python (3.12). We used Pandas and NumPy for structured data processing, and PyTorch to build the DengueNet architecture. Training was executed on a machine equipped with an NVIDIA RTX 3060 GPU (12\,GB) and 32\,GB of RAM. To ensure reproducibility, we fixed the random seed at 42 across all stochastic steps (spatial simulator, Gymnasium, and PyTorch initializers), and every environment parameter reported here is set through configuration files rather than code. The complete source code is prepared to be made available in a public institutional repository.
+
+\section{Resultados e Discussão}
+
+A avaliação dos modelos foi conduzida por meio de um benchmark controlado com 10 episódios. Para garantir a equidade da comparação, a semente aleatória (\textit{seed}) e os parâmetros da epidemia (centros de contágio, raios de dispersão e especificidade clínica inicial) foram fixados para cada episódio, assegurando que todos os agentes enfrentassem os mesmos cenários epidemiológicos.
+
+Os resultados a seguir comparam o desempenho de três estratégias distintas: o Agente Baseline (Aleatório), o método tabular clássico Q-Learning e a abordagem proposta baseada em redes neurais, o Agente DQN.
+
+\subsection*{Análise Quantitativa: Eficiência e Custo-Efetividade}
+
+A Tabela \ref{tab:resultados_finais} resume as métricas médias obtidas. A análise revela comportamentos distintos de política entre as abordagens.
+
+\begin{table}[htbp]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Agente} & \textbf{Recompensa} & \textbf{Acurácia} & \textbf{F1-Score} & \textbf{Testes} & \textbf{Custo/acerto} \\ \midrule
+\textit{Test-once} (melhor política fixa) & \textbf{739,2} & \textbf{0,960} & \textbf{0,964} & 280,0 & 1,037 \\
+\textbf{DQN} & 330,3 & 0,784 & 0,810 & \textbf{98,6} & \textbf{0,449} \\
+\textit{Confirm-all} & 128,8 & 0,690 & 0,692 & 0,0 & --- \\
+\textit{Clínico} (piso de referência) & -95,2 & 0,690 & 0,692 & 0,0 & --- \\
+Q-Learning tabular & -1850,2 & 0,580 & 0,732 & 66,8 & 0,337 \\
+Aleatório & -3031,8 & 0,593 & 0,671 & 132,5 & 0,668 \\ \midrule
+\textit{[Oráculo por episódio]} & \textit{995,0} & --- & --- & --- & --- \\ \bottomrule
+\end{tabular}%
+}
+\caption{Desempenho médio sobre 10 cenários pareados. O oráculo indica o retorno obtido ao escolher, com conhecimento prévio, a melhor política fixa para cada episódio; ele delimita o ganho máximo acessível à adaptação.}
+\label{tab:resultados_finais}
+\end{table}
+
+\subsubsection*{O teto de informação do ambiente}
+\label{subsec:ceiling}
+
+Antes de comparar agentes, é necessário estabelecer o que é alcançável. Como cada exame tem sensibilidade $s$ e uma fração $p$ de laudos indeterminados (que preservam o palpite clínico), a acurácia máxima obtida testando todos os casos é aproximadamente
+
+$$ \text{acc}_{\max} \approx (1 - p)\, s + p \cdot \text{acc}_{\text{clínica}} $$
+
+Com os parâmetros de RT-PCR isso corresponde a $\approx 0,96$, confirmado empiricamente pela política \textit{test-once} (0,960). É um limite de \textbf{informação do ambiente}, e não do algoritmo: nenhuma política pode superá-lo de forma relevante. Vale registrar que, sob uma configuração anterior --- exame com sensibilidade e especificidade de 0,90 e 10\% de laudos indeterminados, e sem retorno do caso --- esse teto era de apenas 0,873, o que tornava inatingível a meta de 90\% de acurácia. O ganho, portanto, veio da modelagem do exame e do ciclo de vida do caso, não do algoritmo de aprendizado.
+
+\subsubsection*{A competência do médico domina a variância}
+\label{subsec:confounder}
+
+Ao comparar o ambiente sintético com o ambiente Kriging, observou-se inicialmente um desempenho superior no segundo --- resultado contraintuitivo, já que se esperava maior dificuldade na distribuição real. A investigação mostrou tratar-se de um artefato: com a mesma semente, a competência clínica sorteada é idêntica nos dois ambientes, e a composição dos casos também. Ainda assim o \emph{baseline} clínico, que sequer utiliza informação espacial, variava entre 0,690 e 0,731 de acurácia.
+
+A explicação está na correlação entre a competência sorteada do médico e a recompensa do episódio: $+0,974$ para o DQN e $+0,977$ para o \emph{baseline} clínico. Ou seja, aproximadamente 97\% da variação observada decorre do médico sorteado, e não da política avaliada. Esse achado justifica duas decisões metodológicas: a adoção de níveis clínicos controlados (Tabela \ref{tab:clinical_levels}) e o uso de comparações pareadas por semente.
+
+\subsubsection*{Comportamento das políticas}
+
+A Tabela \ref{tab:resultados_finais} evidencia que os \emph{baselines} triviais são referências exigentes. A política \textit{test-once} atinge a maior recompensa (739,2) e a maior acurácia (0,960), enquanto \textit{confirm-all} supera o clínico puro sem realizar exame algum, apenas coletando o bônus das decisões corretas.
+
+\begin{itemize}
+    \item \textbf{Q-Learning tabular:} foi o pior agente treinado, com recompensa de $-1850,2$ e acurácia de 0,580 --- inferior à do próprio diagnóstico clínico (0,690). O agente chega, portanto, a degradar a triagem. O treinamento não convergiu: o número de estados visitados ainda crescia ao final (3.237 estados), evidência quantitativa da maldição da dimensionalidade discutida na Seção \ref{subsec:deepqnet}.
+
+    \item \textbf{DQN:} superou o clínico puro e o \textit{confirm-all}, alcançando 330,3. Seu resultado mais expressivo, contudo, é o \textbf{custo por acerto de 0,449}, contra 1,037 da política \textit{test-once}: o agente solicita 98,6 exames em vez de 280 --- uma redução de 65\% --- e ainda assim eleva a acurácia de 0,690 para 0,784. Sob a ótica de alocação de recursos escassos, é a política mais eficiente entre as que testam.
+\end{itemize}
+
+\subsubsection*{A política aprendida}
+
+A distribuição de ações do DQN revela que o mecanismo de retorno do caso é utilizado exatamente como projetado (Tabela \ref{tab:politica_dqn}): na primeira avaliação o agente decide se o exame se justifica; quando o laudo retorna, ele \emph{sempre} conclui, de posse do resultado.
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{lrr}
+\toprule
+\textbf{Ação} & \textbf{1ª avaliação} & \textbf{Retorno pós-laudo} \\ \midrule
+Confirmar & 64,4\% & \textbf{100,0\%} \\
+Solicitar exame & 33,9\% & --- \\
+Aguardar & 1,7\% & --- \\
+Descartar & 0,0\% & 0,0\% \\ \bottomrule
+\end{tabular}
+\caption{Distribuição de ações do agente DQN, separada por primeira avaliação e retorno após o laudo laboratorial.}
+\label{tab:politica_dqn}
+\end{table}
+
+Duas observações se impõem. A primeira é que a ação de \textbf{descartar nunca é utilizada}, o que era esperado: como a verdade do ambiente contém apenas dengue e chikungunya, descartar é sempre incorreto e incorre na penalidade mais severa.
+
+A segunda é uma limitação relevante. Embora o agente tenha aprendido \emph{quanto} testar --- cerca de um terço dos casos ---, ele não aprendeu \emph{quem} testar: a correlação entre a competência do médico e a taxa de testagem é de $+0,310$, isto é, o agente testa ligeiramente mais quando a triagem é \emph{melhor}, o oposto do comportamento desejável. Na prática a taxa permanece quase constante (entre 30\% e 41\%). É precisamente essa ausência de seleção informada que separa o agente da política \textit{test-once} e, sobretudo, do limite do oráculo (995,0).
+
+\subsection*{Análise Espacial e Qualitativa}
+
+Para compreender a atuação do agente no espaço, analisamos a distribuição geográfica das decisões. A Figura \ref{fig:dqn_tp} apresenta a localização dos casos diagnosticados corretamente pelo agente DQN.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\linewidth]{img/mapa_tcc_resultado.png}
+    \caption{\textbf{Mapa de acertos do Agente DQN.} Os pontos representam casos nos quais o agente realizou o diagnóstico correto. Nota-se a concentração de acertos nas zonas de alta densidade (\textit{hotspots}).}
+    \label{fig:dqn_tp}
+\end{figure}
+
+É importante ressaltar que a interpretação visual do padrão de decisão do agente é desafiadora. Como em muitos casos a ação ótima é simplesmente concordar com o médico (ação invisível no mapa de alterações) ou inverter um diagnóstico com base em um teste pontual, torna-se difícil distinguir visualmente a ``inteligência'' do agente de uma distribuição aleatória de acertos. O valor do modelo está justamente naquilo que não se vê: os testes que deixaram de ser realizados em casos de alta certeza diagnóstica, preservando recursos para os casos de fronteira entre surtos.
+
+Por fim, a Figura \ref{fig:dqn_final_env} ilustra o estado final do ambiente simulado, evidenciando a complexidade da sobreposição entre os surtos.
+
+\begin{figure}[hbt!]
+    \centering
+    \includegraphics[width=0.6\linewidth]{img/pygame.png}
+    \caption{\textbf{Estado final da simulação epidemiológica}. Ilustrando a complexidade visual e a sobreposição dos surtos que o agente deve processar.}
+    \label{fig:dqn_final_env}
+\end{figure}
+
+Em suma, o agente DQN superou com folga a abordagem tabular e a aleatória, além do diagnóstico clínico isolado, atuando como um filtro de triagem economicamente eficiente. Não superou, contudo, a melhor política fixa, o que delimita com precisão o alcance atual da contribuição.
+
+\newpage
+
+\section{Conclusão}
+
+O presente trabalho investigou a aplicação da Aprendizagem por Reforço Profundo (\textit{Deep Reinforcement Learning}) como ferramenta de suporte à decisão clínica e gestão de recursos em saúde pública. O objetivo central foi desenvolver um agente capaz de otimizar o diagnóstico diferencial de arboviroses em cenários de epidemias concorrentes, equilibrando a necessidade de precisão clínica com a escassez de recursos laboratoriais.
+
+Os resultados sustentam parcialmente a hipótese inicial. O agente baseado em \textit{Deep Q-Network} superou o agente aleatório, o Q-Learning tabular e o próprio diagnóstico clínico isolado, e aprendeu a utilizar corretamente o ciclo de investigação: decidir se o exame se justifica e, quando o laudo retorna, concluir de posse do resultado. Seu principal mérito é de natureza econômica --- alcançou o menor \textbf{custo por diagnóstico correto} entre todas as políticas que realizam exames (0,449 contra 1,037 da melhor política fixa), solicitando 65\% menos exames e ainda assim elevando a acurácia de 0,690 para 0,784.
+
+É necessário, contudo, delimitar o alcance dessa contribuição. O agente \textbf{não superou} a política fixa de testar cada caso uma única vez, que obtém recompensa e acurácia superiores ao custo de testagem universal. Tampouco aprendeu a direcionar os exames: a taxa de testagem manteve-se praticamente constante, sem correlacionar-se com a qualidade da triagem clínica. Em outras palavras, o agente aprendeu \emph{quanto} investigar, mas não \emph{quem} investigar --- e é justamente nessa seleção informada que reside a diferença de 665 pontos até o limite do oráculo.
+
+Conclui-se que a formulação do problema como processo de decisão sequencial é adequada e que o ganho de eficiência é real e mensurável, mas que a política ótima depende de inferir uma variável latente --- a competência da triagem clínica --- a partir do histórico de laudos. Trata-se, portanto, de um problema de decisão sob observabilidade parcial, cuja solução plena exige mecanismos de memória ou representações de estado mais ricas do que a arquitetura aqui empregada.
+
+\subsection*{Limitações e Trabalhos Futuros}
+
+Apesar dos avanços demonstrados, a simulação atual baseia-se em premissas simplificadoras que abrem caminho para diversas linhas de investigação futura. Para aproximar a solução da aplicação prática no mundo real, propõem-se os seguintes desenvolvimentos:
+
+\begin{itemize}
+    \item \textbf{Seleção informada dos casos a investigar:} é a limitação central deste trabalho. O agente não correlacionou a decisão de testar com a qualidade da triagem clínica, o que o mantém abaixo da melhor política fixa. Duas direções são promissoras: dotar o agente de memória explícita (redes recorrentes, como em \textit{Deep Recurrent Q-Networks}), permitindo que ele próprio construa a estatística sobre a competência da triagem; ou enriquecer a representação de estado, avaliando por ablação se as variáveis de contexto estão de fato sendo utilizadas pela rede.
+
+    \item \textbf{Casos que não são arboviroses:} o gerador produz apenas dengue e chikungunya. Em consequência, a ação de descartar é sempre incorreta e nunca é utilizada por nenhum agente. Incorporar síndromes febris de outra etiologia tornaria a exclusão diagnóstica uma decisão legítima e aproximaria a simulação da triagem real, na qual boa parte dos casos suspeitos não se confirma.
+
+    \item \textbf{Capacidade laboratorial finita:} a escassez é modelada hoje pelo custo unitário do exame. Um teto diário de exames --- refletindo a capacidade real da rede laboratorial --- transformaria o problema em priorização explícita: não apenas \emph{se} vale investigar, mas \emph{quais} casos merecem a capacidade disponível naquele dia.
+
+    \item \textbf{Avaliação em Intervalos Estendidos:} Os episódios atuais foram limitados a 60 dias epidemiológicos. É fundamental avaliar a robustez da política em horizontes temporais maiores (sazonais ou anuais), verificando se o agente mantém a consistência da política nos picos e vales das curvas epidêmicas, onde a prevalência das doenças varia drasticamente.
+
+    \item \textbf{Algoritmos de Policy Gradient (PPO):} Embora o DQN tenha se mostrado eficaz, ele é um método baseado em valor (\textit{Value-Based}). A investigação de algoritmos baseados em gradiente de política, como o \textit{Proximal Policy Optimization} (PPO), pode oferecer maior estabilidade de convergência e melhor tratamento para espaços de ação estocásticos, sendo uma comparação natural para a evolução deste estudo.
+
+    \item \textbf{Validação com Dados Reais:} O passo final para a validação da ferramenta é a transição de dados sintéticos (modelo SIR) para dados históricos reais. Treinar o agente com o histórico de epidemias reais de cidades brasileiras permitirá testar sua capacidade de generalização frente a ruídos de notificação e padrões de contágio irregulares não capturados pelos modelos matemáticos clássicos.
+\end{itemize}
+
+\bibliographystyle{abntex2-num} 
+\bibliography{refs} 
+
+\end{document}
+
+
+
+% ---------------------------------------------------------------------------
+% PENDÊNCIAS
+%
+% RESOLVIDOS:
+%   - diferenca entre aleatorio e o proposto -> Tabela \ref{tab:resultados_finais}
+%     (aleatorio -3031,8 vs DQN 330,3), agora com baselines triviais de piso/teto
+%   - distribuicao espacial realista -> gerador Kriging (Rio 2015-16)
+%   - delay de recompensas -> implementado (5 dias) + retorno do caso pos-laudo
+%
+% EM ABERTO:
+%   - comparar com o fluxo de decisao da secretaria de saude (vai na introducao,
+%     contrapondo o fluxo atual ao fluxo proposto)
+%   - ancorar em referencia os parametros de RT-PCR (0,95 / 0,98 / 2%): os valores
+%     sao plausiveis para teste molecular, mas variam com kit, dia de coleta e
+%     sorotipo, e ainda NAO estao citados
+%   - figura do fluxograma da metodologia (\ref{fig:fluxograma_metodos}) nao existe
+%   - idioma: Introducao e Metodologia em ingles, Resultados e Conclusao em
+%     portugues -- definir um so
+%   - Figuras 6 e 7 (mapa de acertos e tela do pygame) foram geradas com a
+%     configuracao ANTIGA do ambiente; refazer com o ambiente atual
+% ---------------------------------------------------------------------------
+\\ e ja entra como parte da metodologia

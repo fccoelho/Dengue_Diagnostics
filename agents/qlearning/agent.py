@@ -1,7 +1,9 @@
 """Agente tabular Q-Learning sobre o ambiente novo (wrappers map_tensor + case_by_case).
 
-Decide **uma ação por caso** (`Discrete(6)`). Estado discretizado via ``StateEncoder``
-(``rich_v1`` por padrão; ``compact_v1`` opcional como baseline mínimo).
+Decide **uma ação por caso** (`Discrete(7)`: 4 investigativas/neutras + 3 ações
+conclusivas, uma por classe — dengue/chik/outro). Estado discretizado via
+``StateEncoder`` (``rich_v1`` por padrão; ``compact_v1`` opcional como baseline
+mínimo).
 """
 from __future__ import annotations
 
@@ -19,7 +21,7 @@ from agents.qlearning.state import (
     encode_state_from_env,
 )
 
-NUM_ACTIONS = 6
+NUM_ACTIONS = 7
 DEFAULT_CHECKPOINT = Path("results/qlearning/q_table.pkl")
 CHECKPOINT_FORMAT_VERSION = 2
 

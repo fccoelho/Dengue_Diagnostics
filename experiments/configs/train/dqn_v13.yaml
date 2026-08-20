@@ -1,0 +1,50 @@
+# DQN v13 — testa a hipotese 4 de REFATORACAO_AMBIENTE.md §11.4.
+#
+# Diagnostico do v12: sob `per_case_reward`, uma acao de exame devolve SEMPRE
+# apenas -test_cost (ver `reward.py::case_reward`: acoes nao conclusivas saem
+# pelo `return reward` antes de qualquer desfecho). O beneficio do exame so
+# aparece quando o caso volta com o laudo e e concluido certo -- ~30 passos
+# adiante (5 dias de laudo x ~6 casos/dia).
+#
+# Os ~30 passos no meio pertencem a OUTROS casos. Com `n_step: 5`, o retorno
+# de n passos usado no alvo de TD cobre 5 transicoes e nunca alcanca a
+# conclusao do proprio caso; o valor do exame teria que propagar por
+# bootstrapping ao longo de 30 transicoes causalmente alheias. Resultado
+# medido no v12: 0% de exames, 0% de conclusoes "OUTRO", 39,7% de epi_confirm
+# (procrastinacao), e -1703,30 no benchmark -- abaixo do `confirmall` trivial.
+#
+# Unica mudanca aqui: n_step 5 -> 30, para que o retorno de n passos ALCANCE a
+# conclusao do caso e o exame receba credito dentro do proprio alvo de TD.
+# Desconto em 30 passos com gamma=0.99: 0,74 -- a cadeia cabe com folga.
+#
+env_config: ../env/synthetic_v4.yaml
+
+context_features: true
+reward_scale: 0.10
+
+train:
+  algorithm: dqn
+  seed: 42
+  epochs: 20
+  step_per_epoch: 5000
+  # <<< a mudanca: cobre a cadeia investigar -> laudo -> concluir
+  n_step: 30
+  batch_size: 64
+  buffer_size: 6000
+  test_buffer_per_env: 1000
+  test_episodes: 20
+  lr: 0.0001
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 0.5
+  eps_train_final: 0.05
+  eps_train_decay: 20000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 2
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn_v13

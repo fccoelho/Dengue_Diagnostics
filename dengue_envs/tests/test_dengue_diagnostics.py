@@ -40,7 +40,12 @@ class MyEnvTestCase(unittest.TestCase):
         obs, info = self.Env.reset()
         self.assertIn('tnot', obs)
         self.assertIsInstance(obs['clinical_diagnostic'], tuple)
-        self.assertEqual(2, len(info))
+        # info NÃO deve carregar arrays grandes (grids 400×400): libs de RL
+        # guardam o info de cada transição no replay buffer, o que estouraria a
+        # RAM. Os mapas seguem em env.unwrapped.dmap/.cmap. Ver _get_info.
+        self.assertIsInstance(info, dict)
+        self.assertNotIn('dengue_grid', info)
+        self.assertNotIn('chik_grid', info)
 
     def test_step(self):
         self.Env.reset()
@@ -100,7 +105,7 @@ class MyEnvTestCase(unittest.TestCase):
         case_id = self._first_active_case_id(env)
         self.assertIsNotNone(case_id)
 
-        env.step(((case_id, 5),))  # discard -> agent_diagnosis = 2 (other)
+        env.step(((case_id, 6),))  # conclude OTHER -> agent_diagnosis = 2 (other)
         self.assertEqual(env.obs_cases.loc[case_id, "agent_diagnosis"], 2)
 
         env.step(tuple())

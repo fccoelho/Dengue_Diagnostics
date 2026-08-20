@@ -29,10 +29,11 @@ class RewardEngineTestCase(unittest.TestCase):
         r = eng.compute([(0, 3)], t=0, real_cases=real, obs_cases=obs)
         self.assertAlmostEqual(r, -0.1)
 
-    def test_confirm_correct_is_delayed(self):
+    def test_conclude_dengue_correct_is_delayed(self):
         eng = RewardEngine(reward_delay_days=5, reward_correct_decision=10.0)
         real, obs = _cases()
-        # Confirm (id 4) correto: custo 0 agora, +10 agendado para t+5.
+        # Concluir dengue (id 4) no caso 0 (real=dengue): custo 0 agora,
+        # +10 agendado para t+5.
         r0 = eng.compute([(0, 4)], t=0, real_cases=real, obs_cases=obs)
         self.assertAlmostEqual(r0, 0.0)
         self.assertIn(5, eng.pending_rewards)
@@ -50,28 +51,37 @@ class RewardEngineTestCase(unittest.TestCase):
         r = eng.compute([(0, 4)], t=0, real_cases=real, obs_cases=obs)
         self.assertAlmostEqual(r, 10.0)
 
-    def test_incorrect_confirm_is_penalized(self):
+    def test_incorrect_conclusion_is_penalized(self):
         eng = RewardEngine(reward_delay_days=0, penalty_incorrect_decision=-20.0)
         real, obs = _cases()
-        # Caso 0 é dengue (0); confirmar caso cujo agent_diagnosis diverge da verdade.
-        obs.loc[0, "agent_diagnosis"] = 1  # erra
-        r = eng.compute([(0, 4)], t=0, real_cases=real, obs_cases=obs)
+        # Caso 0 é dengue (0); concluir CHIK (ação 5) é uma alegação errada
+        # (nem OTHER, então não é o falso negativo de vigilância).
+        r = eng.compute([(0, 5)], t=0, real_cases=real, obs_cases=obs)
         self.assertAlmostEqual(r, -20.0)
 
-    def test_discard_correct_when_true_other(self):
-        # Descartar corretamente um caso que é "outro" (2) rende bônus.
+    def test_conclude_other_correct_when_true_other(self):
+        # Concluir "outro" (ação 6) corretamente num caso que é "outro" (2) rende bônus.
         eng = RewardEngine(reward_delay_days=0, reward_correct_decision=10.0)
         real, obs = _cases_with_tests([2], [2], [0], [0])
-        r = eng.compute([(0, 5)], t=0, real_cases=real, obs_cases=obs)
+        r = eng.compute([(0, 6)], t=0, real_cases=real, obs_cases=obs)
         self.assertAlmostEqual(r, 10.0)
 
-    def test_discard_missed_real_case_is_heavily_penalized(self):
-        # Descartar um caso que era doença real = falso negativo (penalidade pesada).
+    def test_conclude_other_on_real_case_is_heavily_penalized(self):
+        # Concluir "outro" (ação 6) num caso que era doença real = falso
+        # negativo de vigilância (penalidade pesada).
         eng = RewardEngine(reward_delay_days=0, penalty_missed_case=-30.0)
-        # doença real = dengue (0), mas agent_diagnosis foi mutado para 2 pelo step.
         real, obs = _cases_with_tests([0], [2], [0], [0])
-        r = eng.compute([(0, 5)], t=0, real_cases=real, obs_cases=obs)
+        r = eng.compute([(0, 6)], t=0, real_cases=real, obs_cases=obs)
         self.assertAlmostEqual(r, -30.0)
+
+    def test_conclusive_action_ignores_agent_diagnosis(self):
+        # A alegação vem da AÇÃO, não do agent_diagnosis corrente: concluir
+        # dengue (4) acerta mesmo se agent_diagnosis dizia outra coisa.
+        eng = RewardEngine(reward_delay_days=0, reward_correct_decision=10.0)
+        real, obs = _cases()
+        obs.loc[0, "agent_diagnosis"] = 1  # palpite diverge, mas a ação é que conta
+        r = eng.compute([(0, 4)], t=0, real_cases=real, obs_cases=obs)
+        self.assertAlmostEqual(r, 10.0)
 
     def test_terminated_settles_pending_queue(self):
         # Isola a liquidação da fila (sem placar final).
@@ -100,10 +110,11 @@ class RewardEngineTestCase(unittest.TestCase):
         self.assertAlmostEqual(r, 2.0)
 
     def test_terminal_penalty_for_untested_misdiagnosed(self):
-        # Caso errado E nunca testado -> penalidade final.
+        # Penalidade EXTRA por erro nunca testado (isola: penalty_misdiagnosed=0).
         eng = RewardEngine(
             reward_delay_days=5,
             final_correct_bonus=1.0,
+            penalty_misdiagnosed=0.0,
             penalty_untested_misdiagnosed=-10.0,
         )
         # caso 0 correto (+1); caso 1 errado e não testado (-10).
@@ -112,10 +123,11 @@ class RewardEngineTestCase(unittest.TestCase):
         self.assertAlmostEqual(r, 1.0 - 10.0)
 
     def test_terminal_no_untested_penalty_when_case_was_tested(self):
-        # Caso errado mas testado -> não recebe a penalidade de "não testado".
+        # A penalidade EXTRA de "não testado" não se aplica a caso testado.
         eng = RewardEngine(
             reward_delay_days=5,
             final_correct_bonus=1.0,
+            penalty_misdiagnosed=0.0,
             penalty_untested_misdiagnosed=-10.0,
         )
         # caso 0 correto (+1); caso 1 errado, porém testado para dengue (testd=1) -> 0.
@@ -123,12 +135,41 @@ class RewardEngineTestCase(unittest.TestCase):
         r = eng.compute([], t=3, real_cases=real, obs_cases=obs, terminated=True)
         self.assertAlmostEqual(r, 1.0)
 
+    def test_misdiagnosis_penalty_applies_even_when_tested(self):
+        # Novo: errar é punido mesmo tendo testado (fecha o "passe livre" do teste).
+        eng = RewardEngine(
+            reward_delay_days=5,
+            final_correct_bonus=1.0,
+            penalty_misdiagnosed=-3.0,
+            penalty_untested_misdiagnosed=0.0,
+        )
+        # caso 0 correto (+1); caso 1 errado e TESTADO -> ainda paga -3.
+        real, obs = _cases_with_tests([0, 1], [0, 2], [0, 1], [0, 0])
+        r = eng.compute([], t=3, real_cases=real, obs_cases=obs, terminated=True)
+        self.assertAlmostEqual(r, 1.0 - 3.0)
+
+    def test_misdiagnosis_penalty_same_for_tested_and_untested(self):
+        # A punição base por erro independe de ter testado.
+        eng = RewardEngine(
+            reward_delay_days=5,
+            final_correct_bonus=1.0,
+            penalty_misdiagnosed=-3.0,
+            penalty_untested_misdiagnosed=0.0,
+        )
+        real_t, obs_t = _cases_with_tests([0], [2], [1], [0])   # errado, testado
+        real_u, obs_u = _cases_with_tests([0], [2], [0], [0])   # errado, não testado
+        r_t = eng.compute([], t=3, real_cases=real_t, obs_cases=obs_t, terminated=True)
+        eng.reset()
+        r_u = eng.compute([], t=3, real_cases=real_u, obs_cases=obs_u, terminated=True)
+        self.assertAlmostEqual(r_t, -3.0)
+        self.assertAlmostEqual(r_u, -3.0)
+
     def test_action_on_unknown_case_only_costs(self):
         eng = RewardEngine(reward_delay_days=0)
         real, obs = _cases()
         # case_id 99 não está em obs_cases -> só paga custo, sem desfecho.
         r = eng.compute([(99, 4)], t=0, real_cases=real, obs_cases=obs)
-        self.assertAlmostEqual(r, 0.0)  # custo de confirm é 0
+        self.assertAlmostEqual(r, 0.0)  # custo de concluir é 0
 
     def test_reset_clears_queue(self):
         eng = RewardEngine(reward_delay_days=5)

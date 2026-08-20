@@ -15,7 +15,13 @@ train:
   epochs: 50
   n_step: 5
   batch_size: 64
-  buffer_size: 20000
+  # RAM do buffer ~= buffer_size * tamanho_do_mapa (mapa 4x400x400 uint8 = 640 KB/obs).
+  # ATENÇÃO: internamente o Tianshou copia o buffer inteiro em algumas operações,
+  # então o PICO transitório de RAM chega a ~4x o buffer. Com mapa 400x400:
+  #   buffer 10000 -> ~6,4 GB estável, PICO ~26 GB  (arriscado em 32 GB)
+  #   buffer  5000 -> ~3,2 GB estável, PICO ~15 GB  (seguro em 32 GB)
+  # A cura de verdade é reduzir a resolução do mapa; enquanto isso, ajuste aqui.
+  buffer_size: 5000
   lr: 0.0001
   gamma: 0.99
   target_update_freq: 1500

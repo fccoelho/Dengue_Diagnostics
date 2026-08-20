@@ -1,0 +1,14 @@
+# Benchmark no ambiente v2 (RT-PCR + retorno do caso + exame caro, custo 7).
+# Inclui os baselines triviais que servem de piso e de teto.
+env_config: env/synthetic_v2.yaml
+
+agents: [clinical, random, confirmall, testonce, qlearning, dqn]
+
+checkpoints:
+  qlearning: results/qlearning_v2/q_table.pkl
+  dqn: results/dqn_v10_phase1/policy_best.pth
+
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+
+output_dir: results/baseline_v10_phase1
+save_artifacts: false

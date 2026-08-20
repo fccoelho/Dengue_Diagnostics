@@ -62,6 +62,13 @@ def _resolve_env_config(cfg: dict, config_path: Path) -> dict:
         env_cfg.setdefault("env", {}).update(cfg["env"])
     if "wrappers" in cfg:
         env_cfg["wrappers"] = cfg["wrappers"]
+    # Propaga a flag de features de contexto (evidência sobre o médico), venha
+    # ela do YAML do ambiente ou do YAML de treino.
+    if "context_features" in cfg:
+        env_cfg["context_features"] = cfg["context_features"]
+    # Escala de recompensa: só existe no treino (ver RewardScaleWrapper).
+    if "reward_scale" in cfg:
+        env_cfg["reward_scale"] = cfg["reward_scale"]
     return env_cfg
 
 
@@ -71,6 +78,33 @@ def _make_vector_env(factory: Callable[[], Any], n: int, *, kind: str = "dummy")
     if kind == "subproc":
         return SubprocVectorEnv([factory for _ in range(n)])
     return DummyVectorEnv([factory for _ in range(n)])
+
+
+def _install_cheap_hasnull(buffer) -> None:
+    """Substitui ``buffer.hasnull()`` por uma checagem de NaN leve em memória.
+
+    O ``hasnull()`` padrão do Tianshou é chamado a CADA passo de treino e
+    materializa + faz ``deepcopy`` do buffer inteiro para procurar NaN. Com o
+    mapa de observação 4x400x400, isso aloca ~2-3x o tamanho do buffer por passo
+    e estoura a RAM (ex.: bool (9000,4,400,400) = 5,4 GB só na cópia).
+
+    Como o mapa é ``uint8`` (nunca NaN), basta checar os campos float pequenos —
+    ``rew`` e ``obs.case_coords`` (poucos KB) — sem tocar no mapa. Se a estrutura
+    do buffer não bater com o esperado, não bloqueia o treino (retorna False).
+    """
+
+    def _hasnull() -> bool:
+        try:
+            if np.isnan(np.asarray(buffer.rew)).any():
+                return True
+            coords = np.asarray(buffer.obs.case_coords)
+            if np.isnan(coords).any():
+                return True
+        except (AttributeError, KeyError, TypeError, ValueError):
+            return False
+        return False
+
+    buffer.hasnull = _hasnull
 
 
 def train(config_path: str) -> Path:
@@ -83,7 +117,9 @@ def train(config_path: str) -> Path:
     epochs = int(train_cfg.get("epochs", 50))
     n_step = int(train_cfg.get("n_step", 5))
     batch_size = int(train_cfg.get("batch_size", 64))
-    buffer_size = int(train_cfg.get("buffer_size", 20000))
+    # RAM do replay buffer ~= buffer_size * bytes_por_obs (mapa uint8).
+    # Ex.: mapa 4x400x400 = 640 KB -> 10k = 6,4 GB; 20k = 12,8 GB.
+    buffer_size = int(train_cfg.get("buffer_size", 10000))
     lr = float(train_cfg.get("lr", 1e-4))
     gamma = float(train_cfg.get("gamma", 0.99))
     target_update_freq = int(train_cfg.get("target_update_freq", 1500))
@@ -96,11 +132,23 @@ def train(config_path: str) -> Path:
     eps_test = float(train_cfg.get("eps_test", 0.01))
     num_train_envs = int(train_cfg.get("num_train_envs", 2))
     num_test_envs = int(train_cfg.get("num_test_envs", 2))
+    # Nº de episódios por avaliação. NÃO deve ser amarrado a `num_test_envs`:
+    # a recompensa varia MUITO com a competência do médico sorteado (de +1992 a
+    # -2326 por episódio), então avaliar com 2 episódios mede qual médico calhou,
+    # não a qualidade da política — e o `save_best_fn` acaba salvando um sorteio
+    # de sorte. Com ~20 episódios o ruído do médico é mediado.
+    test_episodes = int(train_cfg.get("test_episodes", 20))
     vector_env = str(train_cfg.get("vector_env", "dummy")).lower()
     prefill_steps = int(train_cfg.get("prefill_steps", 1000))
+    # Capacidade por env do buffer de teste (~1 episódio; ver uso abaixo).
+    test_episode_capacity = int(train_cfg.get("test_buffer_per_env", 1000))
     device = train_cfg.get("device")
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
+    if str(device).startswith("cuda"):
+        # Autotune dos algoritmos de convolução: o shape do mapa é fixo durante
+        # todo o treino, então o cuDNN escolhe o kernel mais rápido uma vez.
+        torch.backends.cudnn.benchmark = True
 
     output_dir = Path(cfg.get("output_dir", "results/dqn"))
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -128,6 +176,17 @@ def train(config_path: str) -> Path:
     test_envs.seed(seed)
 
     dummy_env = env_factory()
+    # Estimativa de RAM do replay buffer (obs = mapa uint8; obs_next é
+    # reconstruído via ignore_obs_next, então NÃO é duplicado em memória).
+    map_space = dummy_env.observation_space.spaces["map"]
+    obs_bytes = int(np.prod(map_space.shape)) * np.dtype(map_space.dtype).itemsize
+    buffer_gb = buffer_size * obs_bytes / 1e9
+    test_buffer_gb = max(1000, test_episode_capacity) * num_test_envs * obs_bytes / 1e9
+    print(
+        f"[dqn] replay buffer: {buffer_size} transições x {obs_bytes/1024:.0f} KB "
+        f"= ~{buffer_gb:.1f} GB | buffer de teste ~{test_buffer_gb:.1f} GB "
+        f"| total ~{buffer_gb + test_buffer_gb:.1f} GB (obs em {map_space.dtype})"
+    )
     policy = build_policy(
         dummy_env,
         device=device,
@@ -135,6 +194,17 @@ def train(config_path: str) -> Path:
         eps_inference=eps_test,
     )
     dummy_env.close()
+
+    # Currículo: continua o treino a partir de uma policy já treinada (ex.: num
+    # ambiente mais simples). Exige o MESMO action_shape/context_dim — que é o
+    # caso ao alternar apenas `env_config` mantendo `context_features: true`,
+    # já que a rede não lê `mask` (isso é tratado pelo Tianshou fora da rede).
+    init_from = train_cfg.get("init_from")
+    if init_from:
+        init_path = Path(init_from)
+        state = torch.load(str(init_path), map_location=device, weights_only=True)
+        policy.load_state_dict(state)
+        print(f"[dqn] pesos iniciais carregados de: {init_path.resolve()}")
 
     algorithm = DQN(
         policy=policy,
@@ -152,7 +222,21 @@ def train(config_path: str) -> Path:
     train_collector = Collector(
         algorithm, train_envs, buffer, exploration_noise=True
     )
-    test_collector = Collector(algorithm, test_envs)
+    # Evita o hasnull() padrão do Tianshou, que a cada passo materializa e
+    # deepcopia o buffer inteiro (OOM com o mapa 400x400). Patch no buffer que
+    # o trainer realmente usa (o do collector).
+    _install_cheap_hasnull(train_collector.buffer)
+    # ATENÇÃO: sem um buffer explícito, o Tianshou aloca
+    # DEFAULT_BUFFER_MAXSIZE (10 000) * n_envs para o collector de teste — com o
+    # mapa 4x400x400 isso são ~12,8 GB só para avaliar (mais que o buffer de
+    # treino!). A avaliação só precisa guardar os episódios de teste em curso,
+    # então dimensionamos pelo tamanho real de um episódio.
+    test_buffer = VectorReplayBuffer(
+        total_size=max(1000, test_episode_capacity) * num_test_envs,
+        buffer_num=num_test_envs,
+        ignore_obs_next=True,
+    )
+    test_collector = Collector(algorithm, test_envs, test_buffer)
 
     print(f"[dqn] pré-populando buffer ({prefill_steps} steps)...")
     train_collector.collect(n_step=prefill_steps, reset_before_collect=True)
@@ -182,7 +266,7 @@ def train(config_path: str) -> Path:
         batch_size=batch_size,
         train_collector=train_collector,
         test_collector=test_collector,
-        test_step_num_episodes=num_test_envs,
+        test_step_num_episodes=test_episodes,
         train_fn=train_fn,
         test_fn=test_fn,
         save_best_fn=save_best_fn,

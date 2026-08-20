@@ -24,10 +24,11 @@ __all__ = ["PygameRenderer", "lineplot"]
 LEGEND = [
     (ACTION_ICONS[0], "Dengue Test"),
     (ACTION_ICONS[1], "Chik Test"),
-    (ACTION_ICONS[2], "Inconclusive"),
+    (ACTION_ICONS[2], "Epi Confirm"),
     (ACTION_ICONS[3], "No Test"),
-    (ACTION_ICONS[4], "Confirm"),
-    (ACTION_ICONS[5], "Discard"),
+    (ACTION_ICONS[4], "Conclude: Dengue"),
+    (ACTION_ICONS[5], "Conclude: Chik"),
+    (ACTION_ICONS[6], "Conclude: Other"),
 ]
 
 _SCREEN_SIZE = 800

@@ -1,0 +1,55 @@
+# DQN v9 — Fase 2 do currículo: continua no ambiente v3 (3 classes, exame caro,
+# decisão forçada após 2 exames) a partir dos pesos da fase 1.
+#
+# `init_from` carrega o state_dict da fase 1. Isso é compatível porque as duas
+# fases compartilham a mesma arquitetura: `context_features: true` em ambas
+# produz um vetor de contexto de 14 posições, e o espaço de ações é Discrete(7)
+# nos dois ambientes (a máscara do v3 é aplicada pelo Tianshou sobre os
+# Q-values, fora da rede — a rede em si não lê `obs["mask"]`).
+#
+# Epsilon menor e decaindo mais rápido que a fase 1: o agente já sai sabendo
+# testar/conclu ir no caso binário; a exploração aqui é para aprender a lidar
+# com a classe nova (OTHER) e a decisão forçada após o 2º exame, não para
+# redescobrir do zero o que fazer com cada ação.
+#
+# Panorama do ambiente v3 (10 seeds, exame a 4,0) — ver dqn_v8.yaml:
+#   2 exames -> conclui (melhor fixa)      +208,6  | acurácia 0,938 | 746 exames
+#   [oráculo POR CASO]                    +2823,0  | acurácia 0,977 | 243 exames
+#
+# Uso:
+#   poetry run python agents/deepq/train.py --config experiments/configs/train/dqn_v9_phase1.yaml
+#   poetry run python agents/deepq/train.py --config experiments/configs/train/dqn_v9_phase2.yaml
+
+env_config: ../env/synthetic_v3.yaml
+
+context_features: true
+reward_scale: 0.05
+
+train:
+  algorithm: dqn
+  seed: 42
+  epochs: 20
+  step_per_epoch: 5000
+  n_step: 5
+  batch_size: 64
+  buffer_size: 6000
+  test_buffer_per_env: 1000
+  test_episodes: 20
+  lr: 0.0001
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  # Fine-tuning: eps menor e decaindo mais rápido que a fase 1 (que começou do
+  # zero com eps=1.0 por 50000 passos).
+  eps_train_start: 0.5
+  eps_train_final: 0.05
+  eps_train_decay: 20000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 2
+  vector_env: dummy
+  prefill_steps: 1000
+  init_from: results/dqn_v10_phase1/policy_best.pth
+
+output_dir: results/dqn_v10_phase2

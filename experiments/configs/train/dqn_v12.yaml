@@ -1,0 +1,56 @@
+# DQN v12 — primeiro treino com ATRIBUICAO DE RECOMPENSA POR CASO.
+#
+# O que mudou no ambiente (v3 -> v4):
+#   - `per_case_reward: true`: cada passo devolve a recompensa daquela decisao,
+#     em vez de 0.0 ate o fim do dia e o agregado do dia num unico passo.
+#   - `reward_delay_days: 0`: o desfecho da conclusao e' pago no passo do caso
+#     (o atraso do LAUDO, lab_delay_days=5, permanece -- e' ele que cria a
+#     investigacao sequencial).
+#
+# Efeito medido (mesma politica, mesmas seeds):
+#   passos com sinal : 2,3%  -> 100%
+#   desvio por passo : 31,0  -> 10,2   (67% menor)
+#   soma do episodio : 1119  -> 1119   (identica, como esperado)
+#
+# Tambem corrigido no caminho: `_advance_empty_days` descartava a recompensa de
+# dias sem casos ativos -- justamente onde vencem os desfechos agendados. Com
+# atraso de 5 dias isso perdia ~25% do retorno do episodio silenciosamente.
+#
+# gamma mantido em 0.99: com credito por caso o horizonte relevante deixa de ser
+# o episodio inteiro (373 passos) e passa a ser ~30 passos (5 dias de laudo x ~6
+# casos/dia); 0.99 cobre isso com folga (desconto 0,74 em 30 passos).
+#
+env_config: ../env/synthetic_v4.yaml
+
+context_features: true
+# Recalibrado para o v4: com credito por caso o desvio da recompensa por passo
+# caiu de 31,0 para 10,2, entao a escala que levava a ~1,0 mudou (0,05 -> 0,10).
+reward_scale: 0.10
+
+train:
+  algorithm: dqn
+  seed: 42
+  epochs: 20
+  step_per_epoch: 5000
+  n_step: 5
+  batch_size: 64
+  buffer_size: 6000
+  test_buffer_per_env: 1000
+  test_episodes: 20
+  lr: 0.0001
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  # Fine-tuning: eps menor e decaindo mais rápido que a fase 1 (que começou do
+  # zero com eps=1.0 por 50000 passos).
+  eps_train_start: 0.5
+  eps_train_final: 0.05
+  eps_train_decay: 20000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 2
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn_v12

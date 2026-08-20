@@ -1,0 +1,33 @@
+# DQN (recompensa v2) com qualidade clínica FIXA no nível "high".
+#
+# Treinar com o nível fixo remove o confundidor que domina 97% da variância
+# (a competência do médico sorteada por episódio). Isso dá um sinal de
+# aprendizado muito mais limpo e permite comparar níveis entre si.
+env_config: ../env/clinical_high.yaml
+
+train:
+  algorithm: dqn
+  seed: 42
+  epochs: 20
+  step_per_epoch: 5000
+  n_step: 5
+  batch_size: 64
+  buffer_size: 6000
+  test_buffer_per_env: 1000
+  # 20 episódios por avaliação (não 2): evita que o save_best_fn premie sorteio.
+  test_episodes: 20
+  lr: 0.0001
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 1.0
+  eps_train_final: 0.05
+  eps_train_decay: 50000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 2
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn_v2_high

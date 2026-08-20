@@ -63,12 +63,20 @@ class DengueWrapper(gym.ObservationWrapper):
             if 0 <= x < self._world_size and 0 <= y < self._world_size:
                 tensor[2, int(x), int(y)] = status + 1
 
-        # Canal 3: máscara de casos ativos
+        # Canal 3: máscara de casos ativos.
+        # Filtro vetorizado + scatter NumPy em vez de `iterrows()` (que é O(N)
+        # por observação e domina o tempo de step quando há muitos casos).
         current_t = self.unwrapped.t
-        for _, case_data in self.unwrapped.obs_cases.iterrows():
-            if case_data.t == current_t:
-                x, y = int(case_data.x), int(case_data.y)
-                if 0 <= x < self._world_size and 0 <= y < self._world_size:
-                    tensor[3, x, y] = 1
+        active = self.unwrapped.obs_cases
+        if not active.empty:
+            active = active[active.t == current_t]
+            if not active.empty:
+                xs = active.x.to_numpy(dtype=np.intp)
+                ys = active.y.to_numpy(dtype=np.intp)
+                valid = (
+                    (xs >= 0) & (xs < self._world_size)
+                    & (ys >= 0) & (ys < self._world_size)
+                )
+                tensor[3, xs[valid], ys[valid]] = 1
 
         return tensor

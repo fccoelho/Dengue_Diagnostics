@@ -1,6 +1,6 @@
 """Agente aleatório (baseline) sobre o ambiente novo.
 
-Para cada caso, escolhe uma ação uniformemente ao acaso entre as 6 possíveis.
+Para cada caso, escolhe uma ação uniformemente ao acaso entre as 7 possíveis.
 Opera sobre o MESMO ambiente usado pelos demais agentes (env bruto + wrappers
 `map_tensor` + `case_by_case`), amostrando o `action_space` discreto do wrapper
 `CaseByCaseWrapper`.
@@ -19,4 +19,4 @@ class RandomAgentRunner(EpisodeRunner):
     name = "random"
 
     def choose_action(self, env) -> int:
-        return int(env.action_space.sample())  # Discrete(6): ação por caso
+        return int(env.action_space.sample())  # Discrete(7): ação por caso

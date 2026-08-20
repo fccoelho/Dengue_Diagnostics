@@ -1,0 +1,65 @@
+# DQN v9 — Fase 1 do currículo: treina no ambiente v2 (binário, sem "outro").
+#
+# Contexto: a mudança do espaço de ações (confirm/discard -> conclude_dengue /
+# conclude_chik / conclude_other) tornou possível o que faltava para o agente
+# "olhar os dados e não precisar de teste": agora ele pode alegar uma classe
+# ESPECÍFICA sem depender do palpite clínico corrente. Antes, `confirm` só podia
+# aceitar o diagnóstico que já estava em `agent_diagnosis` — trocar dengue↔chik
+# exigia sempre um exame, mesmo quando a posição espacial já bastava.
+#
+# Validado antes de treinar (sklearn, não RL): um classificador simples sobre
+# (x, y, palpite clínico), concluindo DIRETO sem nenhum exame, chega a acurácia
+# 0,711 e recompensa +131,4 no ambiente v3 — contra -3823,6 de "confirmar
+# sempre" sem inferência. Ou seja, o espaço de ações permite exatamente o
+# comportamento pedido; falta o DQN aprendê-lo.
+#
+# Por que currículo: o ambiente v3 (3 classes, exame caro, decisão forçada após
+# 2 exames) tem uma cadeia de crédito difícil — ver ACHADOS.md §7/§8. A fase 1
+# treina no ambiente MAIS SIMPLES (v2: 2 classes, sem máscara), onde o DQN já
+# demonstrou aprender algo (+330 antes desta mudança de ação). A fase 2
+# continua o treino a partir destes pesos (`init_from`) no ambiente v3.
+#
+# Uso:
+#   poetry run python agents/deepq/train.py --config experiments/configs/train/dqn_v9_phase1.yaml
+#   poetry run python agents/deepq/train.py --config experiments/configs/train/dqn_v9_phase2.yaml
+
+env_config: ../env/synthetic_v2.yaml
+
+context_features: true
+
+# Reescala a recompensa só no treino (não altera a política ótima). Ver
+# ACHADOS.md §6.8.
+reward_scale: 0.05
+
+train:
+  algorithm: dqn
+  seed: 42
+  epochs: 20
+  step_per_epoch: 5000
+  n_step: 5
+  batch_size: 64
+  buffer_size: 6000
+  test_buffer_per_env: 1000
+  test_episodes: 20
+  lr: 0.0001
+  # gamma=0.999 (herdado do v8, ajuste para o v3) colapsou o treino AQUI
+  # tambem, no v2 mais simples (77,6% "nada", -2312 de recompensa) -- pior
+  # que o dqn_v4 original (+330) no MESMO ambiente. Suspeita: com episodios
+  # de ~280 passos, gamma=0.999 quase nao desconta (g^280=0.76), exigindo
+  # muito mais atualizacoes de gradiente para estabilizar do que os 100k
+  # passos do treino. Revertendo para 0.99 (g^280=0.06), o mesmo valor que
+  # funcionou no dqn_v4 original.
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 1.0
+  eps_train_final: 0.05
+  eps_train_decay: 50000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 2
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn_v10_phase1

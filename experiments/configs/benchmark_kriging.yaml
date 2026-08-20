@@ -1,0 +1,18 @@
+# Benchmark no gerador KRIGING (Rio 2015-16) — teste de GENERALIZAÇÃO.
+# O DQN foi treinado no synthetic_default; aqui ele é avaliado numa distribuição
+# espacial diferente (kriging), com as MESMAS seeds do benchmark synthetic para
+# ser diretamente comparável.
+env_config: env/kriging_rio.yaml
+
+agents:
+  - clinical
+  - random
+  - dqn
+
+checkpoints:
+  dqn: results/dqn/policy_best.pth
+
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+
+output_dir: results/baseline_kriging
+save_artifacts: true

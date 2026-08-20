@@ -35,12 +35,20 @@ from agents.clinical.agent import ClinicalOnlyAgentRunner
 from agents.deepq.agent import DQNAgentRunner
 from agents.qlearning.agent import QLearningAgentRunner
 from agents.random.agent import RandomAgentRunner
+from agents.testall.agent import TestAllAgentRunner
+from agents.confirmall.agent import ConfirmAllAgentRunner
+from agents.testonce.agent import TestOnceAgentRunner
+from agents.testtwice.agent import TestTwiceAgentRunner
 
 # Registro de agentes disponíveis (nome -> classe runner).
 # Novos algoritmos (ppo, ...) entram aqui conforme migrados.
 AGENT_REGISTRY = {
     "clinical": ClinicalOnlyAgentRunner,
     "random": RandomAgentRunner,
+    "testall": TestAllAgentRunner,
+    "confirmall": ConfirmAllAgentRunner,
+    "testonce": TestOnceAgentRunner,
+    "testtwice": TestTwiceAgentRunner,
     "qlearning": QLearningAgentRunner,
     "dqn": DQNAgentRunner,
 }

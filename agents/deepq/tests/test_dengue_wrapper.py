@@ -128,6 +128,10 @@ class TestCasetByCaseWrapper(unittest.TestCase):
         self.dw_env_mock.unwrapped = self.base_env_mock
 
         self.base_env_mock.size = 20
+        # Atributos de instância do env (não cobertos por `spec=`) usados pelo
+        # wrapper para reapresentar casos após o laudo.
+        self.base_env_mock.finalized_cases = set()
+        self.base_env_mock.take_pending_revisits = lambda: []
         self.dw_env_mock.observation_space = spaces.Box(
             low=0, high=4, shape=(4, 20, 20), dtype=np.float32
         )
@@ -153,7 +157,7 @@ class TestCasetByCaseWrapper(unittest.TestCase):
     def test_init_spaces(self):
         """Testa se os espaços de ação e observação estão corretos."""
         self.assertIsInstance(self.wrapper.action_space, spaces.Discrete)
-        self.assertEqual(self.wrapper.action_space.n, 6)
+        self.assertEqual(self.wrapper.action_space.n, 7)
 
         self.assertIsInstance(self.wrapper.observation_space, spaces.Dict)
         self.assertIn("map", self.wrapper.observation_space.spaces)

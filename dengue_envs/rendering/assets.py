@@ -17,14 +17,16 @@ import pygame
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 
 # Mapeia a AÇÃO aplicada a um caso -> arquivo de ícone exibido no sprite/legenda.
-# (0 dengue, 1 chik, 2 inconclusivo/epi, 3 nada, 4 confirmar, 5 descartar)
+# (0 testar dengue, 1 testar chik, 2 epi confirm, 3 nada,
+#  4 concluir dengue, 5 concluir chik, 6 concluir outro/descartar)
 ACTION_ICONS = {
     0: "dengue_test.png",
     1: "chick_test.png",
     2: "epi_test.png",
     3: "no_test.png",
-    4: "confirm_test.png",
-    5: "discard_test.png",
+    4: "dengue-checked.png",
+    5: "chik-checked.png",
+    6: "discard_test.png",
 }
 
 

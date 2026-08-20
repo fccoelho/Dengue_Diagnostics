@@ -1,0 +1,50 @@
+# DQN v14 — leva a hipotese do n_step ate o fim (ver §12 de REFATORACAO_AMBIENTE.md).
+#
+# O v13 (n_step 30) confirmou que o comprimento da cadeia de credito era o
+# gargalo: -1703 -> -81,90, e o agente descobriu o `epi_confirm`. Mas continuou
+# com ZERO exames de laboratorio. O mecanismo explica por que:
+#
+#   epi_confirm  : custa 0,5 | evidencia volta no dia seguinte (~6 passos)  -> CABE em n_step=30
+#   exame de lab : custa 4,0 | laudo volta em 5 dias        (~30 passos)  -> fica NO LIMITE
+#
+# Ou seja, n_step=30 abriu a cadeia curta e deixou a longa exatamente na borda.
+# Aqui dobramos para 60 para cobrir a cadeia do laboratorio com folga, mantendo
+# TODO o resto identico ao v13 -- inclusive o ambiente, para que o benchmark
+# continue comparavel com `testtwice` (+955) e com o proprio v13.
+#
+# Risco conhecido: retorno de n passos com n grande se aproxima de Monte Carlo,
+# com mais variancia e mais vies off-policy. Se o treino desestabilizar sem
+# produzir exames, a leitura e que o problema NAO e so comprimento de cadeia, e
+# o proximo passo passa a ser a atribuicao retroativa por caso (§11.4, item 1).
+#
+env_config: ../env/synthetic_v4.yaml
+
+context_features: true
+reward_scale: 0.10
+
+train:
+  algorithm: dqn
+  seed: 42
+  epochs: 20
+  step_per_epoch: 5000
+  # <<< a unica mudanca em relacao ao v13 (que usa 30)
+  n_step: 60
+  batch_size: 64
+  buffer_size: 6000
+  test_buffer_per_env: 1000
+  test_episodes: 20
+  lr: 0.0001
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 0.5
+  eps_train_final: 0.05
+  eps_train_decay: 20000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 2
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn_v14

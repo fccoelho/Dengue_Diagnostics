@@ -15,7 +15,9 @@ train:
   epochs: 50
   n_step: 1
   batch_size: 64
-  buffer_size: 20000
+  # RAM ~= buffer_size * tamanho_do_mapa. Mapa 4x400x400 uint8 = 640 KB/obs:
+  #   10000 -> ~6,4 GB | 20000 -> ~12,8 GB. Reduza se faltar RAM.
+  buffer_size: 10000
   lr: 0.0001
   gamma: 0.99
   target_update_freq: 1000

@@ -1,0 +1,146 @@
+\relax 
+\providecommand \babel@aux [2]{\global \let \babel@toc \@gobbletwo }
+\@nameuse{bbl@beforestart}
+\catcode `"\active 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{abnt-url-package=url}
+\citation{govbr_arboviroses}
+\citation{donateli_visualizacao_2023,ministério2024boletim}
+\citation{junior_epidemiology_2022}
+\babel@aux{brazilian}{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
+\citation{govbr_chick}
+\citation{arrubla-hoyos_methodology_2024}
+\citation{junior_epidemiology_2022}
+\citation{yu_deep_2023}
+\citation{yaesoubi_generalized_2011}
+\citation{yaesoubi_generalized_2011,sutton2018reinforcement}
+\citation{noauthor_gymnasium_nodate,lapan2020deep}
+\citation{frommeyer_reinforcement_2025}
+\citation{sutton2018reinforcement}
+\citation{side2015sir,derouich_model_2003}
+\citation{derouich_model_2003}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Methodology}{3}{section.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Flowchart of the experimental design, detailing the stages from the generation of simulated data (spatial SIR) to the training and evaluation of the Reinforcement Learning agents.}}{3}{figure.1}\protected@file@percent }
+\newlabel{fig:fluxograma_metodos}{{1}{3}{Flowchart of the experimental design, detailing the stages from the generation of simulated data (spatial SIR) to the training and evaluation of the Reinforcement Learning agents}{figure.1}{}}
+\newlabel{subsec:sim_casos}{{2}{3}{Simulated Data Generation}{section*.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Simulated epidemiological dynamics. Shaded areas indicate daily incidence and its peaks; lines represent cumulative incidence and the logistic saturation of the SIR model.}}{4}{figure.2}\protected@file@percent }
+\newlabel{fig:epidemic_evolution}{{2}{4}{Simulated epidemiological dynamics. Shaded areas indicate daily incidence and its peaks; lines represent cumulative incidence and the logistic saturation of the SIR model}{figure.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Example of the spatial distribution of simulated cases on the $400 \times 400$ grid, highlighting the spatial overlap between dengue (green) and chikungunya (red) cases.}}{4}{figure.3}\protected@file@percent }
+\newlabel{fig:distribuicao_casos}{{3}{4}{Example of the spatial distribution of simulated cases on the $400 \times 400$ grid, highlighting the spatial overlap between dengue (green) and chikungunya (red) cases}{figure.3}{}}
+\citation{noauthor_gymnasium_nodate,towers_gymnasium_2023}
+\citation{sutton2018reinforcement}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Clinical competence levels. Each physician's sensitivity and specificity are drawn from Beta distributions with these means and concentration $\kappa = 20$ (standard deviation $\approx 0.09$).}}{5}{table.1}\protected@file@percent }
+\newlabel{tab:clinical_levels}{{1}{5}{Clinical competence levels. Each physician's sensitivity and specificity are drawn from Beta distributions with these means and concentration $\kappa = 20$ (standard deviation $\approx 0.09$)}{table.1}{}}
+\newlabel{subsec:lifecycle}{{2}{6}{Case lifecycle}{section*.7}{}}
+\@writefile{toc}{\contentsline {paragraph}{Layer 1 --- Immediate cost.}{6}{section*.8}\protected@file@percent }
+\citation{yu_deep_2023}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Agent Decision Flow.}}{7}{figure.4}\protected@file@percent }
+\newlabel{fig:decision_flow}{{4}{7}{Agent Decision Flow}{figure.4}{}}
+\newlabel{eq:costs}{{1}{7}{Layer 1 --- Immediate cost}{equation.1}{}}
+\@writefile{toc}{\contentsline {paragraph}{Layer 2 --- Delayed decision outcome.}{7}{section*.9}\protected@file@percent }
+\newlabel{eq:decision}{{2}{7}{Layer 2 --- Delayed decision outcome}{equation.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Layer 3 --- Terminal score.}{7}{section*.10}\protected@file@percent }
+\newlabel{eq:terminal}{{3}{7}{Layer 3 --- Terminal score}{equation.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{Test cost and scarcity.}{7}{section*.11}\protected@file@percent }
+\citation{watkins1992q}
+\citation{bellman1957dynamic}
+\citation{mnih2015human}
+\citation{goodfellow2016deep}
+\citation{weng2021tianshou}
+\newlabel{subsec:deepqnet}{{2}{8}{DQN Architecture and Training}{section*.13}{}}
+\@writefile{toc}{\contentsline {paragraph}{Reward scaling.}{9}{section*.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Contextual features.}{9}{section*.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Resultados e Discussão}{10}{section.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Desempenho médio sobre 10 cenários pareados. O oráculo indica o retorno obtido ao escolher, com conhecimento prévio, a melhor política fixa para cada episódio; ele delimita o ganho máximo acessível à adaptação.}}{10}{table.2}\protected@file@percent }
+\newlabel{tab:resultados_finais}{{2}{10}{Desempenho médio sobre 10 cenários pareados. O oráculo indica o retorno obtido ao escolher, com conhecimento prévio, a melhor política fixa para cada episódio; ele delimita o ganho máximo acessível à adaptação}{table.2}{}}
+\newlabel{subsec:ceiling}{{3}{10}{O teto de informação do ambiente}{section*.19}{}}
+\newlabel{subsec:confounder}{{3}{11}{A competência do médico domina a variância}{section*.20}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Distribuição de ações do agente DQN, separada por primeira avaliação e retorno após o laudo laboratorial.}}{12}{table.3}\protected@file@percent }
+\newlabel{tab:politica_dqn}{{3}{12}{Distribuição de ações do agente DQN, separada por primeira avaliação e retorno após o laudo laboratorial}{table.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces \textbf  {Mapa de acertos do Agente DQN.} Os pontos representam casos nos quais o agente realizou o diagnóstico correto. Nota-se a concentração de acertos nas zonas de alta densidade (\textit  {hotspots}).}}{12}{figure.5}\protected@file@percent }
+\newlabel{fig:dqn_tp}{{5}{12}{\textbf {Mapa de acertos do Agente DQN.} Os pontos representam casos nos quais o agente realizou o diagnóstico correto. Nota-se a concentração de acertos nas zonas de alta densidade (\textit {hotspots})}{figure.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces \textbf  {Estado final da simulação epidemiológica}. Ilustrando a complexidade visual e a sobreposição dos surtos que o agente deve processar.}}{13}{figure.6}\protected@file@percent }
+\newlabel{fig:dqn_final_env}{{6}{13}{\textbf {Estado final da simulação epidemiológica}. Ilustrando a complexidade visual e a sobreposição dos surtos que o agente deve processar}{figure.6}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Conclusão}{14}{section.4}\protected@file@percent }
+\bibstyle{abntex2-num}
+\bibdata{abntex2-options,refs}
+\bibcite{govbr_arboviroses}{1}
+\bibciteEXPL{govbr_arboviroses}{{Ministério da Saúde do Brasil}}
+\bibciteIMPL{govbr_arboviroses}{{Ministério da Saúde do Brasil}}
+\bibciteYEAR{govbr_arboviroses}{}
+\bibcite{donateli_visualizacao_2023}{2}
+\bibciteEXPL{donateli_visualizacao_2023}{Donateli e Campos}
+\bibciteIMPL{donateli_visualizacao_2023}{DONATELI; CAMPOS}
+\bibciteYEAR{donateli_visualizacao_2023}{2023}
+\bibcite{ministério2024boletim}{3}
+\bibciteEXPL{ministério2024boletim}{{Ministério da Saúde do Brasil}}
+\bibciteIMPL{ministério2024boletim}{{Ministério da Saúde do Brasil}}
+\bibciteYEAR{ministério2024boletim}{2024}
+\bibcite{junior_epidemiology_2022}{4}
+\bibciteEXPL{junior_epidemiology_2022}{Junior et al.}
+\bibciteIMPL{junior_epidemiology_2022}{JUNIOR et al.}
+\bibciteYEAR{junior_epidemiology_2022}{2022}
+\bibcite{govbr_chick}{5}
+\bibciteEXPL{govbr_chick}{{Ministério da Saúde do Brasil}}
+\bibciteIMPL{govbr_chick}{{Ministério da Saúde do Brasil}}
+\bibciteYEAR{govbr_chick}{}
+\bibcite{arrubla-hoyos_methodology_2024}{6}
+\bibciteEXPL{arrubla-hoyos_methodology_2024}{Arrubla-Hoyos, Gómez e De-La-Hoz-Franco}
+\bibciteIMPL{arrubla-hoyos_methodology_2024}{ARRUBLA-HOYOS; GóMEZ; DE-LA-HOZ-FRANCO}
+\bibciteYEAR{arrubla-hoyos_methodology_2024}{2024}
+\bibcite{yu_deep_2023}{7}
+\bibciteEXPL{yu_deep_2023}{Yu et al.}
+\bibciteIMPL{yu_deep_2023}{YU et al.}
+\bibciteYEAR{yu_deep_2023}{2023}
+\bibcite{sutton2018reinforcement}{8}
+\bibciteEXPL{sutton2018reinforcement}{Sutton e Barto}
+\bibciteIMPL{sutton2018reinforcement}{SUTTON; BARTO}
+\bibciteYEAR{sutton2018reinforcement}{2018}
+\bibcite{noauthor_gymnasium_nodate}{9}
+\bibciteEXPL{noauthor_gymnasium_nodate}{Gymnasium\ldots  }
+\bibciteIMPL{noauthor_gymnasium_nodate}{GYMNASIUM\ldots  }
+\bibciteYEAR{noauthor_gymnasium_nodate}{}
+\bibcite{lapan2020deep}{10}
+\bibciteEXPL{lapan2020deep}{Lapan}
+\bibciteIMPL{lapan2020deep}{LAPAN}
+\bibciteYEAR{lapan2020deep}{2020}
+\bibcite{frommeyer_reinforcement_2025}{11}
+\bibciteEXPL{frommeyer_reinforcement_2025}{Frommeyer et al.}
+\bibciteIMPL{frommeyer_reinforcement_2025}{FROMMEYER et al.}
+\bibciteYEAR{frommeyer_reinforcement_2025}{2025}
+\bibcite{side2015sir}{12}
+\bibciteEXPL{side2015sir}{Side e Noorani}
+\bibciteIMPL{side2015sir}{SIDE; NOORANI}
+\bibciteYEAR{side2015sir}{2015}
+\bibcite{derouich_model_2003}{13}
+\bibciteEXPL{derouich_model_2003}{Derouich, Boutayeb e Twizell}
+\bibciteIMPL{derouich_model_2003}{DEROUICH; BOUTAYEB; TWIZELL}
+\bibciteYEAR{derouich_model_2003}{2003}
+\bibcite{towers_gymnasium_2023}{14}
+\bibciteEXPL{towers_gymnasium_2023}{Towers et al.}
+\bibciteIMPL{towers_gymnasium_2023}{TOWERS et al.}
+\bibciteYEAR{towers_gymnasium_2023}{2023}
+\bibcite{watkins1992q}{15}
+\bibciteEXPL{watkins1992q}{Watkins e Dayan}
+\bibciteIMPL{watkins1992q}{WATKINS; DAYAN}
+\bibciteYEAR{watkins1992q}{1992}
+\bibcite{bellman1957dynamic}{16}
+\bibciteEXPL{bellman1957dynamic}{Bellman}
+\bibciteIMPL{bellman1957dynamic}{BELLMAN}
+\bibciteYEAR{bellman1957dynamic}{1957}
+\bibcite{mnih2015human}{17}
+\bibciteEXPL{mnih2015human}{Mnih et al.}
+\bibciteIMPL{mnih2015human}{MNIH et al.}
+\bibciteYEAR{mnih2015human}{2015}
+\bibcite{goodfellow2016deep}{18}
+\bibciteEXPL{goodfellow2016deep}{Goodfellow, Bengio e Courville}
+\bibciteIMPL{goodfellow2016deep}{GOODFELLOW; BENGIO; COURVILLE}
+\bibciteYEAR{goodfellow2016deep}{2016}
+\bibcite{weng2021tianshou}{19}
+\bibciteEXPL{weng2021tianshou}{Weng et al.}
+\bibciteIMPL{weng2021tianshou}{WENG et al.}
+\bibciteYEAR{weng2021tianshou}{2021}
+\gdef \@abspage@last{16}

@@ -1,0 +1,143 @@
+\providecommand{\abntreprintinfo}[1]{%
+ \citeonline{#1}}
+\begin{thebibliography}{}
+\providecommand{\abntrefinfo}[3]{}
+\providecommand{\abntbstabout}[1]{}
+\abntbstabout{v-1.9.7 }
+
+\bibitem{govbr_arboviroses}
+\abntrefinfo{{Ministério da Saúde do Brasil}}{{Ministério da Saúde do
+  Brasil}}{}
+{{Ministério da Saúde do Brasil}. \emph{{Arboviroses}}. Website.
+Acessado em 2 de setembro de 2025.
+Dispon{\'\i}vel em:
+  \url{https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/a/arboviroses}.}
+
+\bibitem{donateli_visualizacao_2023}
+\abntrefinfo{Donateli e Campos}{DONATELI; CAMPOS}{2023}
+{DONATELI, C.~P.; CAMPOS, F. C.~d. {VISUALIZAÇÃO} {DE} {DADOS} {DE}
+  {VIGILÂNCIA} {DAS} {ARBOVIROSES} {URBANAS} {TRANSMITIDAS} {PELO} {AEDES}
+  {AEGYPTI} {EM} {MINAS} {GERAIS}, {BRASIL}.
+\emph{JISTEM - Journal of Information Systems and Technology Management},
+  v.~20, p. e202320003, 2023.
+ISSN 1807-1775.
+Publisher: TECSI Laboratório de Tecnologia e Sistemas de Informação -
+  FEA/USP.
+Dispon{\'\i}vel em:
+  \url{https://www.scielo.br/j/jistm/a/VjDXD9bcKGsxXXVdSwNZ4kF/?lang=pt}.}
+
+\bibitem{ministério2024boletim}
+\abntrefinfo{{Ministério da Saúde do Brasil}}{{Ministério da Saúde do
+  Brasil}}{2024}
+{{Ministério da Saúde do Brasil}. \emph{Boletim Epidemiológico:
+  Monitoramento dos casos de arboviroses urbanas}.
+[S.l.], 2024. Os números de volume e edição podem ser atualizados conforme a
+  publicação mais recente consultada.}
+
+\bibitem{junior_epidemiology_2022}
+\abntrefinfo{Junior et al.}{JUNIOR et al.}{2022}
+{JUNIOR, J. B.~S. et al. Epidemiology and costs of dengue in {Brazil}: a
+  systematic literature review.
+\emph{International Journal of Infectious Diseases}, v.~122, p. 521--528, set.
+  2022.
+ISSN 1201-9712.
+Dispon{\'\i}vel em:
+  \url{https://www.sciencedirect.com/science/article/pii/S1201971222003836}.}
+
+\bibitem{govbr_chick}
+\abntrefinfo{{Ministério da Saúde do Brasil}}{{Ministério da Saúde do
+  Brasil}}{}
+{{Ministério da Saúde do Brasil}. \emph{{Chikungunya}}. Website.
+Acessado em 2 de setembro de 2025.
+Dispon{\'\i}vel em:
+  \url{https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/c/chikungunya}.}
+
+\bibitem{arrubla-hoyos_methodology_2024}
+\abntrefinfo{Arrubla-Hoyos, Gómez e De-La-Hoz-Franco}{ARRUBLA-HOYOS; GóMEZ;
+  DE-LA-HOZ-FRANCO}{2024}
+{ARRUBLA-HOYOS, W.; GóMEZ, J.~G.; DE-LA-HOZ-FRANCO, E. Methodology for the
+  {Differential} {Classification} of {Dengue} and {Chikungunya} {According} to
+  the {PAHO} 2022 {Diagnostic} {Guide}.
+\emph{Viruses}, v.~16, n.~7, p.~1088, jul. 2024.
+ISSN 1999-4915.}
+
+\bibitem{yu_deep_2023}
+\abntrefinfo{Yu et al.}{YU et al.}{2023}
+{YU, Z. et al. \emph{Deep {Reinforcement} {Learning} for {Cost}-{Effective}
+  {Medical} {Diagnosis}}. arXiv, 2023.
+ArXiv:2302.10261 [cs].
+Dispon{\'\i}vel em: \url{http://arxiv.org/abs/2302.10261}.}
+
+\bibitem{sutton2018reinforcement}
+\abntrefinfo{Sutton e Barto}{SUTTON; BARTO}{2018}
+{SUTTON, R.~S.; BARTO, A.~G. \emph{Reinforcement learning: An introduction}.
+  [S.l.]: MIT press, 2018.}
+
+\bibitem{noauthor_gymnasium_nodate}
+\abntrefinfo{Gymnasium\ldots}{GYMNASIUM\ldots}{}
+{GYMNASIUM {Documentation}.
+Dispon{\'\i}vel em: \url{https://gymnasium.farama.org/index.html}.}
+
+\bibitem{lapan2020deep}
+\abntrefinfo{Lapan}{LAPAN}{2020}
+{LAPAN, M. \emph{Deep Reinforcement Learning Hands-On: Apply Modern RL Methods
+  to Practical Problems of Chatbots, Robotics, Discrete Optimization, Web
+  Automation, and More}. Second. [S.l.]: Packt Publishing, 2020.
+ISBN 978-1-83882-699-4.}
+
+\bibitem{frommeyer_reinforcement_2025}
+\abntrefinfo{Frommeyer et al.}{FROMMEYER et al.}{2025}
+{FROMMEYER, T.~C. et al. Reinforcement {Learning} and {Its} {Clinical}
+  {Applications} {Within} {Healthcare}: {A} {Systematic} {Review} of
+  {Precision} {Medicine} and {Dynamic} {Treatment} {Regimes}.
+\emph{Healthcare}, v.~13, n.~14, p.~1752, jul. 2025.
+ISSN 2227-9032.
+Dispon{\'\i}vel em: \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC12295150/}.}
+
+\bibitem{side2015sir}
+\abntrefinfo{Side e Noorani}{SIDE; NOORANI}{2015}
+{SIDE, S.; NOORANI, M. Sir-network model and its application to dengue fever.
+\emph{World Journal of Modelling and Simulation}, v.~11, n.~2, p. 106--113,
+  2015.}
+
+\bibitem{derouich_model_2003}
+\abntrefinfo{Derouich, Boutayeb e Twizell}{DEROUICH; BOUTAYEB; TWIZELL}{2003}
+{DEROUICH, M.; BOUTAYEB, A.; TWIZELL, E. A model of dengue fever.
+\emph{BioMedical Engineering OnLine}, v.~2, p.~4, fev. 2003.
+ISSN 1475-925X.
+Dispon{\'\i}vel em: \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC153427/}.}
+
+\bibitem{towers_gymnasium_2023}
+\abntrefinfo{Towers et al.}{TOWERS et al.}{2023}
+{TOWERS, M. et al. \emph{Gymnasium: A Standard Interface for Reinforcement
+  Learning Environments}. 2023.}
+
+\bibitem{watkins1992q}
+\abntrefinfo{Watkins e Dayan}{WATKINS; DAYAN}{1992}
+{WATKINS, C.~J.; DAYAN, P. Q-learning.
+\emph{Machine learning}, Springer, v.~8, n.~3, p. 279--292, 1992.}
+
+\bibitem{bellman1957dynamic}
+\abntrefinfo{Bellman}{BELLMAN}{1957}
+{BELLMAN, R. \emph{Dynamic Programming}. [S.l.]: Princeton University Press,
+  1957.}
+
+\bibitem{mnih2015human}
+\abntrefinfo{Mnih et al.}{MNIH et al.}{2015}
+{MNIH, V. et al. Human-level control through deep reinforcement learning.
+\emph{Nature}, Nature Publishing Group, v.~518, n.~7540, p. 529--533, 2015.}
+
+\bibitem{goodfellow2016deep}
+\abntrefinfo{Goodfellow, Bengio e Courville}{GOODFELLOW; BENGIO;
+  COURVILLE}{2016}
+{GOODFELLOW, I.; BENGIO, Y.; COURVILLE, A. \emph{Deep Learning}. [S.l.]: MIT
+  Press, 2016.}
+
+\bibitem{weng2021tianshou}
+\abntrefinfo{Weng et al.}{WENG et al.}{2021}
+{WENG, J. et al. Tianshou: A highly modularized deep reinforcement learning
+  library.
+\emph{Journal of Machine Learning Research}, v.~22, n.~255, p.~1--6, 2021.
+Dispon{\'\i}vel em: \url{http://jmlr.org/papers/v22/21-0883.html}.}
+
+\end{thebibliography}

@@ -50,9 +50,9 @@ def test_build_and_act(tmp_path):
 
     agent = DQNAgent.load(path, env, device="cpu")
     action = agent.choose_action(obs)
-    assert 0 <= action < 6
+    assert 0 <= action < 7
     action2 = agent.choose_action_from_env(env)
-    assert 0 <= action2 < 6
+    assert 0 <= action2 < 7
     env.close()
 
 

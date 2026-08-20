@@ -1,0 +1,81 @@
+# DQN v8 — o agente finalmente ENXERGA o caso que está decidindo.
+#
+# Causa raiz encontrada: a observação dava apenas ONDE o caso está (coordenadas),
+# não COMO ele é. Os atributos existiam no mapa, mas o AdaptiveAvgPool2d resume
+# 400x400 em 6x6 e a célula do caso se dissolve na média — medido: alterar o
+# diagnóstico clínico do caso atual mudava as features do mapa em 2e-04.
+# Por isso o agente aprendia QUANTO testar, mas nunca QUAIS casos.
+#
+# Correção: o vetor de contexto passou de 2 para 14 posições, incluindo
+# diagnóstico clínico, status dos dois exames e confirmação epidemiológica
+# DO CASO ATUAL.
+#
+# DQN no ambiente v3 — casos não-arbovirose + incentivos para engajar.
+#
+# Diferenças em relação ao dqn_v5 (que colapsou para a inação):
+#   - `penalty_unresolved: -10` — deixar o caso em aberto passou a custar caro.
+#     Antes, não decidir arriscava só -3 contra -20/-30 de uma decisão errada, e
+#     o agente convergiu para 79,5% de "nada", ficando abaixo do clínico puro.
+#   - `shaping_conclude_bonus: 2.0` — crédito imediato ao concluir um caso
+#     investigado, encurtando o crédito da cadeia investigar -> concluir.
+#   - `force_decision_after_tests: true` — após os dois exames o espaço de ação
+#     é restrito a confirmar/descartar (máscara nativa do Tianshou).
+#
+# Panorama resultante (10 seeds):
+#   nada sempre                     -4036,9   <- deixou de ser refugio
+#   2 exames -> conclui (melhor fixa) +955,0  | acuracia 0,938 | 746 exames
+#   [oraculo POR CASO]              +3140,0   | acuracia 0,977 | 243 exames
+#
+# Panorama do ambiente (10 seeds, exame a 4,0):
+#   nada (clínico puro)                    -304,5  | acurácia 0,571 |   0 exames
+#   confirmar sempre                      -1767,2  | acurácia 0,571 |   0 exames
+#   1 exame -> confirmar                   -911,0  | acurácia 0,756 | 373 exames
+#   2 exames -> conclui (melhor fixa)      +208,6  | acurácia 0,938 | 746 exames
+#   [oráculo POR CASO]                    +2823,0  | acurácia 0,977 | 243 exames
+#
+# A margem de +2614 é o que o agente tem a capturar, e ela agora vem de
+# discriminar QUAIS casos merecem investigação — não de escolher uma política
+# fixa por episódio. O oráculo atinge acurácia MAIOR usando 67% MENOS exames,
+# que é exatamente a tese do trabalho.
+#
+# Uso:
+#   poetry run python agents/deepq/train.py --config experiments/configs/train/dqn_v5.yaml
+
+env_config: ../env/synthetic_v3.yaml
+
+context_features: true
+
+# Reescala a recompensa só no treino (não altera a política ótima); mantém os
+# alvos de TD numa escala tratável. Ver ACHADOS.md §6.8.
+reward_scale: 0.05
+
+train:
+  algorithm: dqn
+  seed: 42
+  epochs: 20
+  step_per_epoch: 5000
+  n_step: 5
+  batch_size: 64
+  buffer_size: 6000
+  test_buffer_per_env: 1000
+  test_episodes: 20
+  lr: 0.0001
+  # gamma=0.99 dá horizonte efetivo de 1/(1-g) = 100 passos, mas o episódio tem
+  # ~373. O placar final — que domina a recompensa — chegava ao agente
+  # multiplicado por 0,024, ou seja, invisível. Era por isso que nem a
+  # penalidade por caso não resolvido nem o shaping mudavam o comportamento.
+  # Com 0.999 o horizonte vai a 1000 passos e o desconto no fim sobe para 0,69.
+  gamma: 0.999
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 1.0
+  eps_train_final: 0.05
+  eps_train_decay: 50000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 2
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn_v8

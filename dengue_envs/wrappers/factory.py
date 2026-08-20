@@ -37,6 +37,15 @@ _ENV_KEYS = {
     "dengue_radius",
     "chik_radius",
     "clinical_specificity",
+    "clinical_quality",
+    "lab_sensitivity",
+    "lab_specificity",
+    "lab_inconclusive_prob",
+    "max_case_revisits",
+    "other_prevalence",
+    "other_recognition_prob",
+    "test_cost",
+    "epi_confirm_cost",
     "start_day",
     "lab_delay_days",
     "settle_days",
@@ -44,7 +53,11 @@ _ENV_KEYS = {
     "penalty_incorrect_decision",
     "penalty_missed_case",
     "final_correct_bonus",
+    "penalty_misdiagnosed",
     "penalty_untested_misdiagnosed",
+    "penalty_unresolved",
+    "shaping_conclude_bonus",
+    "force_decision_after_tests",
     "render_mode",
     "randomize_outbreak",
 }
@@ -120,6 +133,11 @@ def make_env(config: Optional[dict] = None, **kwargs):
     - `config["env"]`: parâmetros do ambiente.
     - `config["wrappers"]`: lista de wrappers a aplicar, na ordem
       (ex.: ["map_tensor", "case_by_case"]). Se ausente, usa DEFAULT_WRAPPERS.
+    - `config["per_case_reward"]`: se True, o `case_by_case` entrega a
+      recompensa de cada decisão no passo daquele caso, em vez de agregar o
+      dia inteiro num único passo (ver CaseByCaseWrapper).
+    - `config["context_features"]`: se True, o `case_by_case` acrescenta à
+      observação a evidência acumulada sobre a competência do médico.
     - kwargs extras são repassados ao ambiente base.
     """
     env = make_raw_env(config, **kwargs)
@@ -127,6 +145,8 @@ def make_env(config: Optional[dict] = None, **kwargs):
     wrappers = DEFAULT_WRAPPERS
     if config and "wrappers" in config:
         wrappers = config["wrappers"]
+    context_features = bool((config or {}).get("context_features", False))
+    per_case_reward = bool((config or {}).get("per_case_reward", False))
 
     for name in wrappers:
         if name not in _WRAPPER_BUILDERS:
@@ -134,6 +154,22 @@ def make_env(config: Optional[dict] = None, **kwargs):
                 f"Wrapper desconhecido: {name!r}. "
                 f"Disponíveis: {sorted(_WRAPPER_BUILDERS)}"
             )
-        env = _WRAPPER_BUILDERS[name](env)
+        if name == "case_by_case":
+            env = CaseByCaseWrapper(
+                env,
+                context_features=context_features,
+                per_case_reward=per_case_reward,
+            )
+        else:
+            env = _WRAPPER_BUILDERS[name](env)
+
+    # Reescala a recompensa apenas se pedido explicitamente (uso: treino).
+    # A avaliação/benchmark deve rodar SEM isto, para reportar a recompensa na
+    # escala original e manter comparabilidade com resultados anteriores.
+    scale = (config or {}).get("reward_scale")
+    if scale:
+        from dengue_envs.wrappers.reward_scale import RewardScaleWrapper
+
+        env = RewardScaleWrapper(env, float(scale))
 
     return env

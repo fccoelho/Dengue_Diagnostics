@@ -1,0 +1,56 @@
+# DQN v3 — recompensa v2 + FEATURES DE CONTEXTO sobre a competência do médico.
+#
+# Hipótese sendo testada: o DQN não convergia porque a competência do médico é
+# latente — para a mesma observação o retorno variava de -524 a +1550, deixando
+# o alvo de TD irredutivelmente ruidoso (ver ACHADOS.md, seção 3.4).
+#
+# `context_features: true` acrescenta à observação:
+#   [taxa de concordância laudo × palpite clínico, força da evidência]
+# que é uma estimativa direta dessa variável latente (correlação medida com a
+# competência real: +0,99). A informação já existia, mas apenas implícita e
+# espalhada num mapa 400x400 esparso — inextraível por convolução na prática.
+#
+# Cenário MISTO de propósito (especificidade ~ U(0,5 , 0,95)): é onde a política
+# adaptativa vale mais (melhor política fixa = +129; oráculo = +599). Com nível
+# clínico fixo o problema é quase trivial (oráculo ≈ melhor política fixa).
+#
+# Efeito colateral desejável: para estimar o médico o agente PRECISA testar
+# alguns casos no início — surge naturalmente um trade-off explorar/explorar.
+#
+# Uso:
+#   poetry run python agents/deepq/train.py --config experiments/configs/train/dqn_v3_context.yaml
+
+env_config: ../env/synthetic_default.yaml
+
+context_features: true
+
+env:
+  reward_delay_days: 5
+
+train:
+  algorithm: dqn
+  seed: 42
+  epochs: 20
+  step_per_epoch: 5000
+  n_step: 5
+  batch_size: 64
+  buffer_size: 6000
+  test_buffer_per_env: 1000
+  # 20 episódios por avaliação: a recompensa varia muito por episódio, então
+  # avaliar com 2 mediria o sorteio do médico, não a política.
+  test_episodes: 20
+  lr: 0.0001
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 1.0
+  eps_train_final: 0.05
+  eps_train_decay: 50000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 2
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn_v3_context

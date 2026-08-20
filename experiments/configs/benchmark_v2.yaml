@@ -1,0 +1,8 @@
+# Benchmark sob a recompensa RECALIBRADA (v2), incluindo o teto `testall`.
+env_config: env/synthetic_default.yaml
+agents: [clinical, random, testall, confirmall, dqn]
+checkpoints:
+  dqn: results/dqn_v2/policy_best.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/baseline_v2
+save_artifacts: false
