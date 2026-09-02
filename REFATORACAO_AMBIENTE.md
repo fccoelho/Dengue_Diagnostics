@@ -32,6 +32,29 @@
 > serve como evidência sobre nenhum parâmetro.
 >
 > **Antes de qualquer nova conclusão sobre o DQN: protocolo multi-seed (§15.4).**
+>
+> **§18 (mais recente):** a redução de §17 é segura para o mapa real — na
+> distribuição kriging do Rio só **1,7%** dos casos colidem a 100×100 (menos
+> que no sintético), e a computação epidemiológica segue em resolução plena.
+> O gargalo de fidelidade espacial é o **`pooled_size`** (células de 12 km com
+> o bbox do Rio), não o `map_size` — e ele estava fixo e inalcançável pela
+> config; agora é configurável e deduzido do checkpoint ao carregar. Existe um
+> piso duro: `map_size` < 36 quebra a pilha convolucional, agora com erro claro.
+>
+> **§17:** paralelizar os envs — o "passo 1" acordado — era o
+> alvo errado: o ambiente faz 1263 passos/s contra ~25 do laço de treino, e
+> `subproc` fica 35% *mais lento* por serializar 938 KB por passo. O gargalo é
+> o **tamanho da observação**, que a rede descarta de qualquer forma
+> (`AdaptiveAvgPool2d((6,6))`). Com `map_size: 100`: época **5,1x** mais rápida,
+> atualizações **10,7x**, replay buffer **14,5x** menor — um treino de 20 épocas
+> cai de ~2h16 para **~31 min**. **Ambiente atual: `synthetic_v7.yaml`.**
+>
+> **§16:** `epi_confirm` lia a verdade-terreno **e**, com
+> `threshold=1` numa única célula de um grid 400×400, nunca podia disparar —
+> 5598 chamadas medidas, todas devolvendo 0. Corrigido: passa a ler o mapa de
+> casos confirmados por laudo *do próprio agente*, com vizinhança de raio 20 e
+> custo de campo (4,0 = `test_cost`). **Ambiente atual: `synthetic_v6.yaml`.**
+> Todos os checkpoints anteriores são incompatíveis (observação mudou).
 
 Este documento é autossuficiente: reúne o que foi implementado, os números
 medidos e o diagnóstico da causa raiz que impede o DQN de aprender no
@@ -767,10 +790,11 @@ Candidatos para a próxima rodada, em ordem de promessa:
 
 ## 12. `dqn_v13` — o melhor agente até agora
 
-> ⚠️ **A explicação mecanística de §12.3 foi testada em §14 e não se
-> sustentou.** Os *números* desta seção seguem válidos (o `dqn_v13` é o
-> melhor agente medido); a *causa* que atribuí ao resultado, não. Leia §14
-> antes de usar §12.3 como base para qualquer decisão.
+> ⚠️ **Duas retratações nesta seção.** A explicação mecanística de §12.3 foi
+> testada em §14/§15 e não se sustentou. E a leitura de §12.2 — `epi_confirm`
+> como "canal de evidência barato, estratégia sensata" — está **errada**: a
+> ação era **inerte**, devolvia 0 sempre (§16.2). Os *números* seguem válidos;
+> as *causas* que atribuí a eles, não.
 
 **Veredito:** a hipótese 4 de §11.4 se confirmou, e com margem larga. Trocar
 `n_step: 5` por `n_step: 30` — **uma linha de YAML**, ambiente idêntico — levou
@@ -1141,4 +1165,418 @@ precisa começar por consertar isso:
 ```bash
 .venv/Scripts/python.exe -m agents.deepq.train --config experiments/configs/train/dqn_v13_seed43.yaml
 .venv/Scripts/python.exe -m experiments.evaluate --config experiments/configs/benchmark_v13_seed43.yaml
+```
+
+
+---
+
+## 16. `epi_confirm` — vazava verdade-terreno e, pior, nunca funcionou
+
+Duas descobertas no mesmo lugar, a segunda maior que a primeira.
+
+### 16.1 O vazamento
+
+`_epi_confirm` consultava `self.dmap` / `self.cmap`, vindos de
+`world.get_maps_up_to_t()` (`data/generator.py:216`): histogramas construídos a
+partir do `casedf` do **gerador**, indexados pela coluna `disease`
+**verdadeira** — incluindo casos que nunca foram notificados. O agente
+perguntava "a densidade real da doença D aqui é > 1?" e recebia a resposta da
+verdade-terreno por 0,5, contra 4,0 de um exame ainda por cima ruidoso
+(sens. 0,95, esp. 0,98, 2% inconclusivo).
+
+O tensor de observação **não** vazava: seus 4 canais vinham de `obs_cases`. O
+problema era só na ação.
+
+### 16.2 O achado maior: a ação era inerte
+
+Medindo antes de consertar:
+
+```
+grid (400, 400), dia final t=65
+dengue: total=140 | células ocupadas=140 | max/célula=1 | células com >1 = 0
+chik  : total=140 | células ocupadas=140 | max/célula=1 | células com >1 = 0
+```
+
+`epi_confirm` retornava `1 if dmap[x, y] > threshold` com `threshold=1`. Como
+**nenhuma célula jamais tem mais de 1 caso**, a condição nunca era satisfeita.
+Verificação direta: **5598 chamadas em 5 episódios, todas devolvendo 0**; a
+coluna `epiconf` termina 0 para os 374 casos.
+
+A causa é geométrica: ~140 casos de cada arbovirose num grid de 160.000
+células. Dois casos na mesma célula é um evento raríssimo.
+
+Consequências:
+
+- `case_features[11]` (o bit de `epiconf`) era uma **entrada constante zero**.
+- O DQN v13 gastava **66,1% das suas ações** comprando isto. Não era
+  epidemiologia esperta nem oráculo barato: era **pagar 0,5 por nada**, com o
+  efeito colateral de adiar a decisão via `_schedule_revisit`.
+
+**Correção de §12.2.** Ali interpretei o uso intenso de `epi_confirm` como
+"canal de evidência 8× mais barato, estratégia economicamente sensata". Está
+errado. A leitura do §11 (`epi_confirm` como procrastinação com custo) é que
+estava certa, e agora tem mecanismo: a ação não podia informar nada.
+
+### 16.3 O que foi implementado
+
+| Antes | Depois |
+|---|---|
+| lê `dmap`/`cmap` do gerador (verdade) | lê `confirmed_dmap`/`confirmed_cmap` do agente |
+| conta casos reais, notificados ou não | conta **só laudos positivos** do próprio agente |
+| célula única (raio 0) → sempre 0 | vizinhança de raio configurável |
+| inclui o próprio caso | **exclui** o próprio caso |
+| custo 0,5 | custo 4,0 (= `test_cost`) |
+| chega ao agente como 1 bit | 1 bit + densidade local (2) + mapa global (2 canais) |
+
+Arquivos: `core/epi_confirm.py` (função pura ganha `radius` e `exclude`;
+`radius=0` reproduz a semântica antiga, então os testes existentes seguem
+válidos), `envs/dengue_diagnostics.py` (`_reset_confirmed_maps`,
+`_register_confirmation`, `local_confirmed_density`, `case_features` 12→14),
+`wrappers/map_tensor.py` (4→6 canais), `wrappers/case_by_case.py`
+(contexto 14→16), `wrappers/factory.py` (novos parâmetros).
+
+**Por que o mapa de confirmados conta só laudo positivo.** É o que a vigilância
+real chama de caso confirmado, e evita que o agente realimente os próprios
+palpites como se fossem evidência. É também o que cria o incentivo pretendido:
+
+> Antes, testar resolvia um caso e acabava — sem externalidade.
+> Agora, cada laudo positivo melhora toda `epi_confirm` futura na região.
+> **O exame virou investimento.**
+
+Travado por teste: `test_epi_confirm_is_dead_without_testing` (sem laudo, zero
+confirmações) e `test_epi_confirm_becomes_informative_after_testing`.
+
+**Por que a densidade local vai em `case_features` e não só no mapa.** O
+próprio código já documentava que o `AdaptiveAvgPool2d` resume 400×400 em 6×6 e
+dissolve a célula do caso (medido: 2e-04 de variação). Os canais 4 e 5 dão a
+visão *global* ("quanto já sei do surto", útil para julgar se vale comprar a
+ação); a densidade *local* do caso atual só chega pelo vetor de contexto.
+
+### 16.4 Calibração
+
+Auto-exclusão importa. Medida do poder discriminante (dengue × chik) sobre o
+mapa de confirmados, política que testa tudo:
+
+| raio | com sinal | acerto |
+|---:|---:|---:|
+| 0 | 0,1% | — |
+| 5 | 25,4% | 92,0% |
+| 10 | 56,5% | 92,8% |
+| **20** | **90,7%** | **92,9%** |
+| 30 | 96,1% | 91,7% |
+| 50 | 98,5% | 92,7% |
+
+Raio 0 confirma o diagnóstico de §16.2: sem vizinhança não há sinal. Acima de
+20 a cobertura cresce pouco e a precisão começa a cair (vizinhanças grandes
+misturam os dois focos). **Sem** auto-exclusão, o raio 0 dá 99,6% de "acerto" —
+que é o exame já pago sendo devolvido com outro nome.
+
+Escolha de `epi_threshold`, no ambiente completo:
+
+| raio | limiar | confirma | acerto quando confirma |
+|---:|---:|---:|---:|
+| 10 | 1 | 4,5% | 83,0% |
+| **20** | **1** | **19,3%** | **80,1%** |
+| 30 | 2 | 21,6% | 79,7% |
+
+Referência: sem evidência epidemiológica o palpite clínico acerta **57,1%**
+(`clinical`/`confirmall`). Raio 20 com limiar 1 dá **+23 pontos** sobre isso.
+
+### 16.5 Verificação nos baselines
+
+`benchmark_v6.yaml`, ambiente v6, 10 seeds:
+
+| Agente | v4 | v6 | |
+|---|---:|---:|---|
+| `testtwice` | +955,00 | +955,00 | não usa `epi_confirm` |
+| `testonce` | +247,40 | +247,40 | idem |
+| `confirmall` | −1365,20 | −1365,20 | idem |
+| `clinical` | −4036,52 | −4036,52 | idem |
+| `qlearning` | −2915,76 | **−3176,66** | usa — e agora paga 4,0 |
+| `random` | −5348,71 | **−5653,91** | idem |
+
+Exatamente a assinatura esperada: mudam **só** as políticas que compram
+`epi_confirm`, e mudam para pior porque a ação encareceu 8×. O alvo continua
+sendo `testtwice` em **+955**.
+
+### 16.6 Decisão tomada sem consulta (e por quê)
+
+Ficou em aberto se a evidência epidemiológica deveria passar a alterar
+`agent_diagnosis`. **Decidi que não**, por dois motivos:
+
+1. `agent_diagnosis` é o `y_pred` de `episode_metrics`
+   (`dengue_diagnostics.py:1177`). Deixar `epi_confirm` escrevê-lo mudaria o
+   que a acurácia reportada significa, misturando duas mudanças numa só.
+2. As ações conclusivas (4/5/6) já permitem ao agente alegar qualquer classe
+   independentemente de `agent_diagnosis`. A evidência não precisa ser aplicada
+   automaticamente — basta estar **observável**, que é o que §16.3 garante.
+
+Reversível: é uma linha em `core/clinical.py`, `action == 2`.
+
+### 16.7 Estado e o que vem a seguir
+
+- **172 testes passando** (161 + 11 novos em `tests/test_epi_no_leak.py`).
+- **Todos os checkpoints anteriores estão inválidos** — a observação mudou
+  (mapa 4→6 canais, contexto 14→16). O primeiro DQN do v6 treina do zero.
+- Ainda **não** foi treinado nenhum agente no v6. E, pela lição de §15, o
+  primeiro treino aqui já deve sair com **≥3 seeds** — um resultado de execução
+  única não seria evidência de nada.
+
+Pendente da lista acordada: paralelizar os envs (`num_train_envs: 2` com 16
+CPUs disponíveis e `vector_env: dummy`) antes de qualquer treino, senão o
+protocolo multi-seed fica proibitivo.
+
+### 16.8 Reprodução
+
+```bash
+.venv/Scripts/python.exe -m pytest dengue_envs/tests/test_epi_no_leak.py -q
+.venv/Scripts/python.exe -m experiments.evaluate --config experiments/configs/benchmark_v6.yaml
+```
+
+
+---
+
+## 17. Passo 1 (baratear as rodadas) — paralelizar envs era o alvo errado
+
+O plano de §15.4 pedia paralelizar os ambientes antes de qualquer treino
+multi-seed. **A medição mostrou que isso não ajudaria**, e apontou o gargalo
+real. O objetivo (rodadas baratas) foi atingido por outro caminho.
+
+### 17.1 O ambiente não é o gargalo
+
+Throughput do ambiente isolado, `synthetic_v6.yaml`, ações aleatórias:
+
+| modo | envs | passos/s | |
+|---|---:|---:|---|
+| `dummy` | 2 | 1263,1 | 1,00x |
+| `dummy` | 6 | 1282,6 | 1,02x |
+| `dummy` | 12 | 1291,3 | 1,02x |
+| `subproc` | 6 | 835,5 | **0,66x** |
+| `subproc` | 12 | 818,7 | **0,65x** |
+
+Duas leituras:
+
+1. **`dummy` não escala** com o número de envs — era esperado: ele roda os
+   ambientes em sequência no mesmo processo, então mais envs só amortizam a
+   chamada da API.
+2. **`subproc` é 35% mais LENTO.** A observação tem 938 KB (6×400×400) e o
+   `SubprocVectorEnv` a serializa e a manda por *pipe* a cada passo. O IPC come
+   toda a paralelização e ainda cobra troco.
+
+E o ponto decisivo: o ambiente sozinho faz **1263 passos/s**, enquanto o laço
+de treino completo roda a **~25 passos/s** (medido nos logs do v13: 24,85 it/s).
+Coletar 1000 passos custa ~0,8 s; as 100 atualizações de gradiente que vêm
+junto custam ~30 s. **Paralelizar o env atacaria 3% do tempo de parede.**
+
+### 17.2 O gargalo é o tamanho da observação
+
+Medido com batch 64 em CUDA:
+
+| resolução | KB/obs | GPU fwd+bwd | `gather`+H2D | replay buffer 6k |
+|---|---:|---:|---:|---:|
+| **400×400** | 937,5 | 1,7 s/100upd | **7,6 s/100upd** | **5,36 GB** |
+| 200×200 | 234,4 | 0,9 s | 2,2 s | 1,34 GB |
+| 100×100 | 58,6 | 1,0 s | 0,7 s | 0,34 GB |
+| 50×50 | 14,6 | 0,8 s | 0,2 s | 0,08 GB |
+
+O cálculo na GPU é barato (1,7 s por 100 atualizações). O que pesa é **mover
+64 × 938 KB = 60 MB por batch** do replay buffer para a GPU, mais a maquinaria
+do Tianshou em cima disso — o resto dos ~30 s reais.
+
+**E essa resolução é descartada pela própria rede.** O encoder termina em
+`AdaptiveAvgPool2d((6, 6))`:
+
+| entrada | saída da conv | após o pooling |
+|---|---|---|
+| 400×400 | (64, 46, 46) | (64, 6, 6) |
+| 100×100 | (64, 9, 9) | (64, 6, 6) |
+| 50×50 | (64, 2, 2) | (64, 6, 6) |
+
+A rede vê 6×6 em todos os casos. Guardar 400×400 para depois reduzir a 6×6 é
+pagar 16× em RAM, IPC e banda por informação que a arquitetura joga fora.
+
+### 17.3 O que foi implementado
+
+- **`map_size`** no `DengueWrapper` (e no `factory`): resolução do tensor,
+  independente do tamanho do mundo. As coordenadas são escaladas na
+  *construção* da observação (sem alocar o grid cheio), e os canais de
+  contagem (4 e 5) são agregados por soma em blocos. Exige que `map_size`
+  divida `env.size`, senão as células agregariam blocos desiguais.
+  Default: `None` = resolução do mundo, isto é, **o comportamento histórico**.
+- **`EnvFactory`** em `agents/deepq/train.py`: fábrica picklável no nível de
+  módulo. A anterior era uma closure dentro de `main()`, que o `spawn` do
+  Windows não consegue serializar — `subproc` teria falhado com
+  `Can't pickle local object`. Corrigido mesmo não sendo o caminho escolhido,
+  porque a opção volta a ser viável com a observação menor.
+- **`experiments/configs/env/synthetic_v7.yaml`** = v6 + `map_size: 100`.
+
+**A tarefa não muda.** O mundo continua 400×400, os casos nas mesmas posições,
+a recompensa idêntica. Muda só a resolução com que o mapa chega à rede — por
+isso as políticas fixas (`clinical`, `testtwice`, ...) têm **exatamente** os
+mesmos números do v6: elas não olham o tensor. Os baselines de §16.5 seguem
+válidos no v7.
+
+### 17.4 Ganho medido, ponta a ponta
+
+Uma época real (5000 passos), mesma config, só trocando o ambiente:
+
+| | v6 (400×400) | v7 (100×100) | ganho |
+|---|---:|---:|---:|
+| Época | 6min20 (13,1 it/s) | **1min14** (67,0 it/s) | **5,1x** |
+| 100 atualizações | 64 s (1,5 it/s) | **6 s** (15,0 it/s) | **10,7x** |
+| Replay buffer | 5,8 GB | **0,4 GB** | **14,5x** |
+| Rodada de 1 época | 913 s | 437 s | 2,1x |
+
+A última linha é a menos representativa: uma rodada de **uma** época paga o
+custo fixo inteiro (criação dos envs, `prefill`, as duas avaliações) diluído em
+uma só época. O que importa para o protocolo multi-seed é o custo por época.
+Extrapolando para as 20 épocas de um treino de verdade:
+
+| | 20 épocas | 3 seeds |
+|---|---:|---:|
+| v6 (400×400) | ~2 h 16 | ~6 h 48 |
+| **v7 (100×100)** | **~31 min** | **~1 h 33** |
+
+É isso que torna o protocolo de §15.4 praticável.
+
+**Por que 100 e não menos.** A 50×50 a convolução produz (64, 2, 2) *antes* do
+`AdaptiveAvgPool2d((6, 6))` — o pooling passaria a *interpolar para cima*, o
+que é degenerado. A 100×100 a conv entrega (64, 9, 9), que o pooling reduz
+honestamente para 6×6. É o menor valor que ainda alimenta a arquitetura como
+ela foi desenhada.
+
+### 17.5 Validação
+
+**179 testes passando** (172 + 7 novos em `tests/test_map_size.py`):
+
+| Teste | O que trava |
+|---|---|
+| `test_default_keeps_world_resolution` | sem `map_size`, nada muda |
+| `test_map_size_reduces_the_observation` | espaço e tensor encolhem juntos |
+| `test_map_size_must_divide_the_world` | rejeita agregação desigual |
+| `test_map_size_must_be_within_bounds` | rejeita 0 e valores > mundo |
+| `test_confirmed_counts_are_summed_not_dropped` | a soma sobrevive à agregação |
+| `test_occupied_cells_map_to_the_right_block` | cada célula cai no bloco certo |
+| `test_reduced_observation_is_much_smaller` | o ganho é o quadrado do fator |
+
+### 17.6 Reprodução
+
+```bash
+.venv/Scripts/python.exe -m pytest dengue_envs/tests/test_map_size.py -q
+```
+
+Ambiente atual para treino: **`experiments/configs/env/synthetic_v7.yaml`**.
+
+
+---
+
+## 18. `map_size` num mapa real — onde está (e onde não está) o risco
+
+Pergunta levantada ao revisar §17: reduzir a observação para 100×100 não vai
+atrapalhar quando trocarmos o mundo sintético por um mapa real? A preocupação
+é legítima, mas medindo ela se desloca de lugar.
+
+### 18.1 Três resoluções distintas, só uma foi alterada
+
+`map_size` mexe **apenas** na resolução do tensor entregue à CNN. Continuam em
+resolução plena:
+
+| o quê | resolução | mudou? |
+|---|---|---|
+| `env.size` — onde os casos vivem | 400×400 | **não** |
+| `case_coords` — posição do caso atual | contínua, normalizada | **não** |
+| `epi_confirm` / `local_confirmed_density` | mundo, raio 20 células | **não** |
+| canais 4-5 (contagens) | soma preservada na agregação | **não** (testado) |
+| canais 0-2 (categóricos) | agregados em blocos 4×4 | **sim** |
+
+Ou seja: **toda a computação epidemiológica segue em 181 m**. O que agrega é a
+visão global que a CNN usa para "como está o surto".
+
+### 18.2 A escala real, em metros
+
+Com o bbox do Rio usado pelo gerador kriging
+(`DEFAULT_RIO_BBOX_LONLAT`, 72,3 km × 45,0 km):
+
+| onde | grid | m/célula |
+|---|---|---:|
+| mundo (`env.size`) — casos vivem aqui | 400×400 | **181 m** |
+| `epi_confirm`, raio 20 células | — | 3.614 m |
+| observação v6 | 400×400 | 181 m |
+| observação v7 | 100×100 | 723 m |
+| **o que a rede realmente vê** (`pooled_size=6`) | 6×6 | **12.046 m** |
+
+Este é o ponto central: o encoder termina em `AdaptiveAvgPool2d((6, 6))`, então
+a cabeça recebe células de **12 km** venha a entrada em 400×400 ou 100×100.
+Ir de 181 m para 723 m na entrada é invisível diante de uma saída de 12 km.
+
+**O gargalo de fidelidade espacial é o `pooled_size`, não o `map_size`.**
+
+### 18.3 Perda medida, na distribuição real
+
+Colisão = dois casos distintos caindo na mesma célula da observação (nos canais
+categóricos isso sobrescreve; nos de contagem, apenas soma).
+
+| `map_size` | sintético | **kriging (Rio real)** |
+|---:|---:|---:|
+| 400 | 0,1% | 0,1% |
+| **100** | 2,6% | **1,7%** |
+| 50 | 9,7% | 5,7% |
+| 25 | 28,4% | 21,4% |
+
+A distribuição **real colide menos** que a sintética — o inverso da intuição.
+Os dois focos gaussianos do gerador sintético concentram mais casos por célula
+do que a superfície do Rio. A 100×100, 1,7% dos casos reais colidem.
+
+### 18.4 O limite duro que existe de verdade
+
+Há sim um piso, e não é sutil: **`map_size` < 36 quebra**. A pilha convolucional
+(k8s4 → k4s2 → k3s1) passa a entregar à segunda/terceira convolução menos
+pixels que o próprio kernel. Descoberto por um teste que usava `map_size=15`:
+
+```
+RuntimeError: Calculated padded input size per channel: (2 x 2).
+Kernel size: (4 x 4). Kernel size can't be greater than actual input size
+```
+
+Agora isso falha com mensagem útil: `network.MIN_MAP_SIDE = 36`, validado no
+`DengueNet.__init__`, apontando para `map_size`. Coberto por
+`test_map_size_below_the_encoder_floor_fails_loudly`.
+
+Com 100 há folga confortável (2,8× o piso) e a convolução entrega (64, 9, 9)
+antes do pooling — reduz honestamente para 6×6. Já 50×50 entrega (64, 2, 2), e
+o pooling passaria a **interpolar para cima**: tecnicamente funciona, na
+prática é degenerado.
+
+### 18.5 O que fica pronto para o mapa real
+
+`pooled_size` estava **fixo em 6 e inalcançável pela configuração**. Como é ele
+que governa a fidelidade espacial, foi exposto:
+
+- `build_policy(..., pooled_size=...)` e chave `train.pooled_size` no YAML.
+- `load_policy` **deduz** o valor do próprio checkpoint pela forma de
+  `map_proj.0.weight` (`in_features = 64 · pooled²`), então carregar não exige
+  saber com que configuração o modelo foi treinado.
+
+Isso torna barato o experimento que o mapa real vai exigir: subir `pooled_size`
+de 6 para, digamos, 12 (células de 6 km) ou 24 (3 km) e medir se a estrutura
+fina muda alguma coisa. Antes de §17 esse experimento era proibitivo — a
+entrada de 938 KB tornava qualquer varredura cara. Agora a entrada é 16× menor
+e sobra orçamento justamente para gastar em `pooled_size`, que é onde importa.
+
+### 18.6 O que revisar ao migrar para dados reais
+
+1. **Refazer a medição de §18.3 com os dados de verdade.** 1,7% vale para
+   ~840 casos/episódio nesta escala. Um surto denso num bairro pequeno colide
+   mais; o número não se extrapola, se mede.
+2. **`map_size` precisa dividir `env.size`** (validado, com erro explicativo) e
+   ser ≥ 36.
+3. **`epi_radius` está em células do mundo, não em metros.** Hoje 20 células =
+   3,6 km com o bbox do Rio. Trocar o bbox ou o `env.size` muda a distância
+   física sem que nada acuse — é a recalibração mais fácil de esquecer.
+4. **`pooled_size` é a pergunta em aberto**, não o `map_size`.
+
+### 18.7 Reprodução
+
+```bash
+.venv/Scripts/python.exe -m pytest dengue_envs/tests/test_map_size.py -q
 ```

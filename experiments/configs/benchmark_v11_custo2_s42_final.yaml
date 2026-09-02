@@ -1,0 +1,9 @@
+# v11 custo2 seed 42, policy_final. Ambiente v11 (test_cost 2.0) — os
+# baselines mudam aqui, por isso entram todos.
+env_config: env/synthetic_v11.yaml
+agents: [clinical, confirmall, testonce, testtwice, dqn]
+checkpoints:
+  dqn: results/dqn_v11_custo2_s42/policy_final.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/bm_v11_custo2_s42_final
+save_artifacts: false

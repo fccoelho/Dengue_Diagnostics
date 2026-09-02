@@ -1,0 +1,52 @@
+# DQN v10 — ataca a INSTABILIDADE, nao a recompensa.
+#
+# Diagnostico (v8/v9, 12 rodadas): a recompensa de teste oscila ate 6.300
+# pontos entre avaliacoes vizinhas depois de 100 mil passos. Isso domina tudo:
+# o desvio entre seeds no `final` e +-769, entao qualquer efeito menor que isso
+# e' invisivel. E `policy_best` fica ~1.000-1.460 pontos acima do `final`, ou
+# seja, selecionar pelo melhor e' selecionar ruido.
+#
+# CORRECAO DE RUMO: eu havia proposto Double DQN como suspeito. Ele JA ESTAVA
+# LIGADO -- `is_double=True` e o default do Tianshou 2.x e o train.py nunca
+# sobrescreveu. Explicitado no config agora para nao ficar escondido.
+#
+# O que de fato faltava:
+#   `lr` 1e-4 -> 2.5e-5 (4x menor). Passo menor por atualizacao, alvo de TD
+#   se move menos entre avaliacoes. E' o braco que isola o pedido.
+#
+# Tudo o mais identico ao v9 (mesmo ambiente, 100k passos, buffer 6000, n_step
+# 30). Buffer 6000 e nao 50000 porque o b6k foi consistentemente melhor no
+# `final`: v8 -735 vs -1117, v9 -1116 vs -1396.
+#
+env_config: ../env/synthetic_v7.yaml
+
+context_features: true
+reward_scale: 0.10
+
+train:
+  algorithm: dqn
+  seed: 42
+  epochs: 10
+  step_per_epoch: 10000
+  # <<< a mudanca: cobre a cadeia investigar -> laudo -> concluir
+  n_step: 30
+  batch_size: 64
+  buffer_size: 6000
+  test_buffer_per_env: 1000
+  test_episodes: 20
+  lr: 0.000025
+  is_double: true
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 0.5
+  eps_train_final: 0.05
+  eps_train_decay: 20000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 10
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn_v10_lr_s42

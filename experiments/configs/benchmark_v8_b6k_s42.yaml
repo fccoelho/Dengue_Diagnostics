@@ -1,0 +1,9 @@
+# Benchmark do DQN v8 (b6k, seed 42) — semantica nova de "nada" (§20).
+# `clinical` como ancora: deve reproduzir -379,2 do baseline_v8.
+env_config: env/synthetic_v7.yaml
+agents: [clinical, dqn]
+checkpoints:
+  dqn: results/dqn_v8_b6k_s42/policy_best.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/baseline_v8_b6k_s42
+save_artifacts: false

@@ -1,0 +1,10 @@
+# Benchmark do DQN v7 (b50k, seed 44) — protocolo multi-seed (ver §15).
+# `clinical` entra so como ancora: nao usa o tensor, entao deve reproduzir
+# exatamente o numero do v6 (-4036,52) e confirmar que o v7 nao mudou a tarefa.
+env_config: env/synthetic_v7.yaml
+agents: [clinical, dqn]
+checkpoints:
+  dqn: results/dqn_v7_b50k_s44/policy_best.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/baseline_v7_b50k_s44
+save_artifacts: false

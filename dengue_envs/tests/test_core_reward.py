@@ -25,9 +25,21 @@ class RewardEngineTestCase(unittest.TestCase):
     def test_immediate_cost_is_paid_now(self):
         eng = RewardEngine(reward_delay_days=5)
         real, obs = _cases()
-        # Ação "nada" (id 3) custa 0.1 imediatamente, sem desfecho.
+        # Exame (id 0) custa na hora; o desfecho, se houvesse, seria atrasado.
+        r = eng.compute([(0, 0)], t=0, real_cases=real, obs_cases=obs)
+        self.assertAlmostEqual(r, -eng.costs[0])
+
+    def test_do_nothing_is_the_null_action(self):
+        """"Nada" devolve exatamente 0.0 — nem custo, nem desfecho.
+
+        Era 0,1 até esta versão. Com ~373 passos por episódio isso somava uma
+        deriva de ~-37 por episódio, constante e sem informação, no alvo de TD
+        da ação mais frequente do agente.
+        """
+        eng = RewardEngine(reward_delay_days=5)
+        real, obs = _cases()
         r = eng.compute([(0, 3)], t=0, real_cases=real, obs_cases=obs)
-        self.assertAlmostEqual(r, -0.1)
+        self.assertEqual(r, 0.0)
 
     def test_conclude_dengue_correct_is_delayed(self):
         eng = RewardEngine(reward_delay_days=5, reward_correct_decision=10.0)

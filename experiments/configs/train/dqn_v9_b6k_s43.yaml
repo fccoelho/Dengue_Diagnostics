@@ -1,0 +1,66 @@
+# CUSTO: mesmos 100.000 passos de treino, com 11 avaliacoes em vez de 21.
+#
+# Medido: cada avaliacao coleta ~22.000 passos (20 episodios longos), contra
+# 5.000 de uma epoca de treino. Ao longo da rodada isso somava 468.000 passos
+# de AVALIACAO contra 100.000 de treino -- 4,7x mais. Resultado: 56,7 min dos
+# 73 min de uma rodada eram avaliacao.
+#
+# `epochs` x `step_per_epoch` = 10 x 10.000 = 100.000, identico ao 20 x 5.000
+# anterior. O que muda e SO a frequencia com que se avalia. E `num_test_envs`
+# 2 -> 10 agrupa o forward da politica (162s -> 116s por avaliacao).
+#
+# Efeito: ~73 min -> ~43 min por rodada.
+#
+# Perde-se granularidade na curva (11 pontos em vez de 21). Isso e aceitavel —
+# e ate desejavel — porque as curvas oscilam ~4.000 pontos entre epocas
+# consecutivas, entao `policy_best` sobre 21 avaliacoes ruidosas seleciona mais
+# ruido que sobre 11.
+#
+# GERACAO v9 (mudanca de codigo): "nada" passou a ser a ACAO NULA.
+#
+# Custo de `nada` foi de 0,1 para 0,0. Um passo de "nada" devolve exatamente
+# 0.0 — nem custo, nem desfecho, nem penalidade de caso em aberto. E a acao
+# nula do agente no sentido padrao de RL: nao consumir recurso nao gera
+# recompensa de especie alguma.
+#
+# Antes, com ~1120 passos de "nada" por episodio, o 0,1 somava uma deriva de
+# ~-112 por episodio: constante, sem informacao, e no alvo de TD da acao MAIS
+# FREQUENTE do agente (60-67% dos passos nas rodadas v8).
+#
+# Efeito nos baselines: `clinical` -379,2 -> -267,2. As demais praticamente nao
+# mudam (nao usam a acao).
+#
+# Herda de v8: "nada" nao paga `penalty_unresolved` (so quem ABRIU investigacao
+# e nao fechou), e a penalidade e cobrada no passo em que o caso e largado.
+#
+env_config: ../env/synthetic_v7.yaml
+
+context_features: true
+reward_scale: 0.10
+
+train:
+  algorithm: dqn
+  seed: 43
+  epochs: 10
+  step_per_epoch: 10000
+  # <<< a mudanca: cobre a cadeia investigar -> laudo -> concluir
+  n_step: 30
+  batch_size: 64
+  buffer_size: 6000
+  test_buffer_per_env: 1000
+  test_episodes: 20
+  lr: 0.0001
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 0.5
+  eps_train_final: 0.05
+  eps_train_decay: 20000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 10
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn_v9_b6k_s43

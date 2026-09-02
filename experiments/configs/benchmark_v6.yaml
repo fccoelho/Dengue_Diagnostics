@@ -1,0 +1,15 @@
+# Benchmark no ambiente v6 — `epi_confirm` sem vazamento e com custo de campo.
+#
+# Sem `dqn`: a observação mudou (mapa 4->6 canais, contexto 14->16), então
+# TODOS os checkpoints anteriores são incompatíveis com este ambiente. O
+# primeiro DQN do v6 precisa ser treinado do zero.
+#
+# Ressalva sobre o `qlearning`: a q-table foi treinada no regime antigo, então
+# ela é avaliada aqui, mas não re-treinada — é um piso, não um teto.
+env_config: env/synthetic_v6.yaml
+agents: [clinical, random, confirmall, testonce, testtwice, qlearning]
+checkpoints:
+  qlearning: results/qlearning_v2/q_table.pkl
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/baseline_v6
+save_artifacts: false

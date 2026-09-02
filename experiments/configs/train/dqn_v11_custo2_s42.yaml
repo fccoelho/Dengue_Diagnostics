@@ -1,0 +1,45 @@
+# DQN v11 — ITEM 4: exame mais barato, sobre a config ESTAVEL (Huber).
+#
+# Controle ja medido: mesma config com test_cost 4.0 deu -4164 +- 9, com 66,7%
+# de inacao e ZERO exames. Aqui a unica mudanca e o ambiente (test_cost 2.0),
+# que dobra a margem de investigar sobre nao agir (1.276 -> 2.768).
+#
+# ITEM 1 (shaping por potencial) foi DESCARTADO por medicao, nao por escolha:
+# quatro desenhos de Phi dao F NEGATIVO no passo do exame. Com gamma=0.99 e
+# ~248 investigacoes abertas simultaneas, a deriva (1-gamma)*Phi ~ 2,5W supera
+# o incremento ~0,99W do exame -- para qualquer W. A causa e a mesma que quebra
+# a atribuicao de credito: s' ja e outro paciente.
+#
+env_config: ../env/synthetic_v11.yaml
+
+context_features: true
+reward_scale: 0.10
+
+train:
+  algorithm: dqn
+  seed: 42
+  epochs: 10
+  step_per_epoch: 10000
+  # <<< a mudanca: cobre a cadeia investigar -> laudo -> concluir
+  n_step: 30
+  batch_size: 64
+  buffer_size: 6000
+  test_buffer_per_env: 1000
+  test_episodes: 20
+  lr: 0.000025
+  is_double: true
+  huber_loss_delta: 1.0
+  gamma: 0.99
+  target_update_freq: 1000
+  step_per_collect: 1000
+  update_per_step: 0.1
+  eps_train_start: 0.5
+  eps_train_final: 0.05
+  eps_train_decay: 20000
+  eps_test: 0.01
+  num_train_envs: 2
+  num_test_envs: 10
+  vector_env: dummy
+  prefill_steps: 1000
+
+output_dir: results/dqn_v11_custo2_s42

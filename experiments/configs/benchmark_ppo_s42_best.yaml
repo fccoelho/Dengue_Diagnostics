@@ -1,0 +1,8 @@
+# PPO v1 seed 42, checkpoint best. Ambiente v7 — o mesmo do controle do DQN.
+env_config: env/synthetic_v7.yaml
+agents: [clinical, ppo]
+checkpoints:
+  ppo: results/ppo_v1_s42/policy_best.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/bm_ppo_s42_best
+save_artifacts: false

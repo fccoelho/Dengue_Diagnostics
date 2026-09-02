@@ -5,6 +5,13 @@ import torch
 from torch import nn
 
 
+# Piso imposto pela pilha convolucional (k8s4 -> k4s2 -> k3s1): abaixo disso a
+# segunda/terceira convolução recebem menos pixels que o próprio kernel. Medido
+# por varredura: 36 é o menor lado que passa. Relevante ao escolher `map_size`
+# (ver DengueWrapper) — reduzir a observação tem um limite duro, e ele é aqui.
+MIN_MAP_SIDE = 36
+
+
 class DengueNet(nn.Module):
     """Processa obs Dict ``{"map": (B, C, H, W), "case_coords": (B, 2)}`` → Q (B, |A|).
 
@@ -41,6 +48,13 @@ class DengueNet(nn.Module):
         context_out_dim: int = 128,
     ):
         super().__init__()
+        lado = min(int(map_shape[1]), int(map_shape[2]))
+        if lado < MIN_MAP_SIDE:
+            raise ValueError(
+                f"mapa {map_shape[1]}x{map_shape[2]} é pequeno demais para o "
+                f"encoder: a pilha convolucional exige lado >= {MIN_MAP_SIDE}. "
+                f"Aumente `map_size` na configuração do ambiente."
+            )
         self.device = device
         # `context_dim > 0` habilita o ramo que consome a evidência sobre o caso
         # atual + a competência do médico (ver CaseByCaseWrapper.context_features).

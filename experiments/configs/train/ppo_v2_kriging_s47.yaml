@@ -1,0 +1,50 @@
+# PPO v2 — kriging, seeds NOVOS, 3x mais treino.
+#
+# Duas perguntas, uma rodada:
+#
+# 1. O +632 +- 43 do v1 (seeds 42/43/44) reproduz com seeds que nunca foram
+#    usados? A licao mais cara desta sessao foi que a mesma config com seed
+#    diferente dava -81,90 e -3272,25 no DQN.
+#
+# 2. A curva do v1 ainda SUBIA na epoca 10 -- +632 era onde o orcamento
+#    acabou, nao um teto medido. Aqui sao 300 mil passos (3x), no mesmo formato
+#    que barateou o DQN: epocas mais longas em vez de mais epocas, para nao
+#    triplicar tambem o custo de avaliacao (que ja era 4,7x o do treino).
+#
+# Distribuicao REAL (Ordinary Kriging sobre notificacoes do Rio 2015-16).
+#
+# Por que importa: o PPO chegou a +632 SEM pedir exame, aprendendo a
+# discordar do medico pela posicao espacial. O sintetico tem dois focos
+# limpos e bem separados -- espacialmente muito informativo. A distribuicao
+# real e mais dispersa (medido: 121 celulas ocupadas contra 140 no
+# sintetico, com menos casos). Se o desempenho dependia de focos
+# artificialmente separaveis, e aqui que isso aparece.
+#
+env_config: ../env/kriging_v7.yaml
+
+context_features: true
+reward_scale: 0.10
+
+train:
+  seed: 47
+  epochs: 10
+  step_per_epoch: 30000    # 300k passos no total (3x o v1)
+  step_per_collect: 2000    # lote on-policy
+  repeat_per_collect: 10
+  batch_size: 256
+  lr: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  eps_clip: 0.2
+  # Entropia ACIMA do padrao (0.01). O modo de falha desta sessao e colapso em
+  # "nada"; a entropia e a alavanca que age contra isso, e ela atua sobre a
+  # POLITICA, nao sobre a acao escolhida como o epsilon.
+  ent_coef: 0.02
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  num_train_envs: 8
+  num_test_envs: 10
+  test_episodes: 20
+  vector_env: dummy
+
+output_dir: results/ppo_v2_kriging_s47

@@ -1,0 +1,9 @@
+# v10 lrhuber seed 43, checkpoint best.
+# `clinical` como ancora: deve dar -267,2 e confirmar que a tarefa nao mudou.
+env_config: env/synthetic_v7.yaml
+agents: [clinical, dqn]
+checkpoints:
+  dqn: results/dqn_v10_lrhuber_s43/policy_best.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/bm_v10_lrhuber_s43_best
+save_artifacts: false

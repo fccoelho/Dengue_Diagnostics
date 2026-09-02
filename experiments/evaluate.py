@@ -33,6 +33,7 @@ from dengue_envs.wrappers import make_env
 from agents.base import ID_COLUMNS, PRIMARY_METRIC, RESULT_COLUMNS
 from agents.clinical.agent import ClinicalOnlyAgentRunner
 from agents.deepq.agent import DQNAgentRunner
+from agents.ppo.agent import PPOAgentRunner
 from agents.qlearning.agent import QLearningAgentRunner
 from agents.random.agent import RandomAgentRunner
 from agents.testall.agent import TestAllAgentRunner
@@ -51,6 +52,7 @@ AGENT_REGISTRY = {
     "testtwice": TestTwiceAgentRunner,
     "qlearning": QLearningAgentRunner,
     "dqn": DQNAgentRunner,
+    "ppo": PPOAgentRunner,
 }
 
 
@@ -64,8 +66,8 @@ def _make_runner(name: str, bench: dict):
             q_table_path=checkpoints.get("qlearning"),
             state_config=state_cfg,
         )
-    if name == "dqn":
-        return cls(policy_path=checkpoints.get("dqn"))
+    if name in ("dqn", "ppo"):
+        return cls(policy_path=checkpoints.get(name))
     return cls()
 
 

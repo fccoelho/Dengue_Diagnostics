@@ -53,11 +53,11 @@ class CaseByCaseWrapper(gym.Wrapper):
             ),
         }
         if self.context_features:
-            # 2 posições de evidência sobre o médico (nível do episódio) + 12 de
+            # 2 posições de evidência sobre o médico (nível do episódio) + 14 de
             # atributos do caso atual (nível do caso). As duas partes vão no mesmo
             # vetor porque a rede as consome pelo mesmo ramo denso.
             spaces_dict["context"] = spaces.Box(
-                low=0.0, high=1.0, shape=(14,), dtype=np.float32
+                low=0.0, high=1.0, shape=(16,), dtype=np.float32
             )
         # `mask` segue a convenção do Tianshou: 1 = ação permitida. Só entra na
         # observação quando o ambiente de fato restringe alguma ação, para não

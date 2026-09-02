@@ -1,0 +1,42 @@
+# PPO v1 — primeiro teste de um algoritmo on-policy neste ambiente.
+#
+# Motivacao (ver RESUMO_SESSAO.md): o DQN converge de forma reprodutivel para
+# uma politica degenerada -- 66,7% de inacao, ZERO exames -- e tres ataques
+# falharam pela mesma causa estrutural (os casos sao intercalados, entao o
+# valor de investigar o caso X precisa atravessar ~30 transicoes de outros
+# pacientes).
+#
+# O PPO nao elimina a intercalacao, mas nao depende de uma funcao Q estavel
+# sobre ela: otimiza a politica direto, com bonus de entropia sustentando
+# exploracao e GAE espalhando o credito de forma mais suave.
+#
+# Ambiente: v7 (o mesmo do controle -4164 +- 9 do DQN), para comparacao direta.
+#
+env_config: ../env/synthetic_v7.yaml
+
+context_features: true
+reward_scale: 0.10
+
+train:
+  seed: 44
+  epochs: 10
+  step_per_epoch: 10000     # 100k passos no total, igual ao DQN
+  step_per_collect: 2000    # lote on-policy
+  repeat_per_collect: 10
+  batch_size: 256
+  lr: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  eps_clip: 0.2
+  # Entropia ACIMA do padrao (0.01). O modo de falha desta sessao e colapso em
+  # "nada"; a entropia e a alavanca que age contra isso, e ela atua sobre a
+  # POLITICA, nao sobre a acao escolhida como o epsilon.
+  ent_coef: 0.02
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  num_train_envs: 8
+  num_test_envs: 10
+  test_episodes: 20
+  vector_env: dummy
+
+output_dir: results/ppo_v1_s44

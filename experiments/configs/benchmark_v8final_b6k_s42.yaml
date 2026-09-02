@@ -1,0 +1,8 @@
+# policy_FINAL (nao o best) — testa se o best e politica ou instantaneo de sorte.
+env_config: env/synthetic_v7.yaml
+agents: [dqn]
+checkpoints:
+  dqn: results/dqn_v8_b6k_s42/policy_final.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/baseline_v8final_b6k_s42
+save_artifacts: false

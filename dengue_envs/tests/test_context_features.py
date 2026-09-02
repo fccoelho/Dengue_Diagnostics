@@ -40,11 +40,11 @@ def test_context_absent_by_default():
 
 
 def test_context_present_when_enabled():
-    """O contexto reúne evidência sobre o médico (2) + atributos do caso (12)."""
+    """O contexto reúne evidência sobre o médico (2) + atributos do caso (14)."""
     env = make_env(_cfg(True))
     obs, _ = env.reset(seed=0)
     assert "context" in obs
-    assert obs["context"].shape == (14,)
+    assert obs["context"].shape == (16,)
     # Sem laudo ainda: taxa neutra (0,5) e evidência zero.
     assert np.allclose(obs["context"][:2], [0.5, 0.0])
     env.close()
@@ -59,8 +59,9 @@ def test_case_features_expose_current_case_state():
     env = make_env(_cfg(True))
     obs, _ = env.reset(seed=0)
     feats = obs["context"][2:]
-    assert feats.shape == (12,)
-    # Um one-hot de diagnóstico (3), um de cada exame (4+4) e o epiconf (1).
+    assert feats.shape == (14,)
+    # One-hot de diagnóstico (3), de cada exame (4+4), o epiconf (1) e a
+    # densidade local de confirmados dengue/chik (2).
     assert feats[:3].sum() == 1.0, "diagnóstico clínico deve estar codificado"
     assert feats[3:7].sum() == 1.0, "status do exame de dengue deve estar codificado"
     assert feats[7:11].sum() == 1.0, "status do exame de chik deve estar codificado"

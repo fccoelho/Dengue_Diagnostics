@@ -72,6 +72,23 @@ def _resolve_env_config(cfg: dict, config_path: Path) -> dict:
     return env_cfg
 
 
+class EnvFactory:
+    """Fábrica de ambientes **picklável** — requisito do `SubprocVectorEnv`.
+
+    No Windows o `SubprocVectorEnv` usa `spawn`: a fábrica é serializada e
+    reconstruída dentro de cada processo filho. Uma closure definida dentro de
+    `main()` não é picklável (`Can't pickle local object`), então a fábrica
+    precisa ser um objeto de módulo com estado serializável — aqui, só o dict
+    de configuração.
+    """
+
+    def __init__(self, env_config: dict):
+        self.env_config = env_config
+
+    def __call__(self):
+        return make_env(self.env_config)
+
+
 def _make_vector_env(factory: Callable[[], Any], n: int, *, kind: str = "dummy"):
     if n <= 0:
         raise ValueError("num_envs deve ser >= 1")
@@ -123,6 +140,18 @@ def train(config_path: str) -> Path:
     lr = float(train_cfg.get("lr", 1e-4))
     gamma = float(train_cfg.get("gamma", 0.99))
     target_update_freq = int(train_cfg.get("target_update_freq", 1500))
+    # Perda do erro de TD. `None` = MSE (default do Tianshou), em que o
+    # gradiente cresce LINEARMENTE com o erro — um alvo aberrante domina o
+    # passo. O Huber satura o gradiente a partir de `delta`, que é o
+    # estabilizador usado no DQN da Nature. Medido nesta sessão com MSE: a
+    # recompensa de teste oscilava ~6.300 pontos entre avaliações vizinhas
+    # depois de 100 mil passos.
+    huber_loss_delta = train_cfg.get("huber_loss_delta")
+    if huber_loss_delta is not None:
+        huber_loss_delta = float(huber_loss_delta)
+    # Double DQN já é o default do Tianshou 2.x (`is_double=True`); explicitado
+    # aqui para ficar visível na configuração, não escondido num default.
+    is_double = bool(train_cfg.get("is_double", True))
     step_per_epoch = int(train_cfg.get("step_per_epoch", 10000))
     step_per_collect = int(train_cfg.get("step_per_collect", 1000))
     update_per_step = float(train_cfg.get("update_per_step", 0.1))
@@ -160,10 +189,13 @@ def train(config_path: str) -> Path:
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-    def env_factory():
-        return make_env(env_config)
+    env_factory = EnvFactory(env_config)
 
     print(f"[dqn] device={device} | epochs={epochs} | n_step={n_step}")
+    print(
+        f"[dqn] lr={lr} | double={is_double} | "
+        f"perda={'huber(%g)' % huber_loss_delta if huber_loss_delta else 'mse'}"
+    )
     print(
         f"[dqn] env reward_delay_days="
         f"{env_config.get('env', {}).get('reward_delay_days')}"
@@ -187,11 +219,15 @@ def train(config_path: str) -> Path:
         f"= ~{buffer_gb:.1f} GB | buffer de teste ~{test_buffer_gb:.1f} GB "
         f"| total ~{buffer_gb + test_buffer_gb:.1f} GB (obs em {map_space.dtype})"
     )
+    # Resolução espacial que a rede enxerga (lado do AdaptiveAvgPool2d). É o
+    # que governa a fidelidade espacial — ver §18 do handoff.
+    pooled_size = train_cfg.get("pooled_size")
     policy = build_policy(
         dummy_env,
         device=device,
         eps_training=eps_start,
         eps_inference=eps_test,
+        pooled_size=pooled_size,
     )
     dummy_env.close()
 
@@ -212,6 +248,8 @@ def train(config_path: str) -> Path:
         gamma=gamma,
         n_step_return_horizon=n_step,
         target_update_freq=target_update_freq,
+        is_double=is_double,
+        huber_loss_delta=huber_loss_delta,
     )
 
     buffer = VectorReplayBuffer(

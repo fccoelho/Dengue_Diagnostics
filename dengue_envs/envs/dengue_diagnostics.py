@@ -23,11 +23,15 @@ from dengue_envs.core import (
     LabResultQueue,
     RewardEngine,
     epi_confirm,
+    neighborhood_sum,
     sync_obs_cases,
     update_case_status,
 )
 from dengue_envs.core.clinical import (
+    CHIK,
+    DENGUE,
     INCONCLUSIVE,
+    POSITIVE,
     PCR_INCONCLUSIVE_PROB,
     PCR_SENSITIVITY,
     PCR_SPECIFICITY,
@@ -59,6 +63,10 @@ class DengueDiagnosticsEnv(gym.Env):
             other_recognition_prob: float = 0.15,
             test_cost: float = 5.0,
             epi_confirm_cost: float = 0.5,
+            epi_radius: int = 20,
+            epi_threshold: int = 1,
+            epi_density_scale: float = 10.0,
+            do_nothing_cost: float = 0.0,
             start_day: int = 1,
             lab_delay_days: Optional[int] = None,
             settle_days: Optional[int] = None,
@@ -114,9 +122,32 @@ class DengueDiagnosticsEnv(gym.Env):
         # define se existe ESCASSEZ: com ele baixo, testar todo mundo é quase
         # sempre ótimo e o problema de alocação desaparece.
         self.test_cost = float(test_cost)
+        # `nada` é a AÇÃO NULA: custo zero por padrão. Não fazer nada não
+        # consome recurso, então o passo devolve exatamente 0.0 — nem custo,
+        # nem desfecho, nem penalidade de caso em aberto (ver
+        # `_charge_if_abandoned`). Configurável para quem queira cobrar por
+        # inação, mas o default é o comportamento padrão de RL.
         self.costs = np.array(
-            [self.test_cost, self.test_cost, epi_confirm_cost, 0.1, 0.0, 0.0, 0.0]
+            [
+                self.test_cost,
+                self.test_cost,
+                epi_confirm_cost,
+                float(do_nothing_cost),
+                0.0,
+                0.0,
+                0.0,
+            ]
         )
+        # --- confirmação epidemiológica ---
+        # `epi_radius` é o raio da vizinhança consultada. Raio 0 (uma célula) é
+        # inútil neste ambiente: com ~140 casos de cada arbovirose num grid
+        # 400x400 a densidade máxima por célula é 1, então `> epi_threshold`
+        # nunca dispara — medido, 5598 chamadas devolvendo 0. Com raio 20 a
+        # discriminação dengue x chik dá 90,7% de cobertura e 92,9% de acerto.
+        self.epi_radius = int(epi_radius)
+        self.epi_threshold = int(epi_threshold)
+        # Divisor que leva a densidade local para [0, 1] em `case_features`.
+        self.epi_density_scale = float(epi_density_scale)
         # Motor de recompensa (custo imediato + desfechos atrasados + placar
         # final). Detém a fila `pending_rewards`, exposta abaixo como
         # propriedade de leitura.
@@ -257,6 +288,9 @@ class DengueDiagnosticsEnv(gym.Env):
         self.testc = []
         self.epiconf = []
         self.final = []
+        self._reset_confirmed_maps()
+        # Casos em que o agente gastou alguma ação investigativa.
+        self.investigated_cases = set()
 
         self.tcase = []
         self.rewards = []
@@ -405,6 +439,7 @@ class DengueDiagnosticsEnv(gym.Env):
             self.obs_cases,
             terminated=terminated,
             concluded=self.finalized_cases,
+            investigated=self.investigated_cases,
         )
         self.total_reward += step_reward
         self.individual_rewards.append([])
@@ -540,6 +575,9 @@ class DengueDiagnosticsEnv(gym.Env):
             before = int(self.obs_cases.loc[case_id, "agent_diagnosis"])
             self._update_case_status(action_id, case_id, result)
             after = int(self.obs_cases.loc[case_id, "agent_diagnosis"])
+            # Laudo positivo entra no mapa epidemiológico do agente — é o que
+            # torna o exame um investimento além do próprio caso.
+            self._register_confirmation(action_id, case_id, result)
             # Laudo inconclusivo não altera nada e não informa sobre o médico.
             if result != INCONCLUSIVE:
                 self.lab_informative += 1
@@ -636,8 +674,15 @@ class DengueDiagnosticsEnv(gym.Env):
           - status do exame de dengue: não feito / neg / pos / inconc (4)
           - status do exame de chik:   não feito / neg / pos / inconc (4)
           - confirmação epidemiológica                                (1)
+          - densidade local de CONFIRMADOS dengue / chik              (2)
+
+        As duas últimas posições são o que torna `epi_confirm` uma decisão e
+        não uma loteria: sem elas o agente só descobre o resultado *depois* de
+        pagar, e o único retorno é 1 bit. Elas vão aqui, e não no tensor de
+        mapa, porque o `AdaptiveAvgPool2d` do encoder resume 400x400 em 6x6 e
+        dissolve a vizinhança do caso na média (medido: 2e-04 de variação).
         """
-        vec = np.zeros(12, dtype=np.float32)
+        vec = np.zeros(14, dtype=np.float32)
         if case_id not in self.obs_cases.index:
             return vec
         row = self.obs_cases.loc[case_id]
@@ -651,7 +696,30 @@ class DengueDiagnosticsEnv(gym.Env):
         if 0 <= testc <= 3:
             vec[7 + testc] = 1.0
         vec[11] = float(int(row["epiconf"]) != 0)
+        nd, nc = self.local_confirmed_density(case_id)
+        vec[12] = min(1.0, nd / self.epi_density_scale)
+        vec[13] = min(1.0, nc / self.epi_density_scale)
         return vec
+
+    def local_confirmed_density(self, case_id) -> Tuple[float, float]:
+        """Confirmados por laudo na vizinhança do caso, **excluindo ele mesmo**.
+
+        A auto-exclusão importa: sem ela a densidade devolve o laudo do próprio
+        caso com outro nome — medido, isso sozinho "acerta" 99,6% da doença, o
+        que é o exame já pago, não evidência de vizinhança.
+        """
+        if case_id not in self.obs_cases.index:
+            return 0.0, 0.0
+        x, y = self.get_case_xy(case_id)
+        x, y = int(x), int(y)
+        nd = neighborhood_sum(self.confirmed_dmap, x, y, self.epi_radius)
+        nc = neighborhood_sum(self.confirmed_cmap, x, y, self.epi_radius)
+        own = self._confirmed_by_case.get(case_id)
+        if own == DENGUE:
+            nd -= 1.0
+        elif own == CHIK:
+            nc -= 1.0
+        return max(0.0, nd), max(0.0, nc)
 
     def clinical_evidence(self) -> Tuple[float, float]:
         """``(taxa_de_concordância, força_da_evidência)`` sobre o médico atual.
@@ -689,7 +757,48 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         x, y = self.get_case_xy(case_id)
         clinical = int(self.obs_cases.loc[case_id, "disease"])
-        return epi_confirm(clinical, x, y, self.dmap, self.cmap)
+        own = self._confirmed_by_case.get(case_id)
+        exclude = (1.0 if own == DENGUE else 0.0, 1.0 if own == CHIK else 0.0)
+        return epi_confirm(
+            clinical,
+            x,
+            y,
+            self.confirmed_dmap,
+            self.confirmed_cmap,
+            threshold=self.epi_threshold,
+            radius=self.epi_radius,
+            exclude=exclude,
+        )
+
+    def _reset_confirmed_maps(self) -> None:
+        """Zera o mapa epidemiológico que o AGENTE construiu.
+
+        Conta apenas casos **confirmados por laudo positivo** — é o que uma
+        vigilância real chama de caso confirmado, e é o que torna o exame um
+        investimento: cada laudo positivo melhora toda `epi_confirm` futura
+        naquela região. Conclusões do agente não entram: são alegações não
+        verificadas, e realimentá-las como "evidência" deixaria o agente
+        confirmar os próprios palpites.
+        """
+        self.confirmed_dmap = np.zeros((self.size, self.size), dtype=np.float32)
+        self.confirmed_cmap = np.zeros((self.size, self.size), dtype=np.float32)
+        # case_id -> DENGUE/CHIK, para poder excluir o próprio caso da consulta.
+        self._confirmed_by_case = {}
+
+    def _register_confirmation(self, action_id, case_id, result) -> None:
+        """Registra um laudo POSITIVO no mapa epidemiológico do agente."""
+        if result != POSITIVE or action_id not in (0, 1):
+            return
+        if case_id in self._confirmed_by_case:
+            return
+        disease = DENGUE if action_id == 0 else CHIK
+        x, y = self.get_case_xy(case_id)
+        x, y = int(x), int(y)
+        if not (0 <= x < self.size and 0 <= y < self.size):
+            return
+        target = self.confirmed_dmap if disease == DENGUE else self.confirmed_cmap
+        target[x, y] += 1.0
+        self._confirmed_by_case[case_id] = disease
 
     def _sample_outbreak_params(self) -> None:
         """Sorteia focos espaciais e R0 quando não foram fixados na config."""
@@ -833,6 +942,9 @@ class DengueDiagnosticsEnv(gym.Env):
         self.testc = []
         self.epiconf = []
         self.final = []
+        self._reset_confirmed_maps()
+        # Casos em que o agente gastou alguma ação investigativa.
+        self.investigated_cases = set()
         self.rewards = []
         # Evidência acumulada sobre a competência do médico (ver _apply_lab_results).
         self.lab_agreements = 0
@@ -870,6 +982,41 @@ class DengueDiagnosticsEnv(gym.Env):
         return self.individual_rewards[t]
 
 
+    def _case_will_return(self, case_id) -> bool:
+        """O caso volta ao agente em algum momento futuro?
+
+        Três formas de voltar: já ter revisita agendada, ter laudo a caminho
+        (que agenda revisita ao chegar), ou — nenhuma das duas — nada. O
+        orçamento de `max_case_revisits` limita as duas primeiras.
+        """
+        if case_id in self.pending_revisit:
+            return True
+        if self.revisit_counts.get(case_id, 0) >= self.max_case_revisits:
+            return False
+        return self.lab_queue.has_pending(case_id)
+
+    def _charge_if_abandoned(self, case_id) -> float:
+        """Cobra a penalidade de caso em aberto se ele acabou de ser largado.
+
+        Chamado logo APÓS aplicar os efeitos da ação, quando já se sabe se o
+        caso foi encerrado, reagendado, ou simplesmente abandonado. Ver
+        `RewardEngine.abandon_case` para o porquê de cobrar aqui e não no fim.
+        """
+        if case_id in self.finalized_cases:
+            return 0.0
+        if case_id not in self.obs_cases.index:
+            return 0.0
+        if self._case_will_return(case_id):
+            return 0.0
+        # Não agir NÃO é abandonar: é deixar valer o diagnóstico do médico, que
+        # é o que `agent_diagnosis` já contém. Esse caso é julgado pelo acerto
+        # do palpite clínico no placar final, sem penalidade extra. Só paga por
+        # ficar em aberto quem ABRIU investigação (exame ou ida a campo) e não
+        # a fechou.
+        if case_id not in self.investigated_cases:
+            return 0.0
+        return self.reward_engine.abandon_case(case_id)
+
     def _apply_action_effects(self, case_id, action_id) -> None:
         """Aplica os efeitos de UMA ação sobre UM caso (sem calcular recompensa).
 
@@ -880,6 +1027,12 @@ class DengueDiagnosticsEnv(gym.Env):
         # Ignora ações sobre casos que ainda não foram notificados.
         if case_id not in self.obs_cases.index:
             return
+
+        # Gastar recurso no caso ABRE uma investigação. Só investigação aberta
+        # pode ficar "em aberto" no fim (ver RewardEngine._terminal_score):
+        # não agir é deixar valer o diagnóstico do médico, não abandonar nada.
+        if action_id in (0, 1, 2):
+            self.investigated_cases.add(case_id)
 
         if action_id == 0:  # Teste de Dengue: amostra colhida hoje, laudo atrasa
             test_result = self._dengue_lab_test(case_id)
@@ -900,8 +1053,18 @@ class DengueDiagnosticsEnv(gym.Env):
             # órfãos vinham daqui). Mesma correção já feita para os exames.
             self._schedule_revisit(case_id)
         elif action_id == 3:  # Do nothing
-            # O agent_diagnosis permanece como o palpite clínico
-            pass
+            # O agent_diagnosis permanece como o palpite clínico.
+            #
+            # "Nada" é ADIAR, não descartar: o caso volta amanhã, consumindo
+            # uma revisita. Sem isto ele saía da fila para sempre e a máscara
+            # de decisão nunca disparava (ela exige `revisit_counts >=
+            # max_case_revisits`, e "nada" não incrementava nada). Medido no
+            # v7: 62-85% dos casos terminavam em aberto exatamente por aqui,
+            # e a penalidade correspondente era o maior termo do prejuízo.
+            #
+            # Com o reagendamento, o orçamento de revisitas se esgota e a
+            # máscara força uma conclusão — o caso não pode mais sumir calado.
+            self._schedule_revisit(case_id)
         elif action_id in (4, 5, 6):  # Conclude DENGUE / CHIK / OTHER
             # Ação decisiva: a alegação é a própria ação (não o palpite
             # clínico corrente), o que permite ao agente discordar do
@@ -931,6 +1094,8 @@ class DengueDiagnosticsEnv(gym.Env):
         reward = self.reward_engine.case_reward(
             case_id, action_id, self.t, self.real_cases, self.obs_cases
         )
+        # Se esta ação largou o caso, a conta vem agora — não em bloco no fim.
+        reward += self._charge_if_abandoned(case_id)
         self.total_reward += reward
         return reward
 
@@ -953,8 +1118,12 @@ class DengueDiagnosticsEnv(gym.Env):
         self._sync_obs_cases()
         self.cases_t = self._cases_at_t(self.t)
         # apply the actions
+        abandonment_penalty = 0.0
         for case_id, action_id in action:
             self._apply_action_effects(case_id, action_id)
+            # Mesma cobrança do modo por caso, para que a soma do episódio seja
+            # idêntica nos dois (ver test_per_case_reward.py).
+            abandonment_penalty += self._charge_if_abandoned(case_id)
 
         terminated = self.t >= self.horizon
 
@@ -982,6 +1151,8 @@ class DengueDiagnosticsEnv(gym.Env):
             action,
             terminated=terminated
         )
+        reward += abandonment_penalty
+        self.total_reward += abandonment_penalty
         # print(f"Reward: {reward} \t Total Reward: {self.total_reward}")
 
         self.rewards.append(self.total_reward)

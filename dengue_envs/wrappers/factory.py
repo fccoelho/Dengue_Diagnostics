@@ -46,6 +46,10 @@ _ENV_KEYS = {
     "other_recognition_prob",
     "test_cost",
     "epi_confirm_cost",
+    "epi_radius",
+    "epi_threshold",
+    "epi_density_scale",
+    "do_nothing_cost",
     "start_day",
     "lab_delay_days",
     "settle_days",
@@ -138,6 +142,9 @@ def make_env(config: Optional[dict] = None, **kwargs):
       dia inteiro num único passo (ver CaseByCaseWrapper).
     - `config["context_features"]`: se True, o `case_by_case` acrescenta à
       observação a evidência acumulada sobre a competência do médico.
+    - `config["map_size"]`: resolução do tensor de mapa (default: tamanho do
+      mundo). Precisa dividir `env.size`. Ver `DengueWrapper` para a medição
+      que motiva reduzi-la.
     - kwargs extras são repassados ao ambiente base.
     """
     env = make_raw_env(config, **kwargs)
@@ -147,6 +154,10 @@ def make_env(config: Optional[dict] = None, **kwargs):
         wrappers = config["wrappers"]
     context_features = bool((config or {}).get("context_features", False))
     per_case_reward = bool((config or {}).get("per_case_reward", False))
+    # Resolução da observação de mapa. `None` = mesma do mundo (comportamento
+    # histórico). Ver DengueWrapper: o encoder reduz tudo a 6x6 de qualquer
+    # forma, então resolução extra só encarece o caminho dos dados.
+    map_size = (config or {}).get("map_size")
 
     for name in wrappers:
         if name not in _WRAPPER_BUILDERS:
@@ -160,6 +171,8 @@ def make_env(config: Optional[dict] = None, **kwargs):
                 context_features=context_features,
                 per_case_reward=per_case_reward,
             )
+        elif name == "map_tensor":
+            env = DengueWrapper(env, map_size=map_size)
         else:
             env = _WRAPPER_BUILDERS[name](env)
 

@@ -127,16 +127,28 @@ class StateEncoder:
         if map_tensor is None:
             return "unknown"
 
-        clinical_raw = int(map_tensor[0, x, y])
-        testd_raw = int(map_tensor[1, x, y])
-        testc_raw = int(map_tensor[2, x, y])
-        clinical = _decode_clinical(clinical_raw)
-        testd = _decode_test_status(testd_raw)
-        testc = _decode_test_status(testc_raw)
-
         row = u.obs_cases.loc[case_id] if case_id in u.obs_cases.index else None
-        agent_dx = int(row["agent_diagnosis"]) if row is not None else clinical
-        epi = int(row["epiconf"]) if row is not None else 0
+
+        # Os atributos do CASO vêm de `obs_cases`, não do mapa.
+        #
+        # Antes eram lidos por posição (`map_tensor[0, x, y]`), o que só era
+        # correto enquanto o tensor tinha uma célula por célula do mundo. Com
+        # `map_size` menor que `env.size` (ver DengueWrapper), indexar com
+        # coordenada do mundo estourava o eixo — e escalar a coordenada só
+        # troca o erro por outro pior: a célula agregada carrega o atributo de
+        # *algum* caso do bloco 4x4, não necessariamente deste.
+        #
+        # Os canais 0-2 são exatamente `disease`/`testd`/`testc` com offset +1,
+        # então ler da tabela é equivalente, exato e independente da resolução.
+        if row is not None:
+            clinical = int(row["disease"])
+            testd = int(row["testd"])
+            testc = int(row["testc"])
+            agent_dx = int(row["agent_diagnosis"])
+            epi = int(row["epiconf"])
+        else:
+            clinical, testd, testc = 2, 0, 0
+            agent_dx, epi = clinical, 0
 
         tests_done = (1 if testd > 0 else 0) + (1 if testc > 0 else 0)
         lab_pos = 1 if testd == 2 or testc == 2 else 0
@@ -198,8 +210,20 @@ class StateEncoder:
     def _local_context(
         self, map_tensor: np.ndarray, x: int, y: int, size: int
     ) -> Tuple[int, int, int, int, int]:
-        """Contagens na janela (2r+1)^2 ao redor de (x,y), em buckets 0..3."""
-        r = max(self.local_radius, 0)
+        """Contagens na janela (2r+1)^2 ao redor de (x,y), em buckets 0..3.
+
+        `x`, `y` e `local_radius` estão em células do MUNDO; o tensor pode
+        estar numa resolução menor (`map_size`). Sem converter, o fatiamento
+        cai fora do eixo e o NumPy devolve um patch **vazio** em silêncio —
+        todas as contagens viram 0 sem erro nenhum. Convertendo, a janela cobre
+        a mesma área física; o que se perde é granularidade (casos distintos
+        podem cair na mesma célula agregada), e as contagens já entram em
+        buckets grosseiros de qualquer forma.
+        """
+        bloco = max(1, int(size) // int(map_tensor.shape[1]))
+        x, y = int(x) // bloco, int(y) // bloco
+        size = int(map_tensor.shape[1])
+        r = max(self.local_radius // bloco, 1) if self.local_radius > 0 else 0
         x0, x1 = max(0, x - r), min(size, x + r + 1)
         y0, y1 = max(0, y - r), min(size, y + r + 1)
 

@@ -1,0 +1,8 @@
+# PPO v2 kriging seed 45, policy_final.
+env_config: env/kriging_v7.yaml
+agents: [clinical, confirmall, testonce, testtwice, ppo]
+checkpoints:
+  ppo: results/ppo_v2_kriging_s45/policy_final.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/bm_ppo_v2_kriging_s45
+save_artifacts: false

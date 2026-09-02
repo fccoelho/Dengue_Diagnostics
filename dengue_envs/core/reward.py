@@ -47,8 +47,10 @@ prática nenhum agente usava a ação.
 Pesos (padrões e justificativa)
 -------------------------------
 - Testes de laboratório custam mais (1.0) que a confirmação epidemiológica
-  (0.5), que custa mais que "não fazer nada" (0.1). Concluir (qualquer classe)
-  não tem custo imediato.
+  (0.5). Concluir (qualquer classe) não tem custo imediato.
+- **"Não fazer nada" custa ZERO** — é a ação nula do agente, no sentido padrão
+  de RL: o passo devolve exatamente 0.0. Não consome recurso da vigilância,
+  então não gera recompensa de espécie alguma. (Era 0,1 até esta versão.)
 - ``reward_correct_decision`` (+10) recompensa uma decisão correta.
 - ``penalty_incorrect_decision`` (-20) pune uma conclusão errada "comum".
 - ``penalty_missed_case`` (-30) pune alegar ``OTHER`` num doente real (falso
@@ -63,7 +65,17 @@ import pandas as pd
 
 # Custos por ação:
 # [teste_dengue, teste_chik, epi_confirm, nada, conclude_dengue, conclude_chik, conclude_other]
-DEFAULT_COSTS = np.array([1.0, 1.0, 0.5, 0.1, 0.0, 0.0, 0.0])
+#
+# `nada` custa ZERO por decisão de projeto: é a **ação nula** do agente, no
+# sentido padrão de RL. Não fazer nada não consome recurso da vigilância, então
+# não deve gerar recompensa de espécie alguma — nem custo, nem desfecho, nem
+# penalidade (ver `_charge_if_abandoned`: não agir não é abandonar). O passo
+# devolve exatamente 0.0.
+#
+# Antes era 0,1, um número mágico embutido. Com ~373 passos por episódio isso
+# somava uma deriva negativa de ~-37 por episódio, constante e sem informação —
+# ruído sistemático no alvo de TD para a ação mais frequente do agente.
+DEFAULT_COSTS = np.array([1.0, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0])
 
 # IDs de ação
 TEST_DENGUE = 0
@@ -118,10 +130,36 @@ class RewardEngine:
         # desfecho real só chega `reward_delay` dias depois.
         self.shaping_conclude_bonus = shaping_conclude_bonus
         self.pending_rewards: Dict[int, float] = {}
+        # Casos cuja `penalty_unresolved` já foi cobrada NO PASSO em que o
+        # agente os abandonou. O placar final pula esses, para não cobrar duas
+        # vezes — é o que mantém a soma do episódio invariante.
+        self.charged_unresolved: set = set()
 
     def reset(self) -> None:
         """Limpa a fila de recompensas pendentes (chamar em ``env.reset``)."""
         self.pending_rewards = {}
+        self.charged_unresolved = set()
+
+    def abandon_case(self, case_id: int) -> float:
+        """Cobra `penalty_unresolved` no passo em que o caso é largado.
+
+        Motivação (medida no v7): 62-85% dos casos terminavam em aberto e a
+        penalidade era somada em bloco no `_terminal_score`, sobre todos os
+        casos de uma vez. Sob `per_case_reward` isso caía num único passo no
+        fim do episódio, misturada a centenas de outros casos — exatamente o
+        padrão que a refatoração de §10 eliminou para os desfechos de conclusão
+        e que passou batido para esta penalidade.
+
+        Consequência prática: escolher "nada" custava 0,1 imediatos, e os -10
+        chegavam despersonalizados no fim. O agente otimizava corretamente um
+        sinal que mentia, e convergia para abandonar a maioria dos casos.
+
+        Idempotente: um caso só é cobrado uma vez.
+        """
+        if case_id in self.charged_unresolved:
+            return 0.0
+        self.charged_unresolved.add(case_id)
+        return self.penalty_unresolved
 
     def _decision_outcome(self, action_id: int, true_disease: int) -> Optional[float]:
         """Recompensa (atrasada) de uma ação decisiva, ou ``None`` se não for.
@@ -152,6 +190,7 @@ class RewardEngine:
         real_cases: pd.DataFrame,
         obs_cases: pd.DataFrame,
         concluded=None,
+        investigated=None,
     ) -> float:
         """Placar final: bônus por acerto e penalidade por erro.
 
@@ -184,9 +223,25 @@ class RewardEngine:
             true_disease = int(real_cases.loc[idx, "disease"])
             agent_diagnosis = int(obs_cases.loc[idx, "agent_diagnosis"])
 
-            # Caso que terminou o episódio sem conclusão: fica em aberto na
-            # vigilância e paga por isso, independentemente do palpite.
-            if concluded is not None and idx not in concluded:
+            # Caso em aberto = investigação ABERTA e não fechada.
+            #
+            # Duas condições, por motivos diferentes:
+            #
+            # `charged_unresolved` — o caso já pagou no passo em que foi
+            # largado (ver `abandon_case`). Aqui só entram os que o episódio
+            # encerrou antes de o agente ter a chance de abandoná-los
+            # explicitamente (notificados no fim, ou com laudo a caminho).
+            #
+            # `investigated` — não agir não é deixar em aberto: é deixar valer
+            # o diagnóstico do médico, e o caso é julgado pelo acerto desse
+            # palpite (bônus/`penalty_misdiagnosed` abaixo). O que se pune é
+            # gastar exame ou ida a campo e terminar sem resposta.
+            if (
+                concluded is not None
+                and idx not in concluded
+                and idx not in self.charged_unresolved
+                and (investigated is None or idx in investigated)
+            ):
                 total += self.penalty_unresolved
 
             if agent_diagnosis == true_disease:
@@ -261,6 +316,7 @@ class RewardEngine:
         obs_cases: pd.DataFrame,
         terminated: bool = False,
         concluded=None,
+        investigated=None,
     ) -> float:
         """Recompensa que pertence ao **dia**, não a um caso específico.
 
@@ -272,7 +328,9 @@ class RewardEngine:
         if terminated:
             matured += sum(self.pending_rewards.values())
             self.pending_rewards.clear()
-            matured += self._terminal_score(real_cases, obs_cases, concluded)
+            matured += self._terminal_score(
+                real_cases, obs_cases, concluded, investigated
+            )
 
         return matured
 
@@ -284,6 +342,7 @@ class RewardEngine:
         obs_cases: pd.DataFrame,
         terminated: bool = False,
         concluded=None,
+        investigated=None,
     ) -> float:
         """Recompensa de um passo que processa TODAS as ações do dia de uma vez.
 
@@ -296,11 +355,16 @@ class RewardEngine:
         real_cases: dataframe com a doença verdadeira (indexado por case_id).
         obs_cases: dataframe observado (com ``agent_diagnosis`` e ``testd/testc``).
         terminated: se ``True``, liquida a fila pendente e soma o placar final.
-        concluded: ids dos casos já encerrados por uma ação conclusiva. Usado no
-            placar final para penalizar os que ficaram em aberto.
+        concluded: ids dos casos já encerrados por uma ação conclusiva.
+        investigated: ids dos casos em que o agente gastou alguma ação
+            investigativa (exame ou `epi_confirm`). Só estes podem ficar "em
+            aberto" — não agir deixa valer o diagnóstico do médico, o que é uma
+            decisão legítima, não uma investigação abandonada.
         """
         total = 0.0
         for case_id, action_id in action:
             total += self.case_reward(case_id, action_id, t, real_cases, obs_cases)
-        total += self.settle_day(t, real_cases, obs_cases, terminated, concluded)
+        total += self.settle_day(
+            t, real_cases, obs_cases, terminated, concluded, investigated
+        )
         return total

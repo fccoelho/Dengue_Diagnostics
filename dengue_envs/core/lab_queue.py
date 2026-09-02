@@ -42,3 +42,16 @@ class LabResultQueue:
         entries = [e for group in self.pending.values() for e in group]
         self.pending.clear()
         return entries
+
+    def has_pending(self, case_id: int) -> bool:
+        """Há laudo a caminho para este caso?
+
+        Usado para decidir se um caso ainda **pode voltar** ao agente: um laudo
+        pendente agenda revisita ao chegar (`_apply_lab_results`). Sem isso, um
+        caso recém-testado seria classificado como abandonado no mesmo passo.
+        """
+        return any(
+            entry[1] == case_id
+            for group in self.pending.values()
+            for entry in group
+        )

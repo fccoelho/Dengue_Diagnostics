@@ -17,6 +17,10 @@ class TestDengueWrapper(unittest.TestCase):
 
         self.base_env_mock.size = 20
         self.base_env_mock.unwrapped.size = 20
+        # Canais 4 e 5: mapa de confirmados que o agente acumula. O mock precisa
+        # deles porque o wrapper os lê a cada observação.
+        self.base_env_mock.unwrapped.confirmed_dmap = np.zeros((20, 20), dtype=np.float32)
+        self.base_env_mock.unwrapped.confirmed_cmap = np.zeros((20, 20), dtype=np.float32)
 
         self.wrapper = DengueWrapper(self.base_env_mock)
 
@@ -24,7 +28,7 @@ class TestDengueWrapper(unittest.TestCase):
         """
         Testa se o wrapper define corretamente o novo observation_space.
         """
-        expected_shape = (4, 20, 20)
+        expected_shape = (6, 20, 20)
         self.assertIsInstance(self.wrapper.observation_space, spaces.Box)
         self.assertEqual(self.wrapper.observation_space.shape, expected_shape)
         # Wrapper stores the map as uint8 to keep the replay buffer memory light.
@@ -59,7 +63,7 @@ class TestDengueWrapper(unittest.TestCase):
 
         tensor_obs = self.wrapper.observation(obs_dict)
 
-        self.assertEqual(tensor_obs.shape, (4, 20, 20))
+        self.assertEqual(tensor_obs.shape, (6, 20, 20))
 
         self.assertEqual(tensor_obs[0, 1, 1], 1.0)
         self.assertEqual(tensor_obs[1, 2, 2], 2.0)
@@ -87,7 +91,7 @@ class TestDengueWrapper(unittest.TestCase):
         self.base_env_mock.reset.assert_called_once()
 
         self.assertIsInstance(obs, np.ndarray)
-        self.assertEqual(obs.shape, (4, 20, 20))
+        self.assertEqual(obs.shape, (6, 20, 20))
         self.assertEqual(obs[0, 1, 1], 1.0)
         self.assertEqual(info, dummy_info)
 

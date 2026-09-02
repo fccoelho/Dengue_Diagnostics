@@ -1,0 +1,8 @@
+# v8 b6k seed 43, checkpoint final.
+env_config: env/synthetic_v7.yaml
+agents: [dqn]
+checkpoints:
+  dqn: results/dqn_v8_b6k_s43/policy_final.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/bm_v8_b6k_s43_final
+save_artifacts: false

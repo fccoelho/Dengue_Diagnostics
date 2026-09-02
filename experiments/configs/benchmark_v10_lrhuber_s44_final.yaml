@@ -1,0 +1,9 @@
+# v10 lrhuber seed 44, checkpoint final.
+# `clinical` como ancora: deve dar -267,2 e confirmar que a tarefa nao mudou.
+env_config: env/synthetic_v7.yaml
+agents: [clinical, dqn]
+checkpoints:
+  dqn: results/dqn_v10_lrhuber_s44/policy_final.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/bm_v10_lrhuber_s44_final
+save_artifacts: false

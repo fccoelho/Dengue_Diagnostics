@@ -44,16 +44,26 @@ def build_policy(
     device: str,
     eps_training: float = 0.0,
     eps_inference: float = 0.0,
+    pooled_size: Optional[int] = None,
 ) -> DiscreteQLearningPolicy:
-    """Cria uma ``DiscreteQLearningPolicy`` + ``DengueNet`` para o espaço do env."""
+    """Cria uma ``DiscreteQLearningPolicy`` + ``DengueNet`` para o espaço do env.
+
+    ``pooled_size`` é o lado do ``AdaptiveAvgPool2d`` do encoder — a resolução
+    espacial que a rede **de fato enxerga**, independente do tamanho da
+    observação. É o parâmetro que governa a fidelidade espacial: com o bbox do
+    Rio (72,3 km), `pooled_size=6` significa células de ~12 km. Para um mapa
+    real em que a estrutura fina importe, é este o botão a mexer, não
+    `map_size` (ver §18 de REFATORACAO_AMBIENTE.md).
+    """
     map_shape = env.observation_space.spaces["map"].shape
     action_shape = env.action_space.n
     # Detecta o ramo de contexto pelo próprio espaço de observação, para que o
     # mesmo código sirva com e sem `context_features`.
     ctx_space = env.observation_space.spaces.get("context")
     context_dim = int(ctx_space.shape[0]) if ctx_space is not None else 0
+    kwargs = {} if pooled_size is None else {"pooled_size": int(pooled_size)}
     net = DengueNet(
-        map_shape, action_shape, device=device, context_dim=context_dim
+        map_shape, action_shape, device=device, context_dim=context_dim, **kwargs
     ).to(device)
     return DiscreteQLearningPolicy(
         model=net,
@@ -62,6 +72,18 @@ def build_policy(
         eps_training=eps_training,
         eps_inference=eps_inference,
     )
+
+
+def _infer_pooled_size(state: dict) -> Optional[int]:
+    """Deduz o `pooled_size` de um checkpoint pela forma da projeção do mapa."""
+    for chave in ("model.map_proj.0.weight", "map_proj.0.weight"):
+        peso = state.get(chave)
+        if peso is None:
+            continue
+        lado = int(round((peso.shape[1] / 64) ** 0.5))
+        if lado > 0 and 64 * lado * lado == peso.shape[1]:
+            return lado
+    return None
 
 
 def load_policy(
@@ -79,8 +101,15 @@ def load_policy(
             f"Policy DQN não encontrada: {path.resolve()}. "
             "Treine com `poetry run python agents/deepq/train.py`."
         )
-    policy = build_policy(env, device=device, eps_training=0.0, eps_inference=0.0)
     state = torch.load(str(path), map_location=device, weights_only=True)
+    # `pooled_size` muda a arquitetura, então precisa bater com o checkpoint.
+    # Em vez de exigir que quem carrega saiba disso, inferimos a partir da
+    # primeira camada da projeção: in_features = 64 * pooled_size^2.
+    pooled = _infer_pooled_size(state)
+    policy = build_policy(
+        env, device=device, eps_training=0.0, eps_inference=0.0,
+        pooled_size=pooled,
+    )
     # Aceita state_dict da policy ou só da rede (`model.*`).
     try:
         policy.load_state_dict(state)
