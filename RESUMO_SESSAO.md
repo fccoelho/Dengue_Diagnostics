@@ -319,9 +319,20 @@ Por seed — B: +2706, +2615, +2627. A: +844, +607, +737.
   ambiente corrigido e manteve o padrão antigo de subinvestimento.
 - O desvio entre seeds (50) é pequeno diante da diferença entre braços (~1900).
 
-**Ressalva de desenho, declarada:** o braço B mudou duas coisas ao mesmo tempo
-(crédito e observação). A ablação — crédito por caso com a observação idêntica à
-do braço A — está rodando em 3 seeds.
+**A ablação separou as duas mudanças.** O braço B mudou crédito e observação ao
+mesmo tempo; o braço C repete o crédito com a observação **idêntica à do braço
+A**:
+
+| braço | crédito | observação | recompensa |
+|---|---|---|---:|
+| **C** | por caso | 16 dims (= A) | **+2678 ± 48** |
+| B | por caso | 16 + 4 temporais | +2649 ± 50 |
+| A | GAE padrão | 16 dims | +729 ± 119 |
+
+**B e C são indistinguíveis** (29 pontos de diferença, contra ~49 de desvio em
+cada um). **A e C diferem por ~1950 com observação idêntica.** Logo: o ganho é
+da **atribuição de crédito**, e as 4 features temporais não pagaram seu custo —
+podem sair. Detalhamento dos três braços em `EXPERIMENTO_V4.md`.
 
 **Limitação conhecida:** o crédito por caso ignora a externalidade do exame —
 cada laudo positivo melhora o `epi_confirm` de casos **futuros** na região, e
@@ -359,7 +370,8 @@ no ambiente (§12).
 exames, a 95% do melhor baseline (§12). O que resta é o último degrau: +2649
 contra +2782 do `testonce`.
 
-**5b. Separar crédito de observação temporal.** Ablação em andamento, 3 seeds.
+**5b. ~~Separar crédito de observação temporal~~ — feito.** O crédito explica o
+ganho inteiro; as features temporais não contribuíram (§12).
 
 **5c. Sazonalidade.** O SEIR não tem forçamento sazonal; com R0 = 1,25 a
 epidemia leva ~9 meses. Decisão de modelagem em aberto.

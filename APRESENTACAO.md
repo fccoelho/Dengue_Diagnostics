@@ -205,9 +205,20 @@ agente continua decidindo dia a dia dentro da epidemia.
   ambiente corrigido e continuou quase sem testar.
 - Desvio de 50 pontos entre seeds, contra ~1900 de diferença entre os braços.
 
-**Ressalva de desenho:** o braço vencedor mudou duas coisas ao mesmo tempo — o
-crédito por caso e 4 features temporais na observação (fase da epidemia,
-tendência de 7 dias, idade do caso). A ablação que separa as duas está rodando.
+**A ablação isolou a causa.** O braço vencedor mudava duas coisas ao mesmo tempo
+— o crédito por caso e 4 features temporais na observação. Um terceiro braço
+repetiu o crédito com a observação **idêntica à do GAE padrão**:
+
+| braço | crédito | observação | recompensa |
+|---|---|---|---:|
+| **C** | por caso | igual ao A | **+2678 ± 48** |
+| B | por caso | + 4 temporais | +2649 ± 50 |
+| A | GAE padrão | — | +729 ± 119 |
+
+B e C são indistinguíveis (29 pontos, contra ~49 de desvio); A e C diferem por
+~1950 com a mesma observação. **O ganho é inteiramente da atribuição de
+crédito** — uma intervenção só, no algoritmo, sem tocar na observação, na
+recompensa nem na dinâmica temporal. Detalhamento em `EXPERIMENTO_V4.md`.
 
 ---
 
@@ -241,8 +252,7 @@ final), não o formato das curvas.
 
 ## 9. Próximos passos
 
-1. **Ablação em andamento:** crédito por caso *sem* as features temporais, 3
-   seeds, para separar as duas mudanças.
+1. **Fechar o último degrau:** +2678 contra +2782 do `testonce`.
 2. **Sazonalidade.** O modelo não tem variação sazonal; com R0 = 1,25 a
    epidemia leva ~9 meses. Vale decidir se entra.
 3. **Chikungunya não é mais forçadamente menor que a dengue** — as faixas de R0
