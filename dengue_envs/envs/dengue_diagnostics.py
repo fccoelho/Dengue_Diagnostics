@@ -67,6 +67,8 @@ class DengueDiagnosticsEnv(gym.Env):
             epi_threshold: int = 1,
             epi_density_scale: float = 10.0,
             do_nothing_cost: float = 0.0,
+            epi_model: str = "legacy",
+            initial_infected_fraction: float = 0.01,
             start_day: int = 1,
             lab_delay_days: Optional[int] = None,
             settle_days: Optional[int] = None,
@@ -122,6 +124,14 @@ class DengueDiagnosticsEnv(gym.Env):
         # define se existe ESCASSEZ: com ele baixo, testar todo mundo é quase
         # sempre ótimo e o problema de alocação desaparece.
         self.test_cost = float(test_cost)
+        # Modelo temporal da epidemia — ver `dengue_envs.core.epi_model`.
+        # "legacy" mantém o SIR original (R0 efetivo 225, epidemia de 9 dias)
+        # apenas para reproduzir resultados anteriores; experimentos novos
+        # devem usar "seir", com parâmetros de literatura.
+        if epi_model not in ("legacy", "seir"):
+            raise ValueError(f"epi_model deve ser 'legacy' ou 'seir'; recebido {epi_model!r}")
+        self.epi_model = epi_model
+        self.initial_infected_fraction = float(initial_infected_fraction)
         # `nada` é a AÇÃO NULA: custo zero por padrão. Não fazer nada não
         # consome recurso, então o passo devolve exatamente 0.0 — nem custo,
         # nem desfecho, nem penalidade de caso em aberto (ver
@@ -289,6 +299,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.epiconf = []
         self.final = []
         self._reset_confirmed_maps()
+        self._reset_case_credit_state()
         # Casos em que o agente gastou alguma ação investigativa.
         self.investigated_cases = set()
 
@@ -770,6 +781,85 @@ class DengueDiagnosticsEnv(gym.Env):
             exclude=exclude,
         )
 
+    # ------------------------------------------------------------------
+    # Atribuição de crédito por caso
+    # ------------------------------------------------------------------
+    def _reset_case_credit_state(self) -> None:
+        """Estado da decomposição por caso (ver `CaseByCaseWrapper.step`).
+
+        `episode_uid` identifica o episódio de forma única entre instâncias do
+        ambiente, para o aprendiz agrupar transições por (episódio, caso) sem
+        precisar saber de qual env paralelo elas vieram. Usa um sal próprio em
+        vez de `np_random` para não alterar a trajetória sorteada.
+        """
+        if not hasattr(self, "_uid_salt"):
+            import secrets
+
+            self._uid_salt = secrets.randbits(40) << 20
+            self._uid_counter = 0
+        self._uid_counter += 1
+        self.episode_uid = int(self._uid_salt | (self._uid_counter & 0xFFFFF))
+        self._terminal_attributed = set()
+
+    def case_is_done(self, case_id) -> bool:
+        """O caso saiu das mãos do agente? (concluído, ou não voltará mais)."""
+        if case_id not in self.obs_cases.index:
+            return True
+        if case_id in self.finalized_cases:
+            return True
+        return not self._case_will_return(case_id)
+
+    def attribute_terminal(self, case_id) -> float:
+        """Parcela do placar final deste caso, entregue UMA vez, no fim dele.
+
+        O placar final é pago em bloco no último passo do episódio. Isto não
+        muda esse pagamento: só informa, no passo em que o caso termina, qual
+        parcela daquele bloco pertence a ele. Depois que o caso termina seu
+        diagnóstico não muda mais, então o valor aqui é o mesmo que o bloco
+        pagará no fim.
+        """
+        if case_id in self._terminal_attributed:
+            return 0.0
+        self._terminal_attributed.add(case_id)
+        return float(
+            self.reward_engine.terminal_contribution(
+                case_id,
+                self.real_cases,
+                self.obs_cases,
+                concluded=self.finalized_cases,
+                investigated=self.investigated_cases,
+            )
+        )
+
+    def temporal_features(self, case_id) -> np.ndarray:
+        """Onde, no tempo da epidemia, esta decisão está sendo tomada (4 posições).
+
+        Sem isto o agente não enxerga tempo nenhum: o contexto era só evidência
+        sobre o médico e atributos do caso. Tudo aqui é observável pela
+        vigilância — contagens de casos já notificados, nunca a curva real.
+
+          - dia do episódio, normalizado pelo horizonte
+          - casos notificados hoje (saturando em 10)
+          - tendência: notificações nos últimos 7 dias contra os 7 anteriores,
+            em [0, 1] (0,5 = estável, 1 = só crescimento)
+          - idade do caso: dias desde a notificação (saturando em 14)
+        """
+        t = int(self.t)
+        vec = np.zeros(4, dtype=np.float32)
+        vec[0] = min(1.0, max(0.0, t / max(1, self.horizon)))
+        df = self.obs_cases
+        if df is None or df.empty:
+            vec[2] = 0.5
+            return vec
+        dias = df["t"].to_numpy()
+        vec[1] = min(1.0, float((dias == t).sum()) / 10.0)
+        recentes = float(((dias > t - 7) & (dias <= t)).sum())
+        anteriores = float(((dias > t - 14) & (dias <= t - 7)).sum())
+        vec[2] = 0.5 * (1.0 + (recentes - anteriores) / max(1.0, recentes + anteriores))
+        if case_id in df.index:
+            vec[3] = min(1.0, max(0.0, (t - int(df.loc[case_id, "t"])) / 14.0))
+        return vec
+
     def _reset_confirmed_maps(self) -> None:
         """Zera o mapa epidemiológico que o AGENTE construiu.
 
@@ -823,7 +913,16 @@ class DengueDiagnosticsEnv(gym.Env):
         if not self._fixed_chik_radius:
             self.chik_radius = int(self.np_random.integers(radius_lo, radius_hi + 1))
 
-        if self.randomize_outbreak:
+        if self.randomize_outbreak and self.epi_model == "seir":
+            # Faixas de literatura (Rio de Janeiro) — ver `core.epi_model`:
+            # dengue 1,25–1,70 (Villela et al. 2017); chik 1,46–1,67 (Moreira
+            # et al. 2023). Sorteadas independentemente: pela literatura a chik
+            # NÃO é sistematicamente menor que a dengue.
+            from dengue_envs.core.epi_model import CHIK, DENGUE
+
+            self.dengue_r0 = float(self.np_random.uniform(*DENGUE.r0_range))
+            self.chik_r0 = float(self.np_random.uniform(*CHIK.r0_range))
+        elif self.randomize_outbreak:
             # Dengue: surto principal (R0 claramente epidêmico, > 1).
             self.dengue_r0 = float(self.np_random.uniform(1.45, 1.85))
             # Chik: sempre menor que dengue (65–88% do R0 da dengue), simulando
@@ -832,6 +931,10 @@ class DengueDiagnosticsEnv(gym.Env):
             self.chik_r0 = max(1.12, self.dengue_r0 * chik_frac)
             if self.chik_r0 >= self.dengue_r0:
                 self.chik_r0 = self.dengue_r0 - 0.10
+        elif self.epi_model == "seir":
+            # Pontos centrais das faixas de literatura.
+            self.dengue_r0 = 1.48
+            self.chik_r0 = 1.56
         else:
             self.dengue_r0 = 1.5
             self.chik_r0 = 1.2
@@ -839,6 +942,18 @@ class DengueDiagnosticsEnv(gym.Env):
     def _epidemic_is_valid(self) -> bool:
         """Verifica se o ``World`` gerado tem surtos não triviais e realistas."""
         w = self.world
+        if self.epi_model == "seir":
+            # Sob o SEIR as regras do modelo legado não valem:
+            # - "chik menor que dengue" era escolha de desenho, e a literatura
+            #   dá R0 comparáveis (ver `core.epi_model`);
+            # - "≥5 casos até o dia 1" só fazia sentido para um pico de 9 dias.
+            #   Com semente de 1% e tempo de geração de 14–16 dias, o começo da
+            #   temporada é naturalmente esparso.
+            if self.dengue_r0 <= 1.0 or self.chik_r0 <= 1.0:
+                return False
+            if w.dengue_total < 15 or w.chik_total < 8:
+                return False
+            return w.casedf is not None and not w.casedf.empty
         # Sempre epidêmico: R0 > 1 e chik claramente menor que dengue.
         if self.dengue_r0 <= 1.05 or self.chik_r0 <= 1.05:
             return False
@@ -893,6 +1008,8 @@ class DengueDiagnosticsEnv(gym.Env):
                     chik_r0=self.chik_r0,
                     other_prevalence=self.other_prevalence,
                     random_state=self.np_random,
+                    epi_model=self.epi_model,
+                    initial_infected_fraction=self.initial_infected_fraction,
                 )
             if self._epidemic_is_valid():
                 break
@@ -943,6 +1060,7 @@ class DengueDiagnosticsEnv(gym.Env):
         self.epiconf = []
         self.final = []
         self._reset_confirmed_maps()
+        self._reset_case_credit_state()
         # Casos em que o agente gastou alguma ação investigativa.
         self.investigated_cases = set()
         self.rewards = []

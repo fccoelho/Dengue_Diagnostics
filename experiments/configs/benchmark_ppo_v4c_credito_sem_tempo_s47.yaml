@@ -1,0 +1,9 @@
+# PPO v4 braco C (credito por caso SEM features temporais) seed 47,
+# checkpoint FINAL, contra os baselines kriging_v8.
+env_config: env/kriging_v8.yaml
+agents: [clinical, testonce, ppo]
+checkpoints:
+  ppo: results/ppo_v4c_credito_sem_tempo_s47/policy_final.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/bm_ppo_v4c_credito_sem_tempo_s47
+save_artifacts: false

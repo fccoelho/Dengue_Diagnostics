@@ -1,307 +1,254 @@
-# Reunião — estado do trabalho
+# Diagnóstico do agente de vigilância — o que descobrimos
 
-Respostas aos pontos levantados na última conversa, com os números que
-sustentam cada uma. Todos reprodutíveis (seeds fixas, mesmo ambiente para todos
-os agentes). Detalhamento técnico em `ACHADOS.md`.
+Resumo executivo. Detalhamento em `RESUMO_SESSAO.md` e `REFATORACAO_AMBIENTE.md`.
 
 ---
 
-## Resumo em uma página
+## 1. O achado central
 
-| Pergunta | Resposta curta |
-|---|---|
-| Por que o agente vai melhor no kriging? | **Não vai.** 97% da variância vem do médico sorteado, não do ambiente. |
-| Dá para chegar a 90% de acurácia? | **Não com os parâmetros atuais.** O teto de informação do ambiente é ~88%. |
-| Sensib./especif. por Beta, com 3 níveis | **Implementado**, com os 3 níveis e configs prontos. |
-| Fluxo de decisão de cada estratégia | **Documentado** (seção 4) — inclui uma restrição estrutural que não estava explícita. |
-| Melhorar o mapa por kriging | **Em aberto** — preciso de orientação. |
+> **O ambiente sintético resolvia o problema sozinho, pela geografia.**
 
-Um achado não previsto, e o mais consequente: **a função de recompensa estava
-premiando testar tudo**, o que contradizia a premissa do trabalho. Foi
-encontrado, corrigido e validado (seção 3).
+Medimos quanto a **posição** de um caso, sozinha, prediz a doença:
 
----
 
-## 1. O agente não vai melhor no kriging — é ruído
+| distribuição                   | posição acerta a doença |
+| ------------------------------ | ----------------------- |
+| sintético (2 focos gaussianos) | **93,7%**               |
+| kriging (Rio 2015-16, real)    | **50,7% ± 2,4**         |
 
-Verificações:
 
-1. A competência clínica sorteada é **idêntica** nos dois ambientes para a mesma
-   seed (é amostrada antes da criação do mundo). Média 0,7177 nos dois.
-2. A composição dos casos é idêntica: 280 casos, 50% dengue / 50% chik.
-3. Ainda assim, o baseline clínico — que **não usa informação espacial** — muda
-   de 0,690 para 0,731 de acurácia. Logo, a diferença não pode vir da
-   distribuição espacial.
+50,7% entre duas classes é cara-ou-coroa.
 
-O número que fecha o argumento:
+**Consequência:** no sintético o exame era *redundante* — o agente não o comprava
+porque não valia a pena. Passamos ~20 treinos tratando isso como falha do
+agente. Era, em boa medida, resposta correta a um ambiente que dava a resposta
+de graça.
 
-| Correlação com a recompensa do episódio | |
-|---|---:|
-| Competência do médico × recompensa do **DQN** | **+0,974** |
-| Competência do médico × recompensa do **clínico** | **+0,977** |
-
-Com `clinical_specificity ~ U(0,5 , 0,95)`, cada episódio é um problema de
-dificuldade completamente diferente. Com 10 episódios, o ruído domina o sinal.
-
-**Correção:** fixar o nível clínico médio (Beta, seção 5) permite comparar
-ambientes em dificuldade equiparada. E usar ≥30 seeds.
+Na distribuição real, o agente **passa a comprar exame** — nos três seeds.
 
 ---
 
-## 2. 90% de acurácia não é alcançável — é limite do ambiente, não do algoritmo
 
-Duas restrições estruturais:
 
-**(a) Cada caso recebe UMA única ação.** Verificado empiricamente: nenhum caso é
-apresentado ao agente mais de uma vez. O agente **testa OU decide**, nunca os
-dois.
+## 2. Quatro defeitos do ambiente, corrigidos
 
-**(b) O laudo é imperfeito:** sensibilidade = especificidade = 0,9;
-inconclusivo = 0,1.
 
-Disso sai o teto:
+| defeito                                                       | evidência                             | efeito da correção                             |
+| ------------------------------------------------------------- | ------------------------------------- | ---------------------------------------------- |
+| Recompensa atribuída por **dia**, não por caso                | 97,7% dos passos com recompensa zero  | passos com sinal: 2,3% → 100%                  |
+| `epi_confirm` lia a **verdade** do gerador e nunca funcionava | **5598 chamadas, todas devolvendo 0** | passa a ler o mapa de laudos do próprio agente |
+| Penalidade punia a **inação**                                 | 62–85% dos casos "em aberto"          | `clinical` de −4036 para −267                  |
+| "Nada" custava 0,1                                            | ~1120 passos/episódio                 | virou ação nula (custo 0)                      |
 
-```
-acc_max ≈ (1 − p_inconclusivo)·sens_lab + p_inconclusivo·acc_clínica
-        =        0,9          ·  0,9    +      0,1      · acc_clínica
-        ≈ 0,88
-```
 
-Confirmado com um baseline novo, `testall`, que testa **todos** os casos (custo
-máximo, política irreal — serve só como teto):
+O `epi_confirm` é o mais ilustrativo: comparava a densidade de **uma célula** de
+um grid 400×400 contra um limiar que nenhuma célula atingia. A ação existia,
+custava, e não informava nada — e o DQN gastava 66% das ações comprando isso.
 
-| Ambiente | Acurácia do `testall` |
-|---|---:|
-| synthetic | **0,873** |
-| kriging | **0,884** |
-
-**Nenhuma política pode superar isso de forma relevante.** Para chegar a 90%,
-muda-se o ambiente:
-
-- reduzir `inconclusive_prob` (0,1 → 0,02) — realista para RT-PCR;
-- aumentar sensibilidade/especificidade do laudo (0,9 → 0,95–0,99);
-- **ou** permitir que o caso volte ao agente depois do laudo — que também
-  responde à observação "se ele tem o resultado do teste, deveria usá-lo".
+**205 → 214 testes automatizados** ao longo do trabalho.
 
 ---
 
-## 3. A recompensa premiava testar tudo (corrigido)
 
-Com o baseline `testall` no benchmark, o ranking ficou:
 
-| Agente | Recompensa | Acurácia | Testes |
+## 3. O algoritmo era o gargalo
+
+Mesmo ambiente, mesma rede, mesma máscara de ação:
+
+
+|         | Recompensa    | acurácia | comportamento                                 |
+| ------- | ------------- | -------- | --------------------------------------------- |
+| **DQN** | **−4164 ± 9** | 0,55     | converge para inação (66,7%), zero exames     |
+| **PPO** | **+632 ± 43** | 0,73     | curva monotônica, primeiro a bater "não agir" |
+
+
+~4.800 pontos de diferença. Antes disso, gastamos ~14h ajustando o DQN
+(`lr`, buffer, `n_step`, Double DQN, Huber) — **nenhum ajuste moveu algo
+mensurável**. A perda Huber estabilizou o treino (desvio entre seeds de ±1340
+para ±9) e o resultado **piorou**: converge de forma confiável para um ótimo
+local ruim.
+
+Reproduzido com seeds novos e 3× mais treino: **+645,6 ± 76,0**.
+
+---
+
+
+
+## 4. Resultados da fase PPO (antes da correção do modelo epidêmico)
+
+Os números abaixo são do ambiente v7, com o SIR defeituoso descrito no §6. Os
+resultados atuais estão no §7.
+
+**Distribuição sintética**
+
+
+| agente                | Recompensa | exames |
+| --------------------- | ---------- | ------ |
+| `testtwice`           | +955       | 746    |
+| `ppo`                 | **+646**   | 0      |
+| `testonce`            | +247       | 373    |
+| `clinical` (não agir) | −267       | 0      |
+
+
+**Distribuição real (kriging)** — os baselines se reordenam
+
+
+| agente      | Recompensa | exames |
+| ----------- | ---------- | ------ |
+| `testonce`  | **+2093**  | 373    |
+| `ppo`       | **+723**   | 7–37   |
+| `testtwice` | +640       | 746    |
+| `clinical`  | −15        | 0      |
+
+
+**Nenhuma conclusão de economia transfere entre as distribuições.** No sintético
+testar duas vezes é ótimo em toda a faixa de custo; no kriging, testar **uma**
+vez é ótimo em toda a faixa — inclusive quando o exame é quase gratuito.
+
+---
+
+
+
+## 5. O subinvestimento em exames — e a causa
+
+**O agente subinvestia em exames.** No kriging fazia 7–37 contra os 373 do
+`testonce` (+2093). A pergunta deixou de ser "por que ele não investiga" e
+passou a ser **"por que investiga tão pouco"**.
+
+**Diagnóstico do mecanismo:** um exame devolve *sempre* apenas `−custo`; o
+benefício aparece ~30 passos depois, num passo que pertence a **outro
+paciente**. Três ataques falharam pela mesma razão:
+
+- *Reward shaping* por potencial → matematicamente impossível aqui (medido: F
+negativo para qualquer parametrização, porque `s'` já é outro caso).
+- Crédito retroativo → exigiria reescrever recompensa já entregue.
+- Baratear o exame pela metade → **zero mudança** no comportamento.
+
+**O mapa é decorativo.** Zerar o tensor espacial inteiro muda **0–2%** das
+decisões. Testamos treinar nas duas distribuições misturadas, para forçar o
+mapa a ter função (é a única forma de saber em que regime se está). Resultado:
+piorou nos dois regimes (+300 e +186, contra +646 e +723 dos especialistas) e o
+agente **não alternou** de política. O canal espacial ganhou função e o agente
+não a usou.
+
+---
+
+
+
+## 6. O modelo epidêmico estava errado
+
+Ao desenhar a reformulação "um episódio = um caso", fomos medir a dinâmica
+temporal — e encontramos um defeito no gerador de epidemias, herdado desde o
+início do projeto.
+
+O SIR não dividia a transmissão pela população e usava um período infeccioso de
+250 dias. **Um R0 declarado de 1,5 valia 225 na prática.** A epidemia inteira
+cabia em **9 dias**, com pico no dia 3, apesar de `epilength: 60`.
+
+Toda a estrutura temporal do ambiente estava calibrada a esse pico artificial:
+sobreposição de casos, tempo até o laudo, fase da epidemia.
+
+**Substituído por um SEIR com parâmetros de literatura** (`dengue_envs/core/epi_model.py`):
+
+| doença | tempo de geração | R0 | fonte |
+|---|---|---|---|
+| dengue | 16 dias | 1,25–1,70 | Aldstadt 2012; Villela 2017 (Rio) |
+| chikungunya | 14 dias | 1,46–1,67 | Moreira 2023 |
+
+O período latente absorve a incubação no mosquito, para que o tempo de geração
+do modelo corresponda ao intervalo serial observado. Travado por teste: o R0
+medido pela taxa de crescimento bate o declarado dentro de 3%.
+
+| | antes (bug) | **agora (SEIR)** |
+|---|---:|---:|
+| duração da epidemia | 9 dias | **184 dias** |
+| pico | 60 casos/dia | **4 casos/dia** |
+| passos entre duas decisões do mesmo caso | 278 | **30** |
+
+O modelo antigo continua no código, sob `epi_model: legacy`, que segue sendo o
+padrão — mudar isso alteraria em silêncio todos os resultados já produzidos.
+
+**Os achados econômicos sobreviveram à correção.** `testonce` continua ótimo no
+kriging (+2782) e `testtwice` no sintético (+1249); nenhuma ordem se inverteu.
+
+---
+
+## 7. O que destravou o agente: crédito por caso
+
+Em vez de reformular o ambiente (que destruiria a dinâmica temporal, necessária
+para a publicação), mudamos **como o algoritmo atribui crédito**.
+
+A observação que motivou: a recompensa global do episódio não tem correlação
+com a decisão individual (**−0,019**); a mesma decisão, avaliada ao longo da
+linha do tempo **do próprio caso** e descontada pelos **dias** decorridos,
+correlaciona **0,994**.
+
+O ambiente decompõe a recompensa por caso e o PPO estima a vantagem ao longo da
+trajetória daquele paciente, com γ elevado aos dias entre as decisões — análogo
+à atribuição de crédito em sistemas multiagente. **A recompensa do ambiente, que
+é a métrica de comparação, não muda** (coberto por teste de invariância), e o
+agente continua decidindo dia a dia dentro da epidemia.
+
+**Resultado — kriging com SEIR, 3 seeds, checkpoint final, benchmark de 10 seeds:**
+
+| | recompensa | acurácia | exames/episódio |
 |---|---:|---:|---:|
-| **testall** (trivial) | **−35,5** | 0,873 | 280 |
-| dqn (treinado) | −395,9 | 0,753 | 103 |
-| clinical | −702,8 | 0,690 | 0 |
-| random | −2288,3 | 0,633 | 91 |
+| `testonce` (melhor política fixa) | +2782 | 96,0% | 369 |
+| **PPO com crédito por caso** | **+2649 ± 50** | **93,1%** | **266** |
+| PPO com GAE padrão | +729 ± 119 | 74,3% | 30 |
+| `clinical` (não agir) | −64 | 71,0% | 0 |
 
-**Uma política trivial superava o DQN treinado em 11×.**
+- **95% do melhor baseline**, com **28% menos exames** que ele — o agente
+  escolhe *quais* casos investigar, em vez de testar todos.
+- De 30 para 266 exames: é o primeiro agente do projeto que investiga.
+- **Corrigir a epidemia não bastou** — o braço com GAE padrão treinou no mesmo
+  ambiente corrigido e continuou quase sem testar.
+- Desvio de 50 pontos entre seeds, contra ~1900 de diferença entre os braços.
 
-**Causa:** a penalidade de −10 só valia para casos **nunca testados**. Pedir
-exame virava um "passe livre" — isentava da punição mesmo quando o laudo voltava
-inconclusivo e não mudava nada. O teste era premiado pelo *ato de ser pedido*,
-não pela informação que agregava.
-
-**Correção:**
-
-| Parâmetro | Antes | Agora |
-|---|---:|---:|
-| penalidade por erro, **testado ou não** | não existia | **−3,0** |
-| penalidade extra por não ter testado | −10,0 | **0,0** |
-
-**Resultado:** o ótimo deixou de ser trivial e passou a depender do estado:
-
-| Qualidade do médico | nada | testall | confirmall | melhor |
-|---|---:|---:|---:|:--|
-| 0,50 – 0,64 (ruim) | −384 | **−188** | −2326 | **testar** |
-| 0,72 – 0,90 (bom) | +56 | −140 | **+1414** | **confirmar** |
-
-A melhor política **fixa** rende +129; um **oráculo** que conhecesse a competência
-do médico renderia **+599**. Essa diferença é o que justifica um agente aprendido.
+**Ressalva de desenho:** o braço vencedor mudou duas coisas ao mesmo tempo — o
+crédito por caso e 4 features temporais na observação (fase da epidemia,
+tendência de 7 dias, idade do caso). A ablação que separa as duas está rodando.
 
 ---
 
-## 4. Fluxo de decisão (para escrever no artigo)
 
-Cada caso é apresentado ao agente **exatamente uma vez**, no dia em que é
-notificado, e recebe **uma** das 6 ações:
 
-| Ação | Custo | É decisão? | Efeito |
-|---|---:|:--:|---|
-| testar dengue / chik (0,1) | 1,0 | não | laudo chega após o atraso e **atualiza sozinho** o diagnóstico; o agente não decide de novo sobre o caso |
-| epi confirm (2) | 0,5 | não | agrega evidência epidemiológica; não sofre penalidade de decisão |
-| nada (3) | 0,1 | não | mantém o palpite clínico |
-| confirmar (4) | 0,0 | **sim** | +10 se certo, −20 se errado (com atraso) |
-| descartar (5) | 0,0 | **sim** | +10 se de fato não era arbovirose; **−30** se era caso real |
+## 8. Nota de método
 
-Placar final: +1 por acerto; −3 por erro.
+Duas lições que custaram tempo real e mudaram como trabalhamos:
 
-Isso esclarece a dúvida "se ele tem o resultado do teste, deveria usá-lo": o
-resultado **é** usado — automaticamente, quando volta do laboratório —, mas o
-agente não toma uma segunda decisão sobre aquele caso. Já o agente aleatório
-decide antes de qualquer laudo, o que explica seu desempenho catastrófico.
+**Execução única não é evidência.** A mesma configuração com seed diferente deu
+**−81,90 e −3272,25**. Três conclusões nossas foram retiradas por causa disso.
+Todo resultado passou a exigir ≥3 seeds, com média ± desvio.
 
-**O que o DQN treinado realmente faz** (medido):
+**Selecionar o melhor checkpoint seleciona ruído.** Medido em 12 rodadas: o
+"melhor" fica **1.000 a 1.460 pontos** acima do checkpoint final. Passamos a
+reportar o final.
 
-| Ação | Frequência |
-|---|---:|
-| confirmar | 47,6% |
-| testar chik | 23,8% |
-| epi confirm | 16,9% |
-| testar dengue | 11,8% |
-| nada | 0,0% |
-| descartar | 0,0% |
+E o que mais rendeu: **medir antes de treinar.** A inviabilidade do *reward
+shaping* saiu em 10 minutos de medição, em vez de 43 de treino. O mesmo
+princípio cortou o tempo de treino de 2h16 para 43 min, ao revelar que a
+avaliação consumia 4,7× mais passos que o treino. E foi assim que o defeito do
+SIR apareceu: medindo a dinâmica temporal antes de reformular o ambiente por
+causa dela.
 
-Aprendeu a nunca ficar parado e a nunca descartar (coerente com o −30), mas
-confirma demais quando o médico é ruim.
+**Erros do modelo podem parecer plausíveis.** O SIR gerava curvas com formato
+razoável — só a epidemiologia estava errada. Os testes agora travam
+propriedades verificáveis contra a teoria (R0 efetivo, equação do tamanho
+final), não o formato das curvas.
 
 ---
 
-## 5. Sensibilidade e especificidade por Beta, com 3 níveis (implementado)
+## 9. Próximos passos
 
-Uma Beta para a **sensibilidade** e outra para a **especificidade** clínicas,
-parametrizadas pela média (`a = μκ`, `b = (1−μ)κ`), amostradas **por médico**:
+1. **Ablação em andamento:** crédito por caso *sem* as features temporais, 3
+   seeds, para separar as duas mudanças.
+2. **Sazonalidade.** O modelo não tem variação sazonal; com R0 = 1,25 a
+   epidemia leva ~9 meses. Vale decidir se entra.
+3. **Chikungunya não é mais forçadamente menor que a dengue** — as faixas de R0
+   agora vêm da literatura e se sobrepõem. É uma decisão de modelagem a
+   confirmar.
+4. **Busca automática de recompensa e hiperparâmetros** (a proposta 1 do
+   orientador), agora que há um agente estável sobre o qual buscar.
 
-| Nível | sens. média | espec. média |
-|---|---:|---:|
-| `low` | 0,60 | 0,60 |
-| `medium` | 0,75 | 0,75 |
-| `high` | 0,90 | 0,90 |
-
-A concentração κ (padrão 20) controla a dispersão entre médicos (≈ ±0,09).
-Aceita também médias explícitas — inclusive os 85%/60% citados no artigo.
-
-```yaml
-env:
-  clinical_quality: medium      # ou low / high
-  # clinical_quality: {sensitivity: 0.85, specificity: 0.60}
-```
-
-Ganho conceitual: a confusão clínica agora é **assimétrica e interpretável** —
-sensibilidade é P(diz dengue | é dengue), especificidade é P(diz chik | é chik) —
-em vez de uma taxa única nos dois sentidos.
-
-Configs prontos: `experiments/configs/env/clinical_{low,medium,high}.yaml`.
-
----
-
-## 6. Resultados por nível clínico (15 seeds fora do treino)
-
-| Nível | Melhor política | DQN treinado nesse nível | Testes do DQN |
-|---|---|---:|---:|
-| **low** | testall (−158,7 / acc **0,858**) | **−317,6** (acc 0,591) | **0** |
-| **medium** | confirmall (**+602,5**) | **−24,0** | **0** |
-| **high** | confirmall (**+2023,7**) | **+1148,6** (acc 0,892) | 21 |
-
-**Resultado negativo e claro: o DQN perde para a melhor política trivial nos três
-níveis.** Mais revelador: ele **quase não testa**. No nível `low`, onde testar é
-comprovadamente certo (`testall` tem a melhor recompensa **e** a maior acurácia),
-o agente testa zero vezes e fica pior do que não fazer nada.
-
-**Implicação metodológica importante:**
-
-> Com o nível clínico **fixo**, o problema de RL fica quase trivial. O oráculo
-> adaptativo **empata** com a melhor política fixa em `high` (2023,7 vs 2023,7) e
-> quase empata em `medium` (623,1 vs 602,5).
-
-Os dois cenários se complementam: **níveis fixos** para caracterizar ambiente e
-baselines sem confundidor; **cenário misto** (médico variando muito) para
-justificar o agente, pois é lá que inferir o médico vale (+129 fixo vs +599
-oráculo).
-
----
-
-## 7. Por que o DQN não converge
-
-Mesmo com nível fixo e 20 episódios de avaliação, as curvas oscilam sem
-convergir (no `high`: **+1019 → −7245** entre épocas consecutivas). Duas medições
-explicam:
-
-**(a) Recompensa por passo muito dispersa:** média +1,3, desvio **16,1**,
-variando de **−90 a +210**. Os desfechos atrasados de dezenas de casos maturam no
-mesmo dia. (O placar final responde por apenas ~6% da magnitude.)
-
-**(b) Variância irredutível para um agente sem memória:** fixando o nível
-`medium`, a competência do médico ainda varia (0,59–0,90 pela Beta). Para a
-**mesma política fixa**, a recompensa do episódio variou de **−524 a +1550**.
-
-> Para a mesma observação, o retorno varia milhares de pontos por causa de uma
-> variável latente que o agente não enxerga. O alvo de TD fica irredutivelmente
-> ruidoso. **Não é hiperparâmetro — é o problema estando mal-observado.**
-
-### Correção proposta e implementada (v3)
-
-Tornar a competência do médico **observável**: a cada laudo que volta, comparar o
-resultado com o palpite clínico. A informação já existia, mas apenas implícita e
-espalhada num mapa 400×400 esparso — inviável de extrair por convolução.
-
-A observação ganhou 2 features: **taxa de concordância** (laudo × palpite
-clínico) e **força da evidência**. Validação: a estimativa observável acompanha a
-competência real com **correlação +0,991**.
-
-Efeito colateral desejável: para estimar o médico, o agente **precisa testar**
-alguns casos no início — surge um trade-off explorar/explorar que antes não
-existia. Isso dá sentido epidemiológico ao teste: ele não serve só para
-diagnosticar aquele caso, serve para **calibrar a confiança na triagem clínica**.
-
-**Status:** treino interrompido em ~11 de 20 épocas. O checkpoint parcial rende
-−60,5 (acurácia 0,750) e — sinal relevante — **voltou a testar (100 casos**, contra
-0 dos modelos por nível). Ou seja, a feature **mudou o comportamento na direção
-esperada**, mas ainda não superou o `confirmall` (+128,8). A curva seguia
-instável, o que aponta a dispersão da recompensa (item **a** acima) como próximo
-suspeito.
-
----
-
-## 8. Estado do artigo — precisa de atualização
-
-O texto atual está defasado em relação ao código:
-
-| No artigo | No código |
-|---|---|
-| recompensa +5 / −15 | +10 / −20 / −30 + placar final |
-| buffer de 50 000 | 5 000–6 000 |
-| "100 cenários" | a tabela reporta 10 |
-| sensib. 85% / especif. 60% fixas | Beta com 3 níveis |
-| sem baseline clínico | `clinical`, `testall`, `confirmall` |
-| sem kriging | kriging implementado e avaliado |
-| 16 GB de RAM | 32 GB |
-
-Também: Introdução e Metodologia em inglês, Resultados em português.
-
-A tabela de resultados atual (acurácia ~0,71 para todos os agentes) foi obtida
-com a recompensa antiga e **precisa ser refeita**.
-
----
-
-## 9. Trabalho de engenharia (viabilizou os experimentos)
-
-| Item | Antes | Depois |
-|---|---:|---:|
-| Parâmetros da rede | 69,4 M | **1,25 M** |
-| Checkpoint | ~555 MB | **5 MB** |
-| Velocidade do ambiente | 20 passos/s | **134 passos/s** |
-| RAM do treino | 18,8 GB | **7,2 GB** |
-| Velocidade do treino | — | **2× mais rápido** |
-
-Quatro estouros de memória foram diagnosticados e corrigidos, entre eles: dois
-grids 400×400 float64 sendo gravados no `info` de **cada** transição (≈51 GB no
-buffer) e um buffer de avaliação de 12,8 GB que o Tianshou alocava em silêncio.
-
-Suíte de testes: **137 passando**.
-
----
-
-## 10. Pontos para decidir na reunião
-
-1. **Escala da recompensa.** A dispersão por passo (−90 a +210) é o próximo
-   suspeito da instabilidade. Reduzir a escala dos desfechos de decisão?
-2. **O caso deve poder voltar ao agente após o laudo?** Isso resolveria a
-   pergunta sobre "usar o resultado do teste" e é o caminho mais direto para
-   furar o teto de 88%.
-3. **Parâmetros do laudo.** Manter 0,9/0,9 com 10% de inconclusivos, ou adotar
-   valores de RT-PCR (0,95–0,99)? Define se 90% é atingível.
-4. **Kriging:** o que exatamente melhorar na construção do mapa?
-5. **Desenho experimental:** níveis fixos para caracterizar + cenário misto para
-   justificar o agente — faz sentido?
+**259 testes automatizados**, dos quais 45 escritos para esta fase.

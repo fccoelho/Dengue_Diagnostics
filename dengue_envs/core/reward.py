@@ -213,50 +213,61 @@ class RewardEngine:
         if obs_cases is None or obs_cases.empty:
             return 0.0
 
-        has_testd = "testd" in obs_cases.columns
-        has_testc = "testc" in obs_cases.columns
-
         total = 0.0
         for idx in obs_cases.index:
-            if idx not in real_cases.index:
-                continue
-            true_disease = int(real_cases.loc[idx, "disease"])
-            agent_diagnosis = int(obs_cases.loc[idx, "agent_diagnosis"])
+            total += self.terminal_contribution(
+                idx, real_cases, obs_cases, concluded, investigated
+            )
+        return total
 
-            # Caso em aberto = investigação ABERTA e não fechada.
-            #
-            # Duas condições, por motivos diferentes:
-            #
-            # `charged_unresolved` — o caso já pagou no passo em que foi
-            # largado (ver `abandon_case`). Aqui só entram os que o episódio
-            # encerrou antes de o agente ter a chance de abandoná-los
-            # explicitamente (notificados no fim, ou com laudo a caminho).
-            #
-            # `investigated` — não agir não é deixar em aberto: é deixar valer
-            # o diagnóstico do médico, e o caso é julgado pelo acerto desse
-            # palpite (bônus/`penalty_misdiagnosed` abaixo). O que se pune é
-            # gastar exame ou ida a campo e terminar sem resposta.
-            if (
-                concluded is not None
-                and idx not in concluded
-                and idx not in self.charged_unresolved
-                and (investigated is None or idx in investigated)
-            ):
-                total += self.penalty_unresolved
+    def terminal_contribution(
+        self,
+        idx,
+        real_cases: pd.DataFrame,
+        obs_cases: pd.DataFrame,
+        concluded=None,
+        investigated=None,
+    ) -> float:
+        """Parcela do placar final que pertence a UM caso.
 
-            if agent_diagnosis == true_disease:
-                total += self.final_correct_bonus
-                continue
+        `_terminal_score` é exatamente a soma disto sobre os casos — separado
+        para permitir a atribuição de crédito por caso: o placar final é pago
+        num bloco só, no último passo do episódio, e é o único termo da
+        recompensa que hoje não tem dono. Com esta função o ambiente consegue
+        reportar a quem cada parcela pertence, sem mudar o total pago.
+        """
+        if obs_cases is None or idx not in obs_cases.index or idx not in real_cases.index:
+            return 0.0
+        total = 0.0
+        true_disease = int(real_cases.loc[idx, "disease"])
+        agent_diagnosis = int(obs_cases.loc[idx, "agent_diagnosis"])
 
-            # Erro: punido sempre; testar não isenta.
-            total += self.penalty_misdiagnosed
+        # Caso em aberto = investigação ABERTA e não fechada.
+        #
+        # `charged_unresolved` — o caso já pagou no passo em que foi largado
+        # (ver `abandon_case`). Aqui só entram os que o episódio encerrou antes
+        # de o agente ter a chance de abandoná-los explicitamente.
+        #
+        # `investigated` — não agir não é deixar em aberto: é deixar valer o
+        # diagnóstico do médico, julgado pelo acerto desse palpite. O que se
+        # pune é gastar exame ou ida a campo e terminar sem resposta.
+        if (
+            concluded is not None
+            and idx not in concluded
+            and idx not in self.charged_unresolved
+            and (investigated is None or idx in investigated)
+        ):
+            total += self.penalty_unresolved
 
-            testd = int(obs_cases.loc[idx, "testd"]) if has_testd else 0
-            testc = int(obs_cases.loc[idx, "testc"]) if has_testc else 0
-            never_tested = (testd == 0) and (testc == 0)
-            if never_tested:
-                total += self.penalty_untested_misdiagnosed
+        if agent_diagnosis == true_disease:
+            return total + self.final_correct_bonus
 
+        # Erro: punido sempre; testar não isenta.
+        total += self.penalty_misdiagnosed
+        testd = int(obs_cases.loc[idx, "testd"]) if "testd" in obs_cases.columns else 0
+        testc = int(obs_cases.loc[idx, "testc"]) if "testc" in obs_cases.columns else 0
+        if testd == 0 and testc == 0:
+            total += self.penalty_untested_misdiagnosed
         return total
 
     def case_reward(

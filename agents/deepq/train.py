@@ -66,6 +66,9 @@ def _resolve_env_config(cfg: dict, config_path: Path) -> dict:
     # ela do YAML do ambiente ou do YAML de treino.
     if "context_features" in cfg:
         env_cfg["context_features"] = cfg["context_features"]
+    # Onde a decisão está no tempo da epidemia (ver CaseByCaseWrapper).
+    if "temporal_features" in cfg:
+        env_cfg["temporal_features"] = cfg["temporal_features"]
     # Escala de recompensa: só existe no treino (ver RewardScaleWrapper).
     if "reward_scale" in cfg:
         env_cfg["reward_scale"] = cfg["reward_scale"]

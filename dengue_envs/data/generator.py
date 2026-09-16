@@ -24,6 +24,8 @@ class World:
         chik_r0: float = 1.2,
         other_prevalence: float = 0.0,
         random_state=None,
+        epi_model: str = "legacy",
+        initial_infected_fraction: float = 0.01,
     ):
         """
         size: size of the world
@@ -59,6 +61,14 @@ class World:
             )
         self.other_prevalence = float(other_prevalence)
         self.other_total = 0
+        # Modelo temporal da epidemia. "legacy" reproduz o SIR original (com
+        # os dois erros documentados em `core.epi_model`); "seir" usa
+        # parâmetros de literatura. Default legacy só para não mudar em
+        # silêncio os resultados já produzidos.
+        if epi_model not in ("legacy", "seir"):
+            raise ValueError(f"epi_model deve ser 'legacy' ou 'seir'; recebido {epi_model!r}")
+        self.epi_model = epi_model
+        self.initial_infected_fraction = float(initial_infected_fraction)
         # a, b = (myclip_a - loc) / scale, (myclip_b - loc) / scale
         self.dengue_dist_x = st.distributions.truncnorm(a=(0-self.dengue_center[0])/self.dengue_radius,
                                                         b=(size-1 - self.dengue_center[0])/self.dengue_radius,
@@ -83,8 +93,8 @@ class World:
         )
 
         # Cumulative Incidence curves (R0 controla quantos casos surgem por dia).
-        self.dengue_curve = self._get_epi_curve(R0=self.dengue_r0)
-        self.chik_curve = self._get_epi_curve(R0=self.chik_r0)
+        self.dengue_curve = self._get_epi_curve(R0=self.dengue_r0, disease=0)
+        self.chik_curve = self._get_epi_curve(R0=self.chik_r0, disease=1)
 
         self.case_series = []
         # Cases per day as a list of lists
@@ -103,33 +113,24 @@ class World:
             return np.array([], dtype=int)
         return dist.rvs(n, random_state=self._rng)
 
-    def _get_epi_curve(self, I0=10, R0=1.5):
-        """
-        Generate an epidemic curve
-        returns the Infectious numbers per day
-        :param I0: Initial number of infectious
-        :param R0: Basic Reproductive Number
-        """
+    def _get_epi_curve(self, I0=10, R0=1.5, disease=0):
+        """Curva de casos notificados acumulados por dia.
 
-        def SIR(Y, t, beta, gamma, N):
-            S, I, Inc, R = Y
-            return [
-                -beta * S * I,
-                beta * S * I - gamma * I,
-                beta * S * I,  # Cumulative Incidence
-                gamma * I,
-            ]
-
-        gamma = 0.004
-        beta = R0 * gamma
-        y = odeint(
-            SIR,
-            [self.popsize - I0, I0, 0, 0],
-            np.arange(0, self.epilength),
-            args=(beta, gamma, self.popsize),
+        Delega para `dengue_envs.core.epi_model`. Com ``epi_model="legacy"``
+        reproduz o SIR original — que tinha R0 efetivo ``R0 * popsize`` e
+        período infeccioso de 250 dias, e por isso comprimia a epidemia inteira
+        em ~9 dias. Com ``"seir"`` usa os parâmetros de literatura.
+        """
+        from dengue_envs.core.epi_model import (
+            CHIK, DENGUE, legacy_sir_cumulative, seir_cumulative_cases,
         )
 
-        return y[:, 2]
+        if self.epi_model == "legacy":
+            return legacy_sir_cumulative(self.popsize, self.epilength, R0, I0)
+        params = DENGUE if disease == 0 else CHIK
+        return seir_cumulative_cases(
+            R0, params, self.popsize, self.epilength, self.initial_infected_fraction
+        )
 
     def build_case_series(self):
         """

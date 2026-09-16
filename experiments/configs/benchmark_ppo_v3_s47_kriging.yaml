@@ -1,0 +1,9 @@
+# PPO v3 (treino MISTO) seed 47, avaliado no regime kriging.
+# Avaliar separado por regime e o ponto: mede se ele ALTERNA de politica.
+env_config: env/kriging_v7aug.yaml
+agents: [clinical, confirmall, testonce, testtwice, ppo]
+checkpoints:
+  ppo: results/ppo_v3_misto_s47/policy_final.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/bm_ppo_v3_s47_kriging
+save_artifacts: false

@@ -1,0 +1,34 @@
+# PPO v4 BRACO B — SEIR + credito por caso (desconto em dias) + features
+# temporais, seed 47.
+#
+# O ambiente e a recompensa sao os mesmos do braco A; muda o LEARNER: a
+# vantagem de cada decisao e estimada ao longo da linha do tempo do proprio
+# caso (agents/ppo/credit.py), com gamma elevado aos DIAS entre passos.
+# Limitacao declarada: muda credito e observacao juntos.
+env_config: ../env/kriging_v8_temporal.yaml
+
+context_features: true
+temporal_features: true
+reward_scale: 0.10
+
+train:
+  seed: 47
+  per_case_credit: true
+  epochs: 10
+  step_per_epoch: 30000
+  step_per_collect: 2000
+  repeat_per_collect: 10
+  batch_size: 256
+  lr: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  eps_clip: 0.2
+  ent_coef: 0.02
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  num_train_envs: 8
+  num_test_envs: 10
+  test_episodes: 20
+  vector_env: dummy
+
+output_dir: results/ppo_v4b_credito_s47

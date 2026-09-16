@@ -1,0 +1,8 @@
+# Baselines no ambiente kriging_v8 — dinamica temporal SEIR de literatura.
+# A economia muda em relacao ao v7 (epidemia de ~6 meses em vez de 9 dias,
+# ~4 casos/dia no pico em vez de 60), entao os numeros do v7 nao valem aqui.
+env_config: env/kriging_v8.yaml
+agents: [clinical, confirmall, testonce, testtwice, random]
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/baseline_v8seir_kriging
+save_artifacts: false

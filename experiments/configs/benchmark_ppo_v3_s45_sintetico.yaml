@@ -1,0 +1,9 @@
+# PPO v3 (treino MISTO) seed 45, avaliado no regime sintetico.
+# Avaliar separado por regime e o ponto: mede se ele ALTERNA de politica.
+env_config: env/synthetic_v7.yaml
+agents: [clinical, confirmall, testonce, testtwice, ppo]
+checkpoints:
+  ppo: results/ppo_v3_misto_s45/policy_final.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/bm_ppo_v3_s45_sintetico
+save_artifacts: false

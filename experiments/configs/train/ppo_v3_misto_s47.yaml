@@ -1,0 +1,52 @@
+# PPO v3 — treino MISTO (sintetico + kriging perturbado), 3 seeds.
+#
+# A pergunta e de ARQUITETURA, nao de desempenho. Medido por ablacao: zerar o
+# tensor de mapa muda 0-2% das decisoes do agente -- ele e decorativo. Faz
+# sentido, porque dentro de UMA distribuicao o mapa nao acrescenta nada as
+# features do caso.
+#
+# Misturando duas, o mapa vira a UNICA forma de saber em que regime se esta, e
+# os regimes pedem politicas OPOSTAS (medido com politicas fixas):
+#
+#   distribuicao | posicao acerta a doenca | melhor politica fixa
+#     sintetico  |   93,7%                 | testa2 em toda a faixa de custo
+#     kriging    |   50,7 +- 2,4           | testa1 em toda a faixa de custo
+#
+# O kriging usa `augment_surfaces`: rotacao 180 / espelho sorteados por
+# episodio, para o agente nao decorar a geografia de um unico surto. Verificado
+# que NAO altera a dificuldade (52,5 +- 1,1 contra 50,7 +- 2,4 -- dentro do
+# ruido da propria metrica).
+#
+# RESULTADO INFORMATIVO NOS DOIS SENTIDOS: se ele alternar de politica conforme
+# o regime, o canal espacial ganha funcao pela primeira vez. Se convergir para
+# um compromisso pior que os especialistas nos dois, mede um limite concreto da
+# arquitetura.
+#
+env_config: ../env/mixed_v7.yaml
+
+context_features: true
+reward_scale: 0.10
+
+train:
+  seed: 47
+  epochs: 10
+  step_per_epoch: 30000    # 300k passos no total (3x o v1)
+  step_per_collect: 2000    # lote on-policy
+  repeat_per_collect: 10
+  batch_size: 256
+  lr: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  eps_clip: 0.2
+  # Entropia ACIMA do padrao (0.01). O modo de falha desta sessao e colapso em
+  # "nada"; a entropia e a alavanca que age contra isso, e ela atua sobre a
+  # POLITICA, nao sobre a acao escolhida como o epsilon.
+  ent_coef: 0.02
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  num_train_envs: 8
+  num_test_envs: 10
+  test_episodes: 20
+  vector_env: dummy
+
+output_dir: results/ppo_v3_misto_s47

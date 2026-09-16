@@ -21,6 +21,7 @@ class CaseByCaseWrapper(gym.Wrapper):
         env: DengueWrapper,
         context_features: bool = False,
         per_case_reward: bool = False,
+        temporal_features: bool = False,
     ):
         super().__init__(env)
 
@@ -45,6 +46,12 @@ class CaseByCaseWrapper(gym.Wrapper):
         # evidência). Opcional e desligado por padrão para não invalidar
         # checkpoints treinados com a observação antiga.
         self.context_features = bool(context_features)
+        # Acrescenta ao contexto onde a decisão está no tempo da epidemia (ver
+        # `DengueDiagnosticsEnv.temporal_features`). Opt-in: muda o espaço de
+        # observação e invalidaria checkpoints treinados sem ele.
+        self.temporal_features = bool(temporal_features)
+        if self.temporal_features and not self.context_features:
+            raise ValueError("temporal_features exige context_features=True")
 
         spaces_dict = {
             "map": env.observation_space,
@@ -57,7 +64,9 @@ class CaseByCaseWrapper(gym.Wrapper):
             # atributos do caso atual (nível do caso). As duas partes vão no mesmo
             # vetor porque a rede as consome pelo mesmo ramo denso.
             spaces_dict["context"] = spaces.Box(
-                low=0.0, high=1.0, shape=(16,), dtype=np.float32
+                low=0.0, high=1.0,
+                shape=(20 if self.temporal_features else 16,),
+                dtype=np.float32,
             )
         # `mask` segue a convenção do Tianshou: 1 = ação permitida. Só entra na
         # observação quando o ambiente de fato restringe alguma ação, para não
@@ -141,12 +150,13 @@ class CaseByCaseWrapper(gym.Wrapper):
         }
         if self.context_features:
             rate, strength = self.unwrapped.clinical_evidence()
-            obs["context"] = np.concatenate(
-                [
-                    np.array([rate, strength], dtype=np.float32),
-                    self.unwrapped.case_features(self.current_case[0]),
-                ]
-            )
+            partes = [
+                np.array([rate, strength], dtype=np.float32),
+                self.unwrapped.case_features(self.current_case[0]),
+            ]
+            if self.temporal_features:
+                partes.append(self.unwrapped.temporal_features(self.current_case[0]))
+            obs["context"] = np.concatenate(partes)
         if self.action_mask:
             obs["mask"] = self.unwrapped.action_mask(self.current_case[0])
         return obs
@@ -202,16 +212,46 @@ class CaseByCaseWrapper(gym.Wrapper):
 
         return self._make_obs(), info
 
+    def _credit_info(self, info, case_id, day, r_case, case_done):
+        """Decomposição por caso da recompensa, para o aprendiz (ver `step`)."""
+        info = dict(info) if info else {}
+        info.update(
+            case_id=int(case_id),
+            day=int(day),
+            r_case=float(r_case),
+            case_done=bool(case_done),
+            episode_uid=int(self.unwrapped.episode_uid),
+        )
+        return info
+
     def step(self, action: int):
         if self.current_case[0] == 0 and not self.active_cases:
-            return self._make_obs(), 0.0, True, False, {}
+            info = self._credit_info({}, 0, self.unwrapped.t, 0.0, True)
+            return self._make_obs(), 0.0, True, False, info
 
         case_id = int(self.current_case[0])
         if self.per_case_reward:
             # Aplica agora e cobra agora: a recompensa deste passo é a
             # consequência desta decisão, não um agregado do dia.
-            case_r = self.unwrapped.apply_case_action(case_id, int(action))
+            u = self.unwrapped
+            dia = int(u.t)
+            case_r = u.apply_case_action(case_id, int(action))
+            # DECOMPOSIÇÃO POR CASO (só informativa — não altera a recompensa).
+            #
+            # O retorno global que o PPO usa soma ~100 passos de OUTROS
+            # pacientes (janela efetiva de gamma=0,99). Medido: a correlação
+            # desse retorno com a utilidade de um exame é ~0 (-0,019 no
+            # kriging v8), enquanto o retorno do próprio caso chega a 0,994.
+            #
+            # `r_case` é a parte desta recompensa que pertence ao caso, mais —
+            # se o caso terminou agora — a parcela dele no placar final, que o
+            # ambiente só paga em bloco no último passo. A soma de `r_case` no
+            # episódio difere da recompensa total apenas pelas parcelas finais
+            # de casos que o episódio encerrou em aberto (a cauda).
+            feito = u.case_is_done(case_id)
+            r_case = case_r + (u.attribute_terminal(case_id) if feito else 0.0)
             obs, day_r, terminated, truncated, info = self._next_case()
+            info = self._credit_info(info, case_id, dia, r_case, feito)
             return obs, case_r + day_r, terminated, truncated, info
 
         self.pending_actions.append((case_id, int(action)))

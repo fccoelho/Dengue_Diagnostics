@@ -41,6 +41,7 @@ from tianshou.trainer import OnPolicyTrainer, OnPolicyTrainerParams
 from tianshou.utils import TensorboardLogger
 
 from agents.deepq.train import EnvFactory, _load_yaml, _make_vector_env, _resolve_env_config
+from agents.ppo.credit import PerCasePPO
 from agents.ppo.network import build_actor_critic
 
 _DEFAULT_CONFIG = "experiments/configs/train/ppo_v1_s42.yaml"
@@ -76,6 +77,11 @@ def train(config_path: str) -> Path:
     test_episodes = int(tcfg.get("test_episodes", 20))
     vector_env = str(tcfg.get("vector_env", "dummy")).lower()
     pooled_size = tcfg.get("pooled_size")
+    # GAE ao longo da linha do tempo de cada caso, com desconto em dias (ver
+    # agents/ppo/credit.py). Exige a decomposição por caso do ambiente.
+    per_case_credit = bool(tcfg.get("per_case_credit", False))
+    if per_case_credit and not env_config.get("per_case_reward", False):
+        raise ValueError("per_case_credit exige per_case_reward: true no ambiente")
     device = tcfg.get("device") or ("cuda" if torch.cuda.is_available() else "cpu")
     if str(device).startswith("cuda"):
         torch.backends.cudnn.benchmark = True
@@ -102,6 +108,7 @@ def train(config_path: str) -> Path:
     )
     print(f"[ppo] device={device} | epochs={epochs} | ent_coef={ent_coef}")
     print(f"[ppo] lr={lr} | gae_lambda={gae_lambda} | eps_clip={eps_clip}")
+    print(f"[ppo] credito={'POR CASO (desconto em dias)' if per_case_credit else 'GAE padrao'}")
     print(f"[ppo] checkpoint -> {best_path.resolve()}")
 
     policy = DiscreteActorPolicy(
@@ -112,7 +119,9 @@ def train(config_path: str) -> Path:
         # que o benchmark do DQN usa, para que a comparação seja justa.
         deterministic_eval=True,
     )
-    algorithm = PPO(
+    algo_cls = PerCasePPO if per_case_credit else PPO
+    extra = {"credit_scale": float(cfg.get("reward_scale", 1.0))} if per_case_credit else {}
+    algorithm = algo_cls(
         policy=policy,
         critic=critico,
         optim=AdamOptimizerFactory(lr=lr),
@@ -122,6 +131,7 @@ def train(config_path: str) -> Path:
         ent_coef=ent_coef,
         vf_coef=vf_coef,
         max_grad_norm=max_grad_norm,
+        **extra,
     )
 
     # On-policy: o buffer guarda só o lote corrente, então dimensiona por
@@ -146,6 +156,16 @@ def train(config_path: str) -> Path:
     def save_best_fn(_policy) -> None:
         torch.save(algorithm.state_dict(), best_path)
 
+    # Salva o estado corrente a cada época. Motivo concreto: quedas da máquina
+    # (reinício do Windows, GPU perdida) custaram 8 seeds inteiras nesta série
+    # de treinos — a época 9 de 10 morreu sem deixar checkpoint utilizável,
+    # porque `policy_final` só é escrito no fim e `policy_best` seleciona ruído.
+    epoch_path = output_dir / "policy_epoch.pth"
+
+    def save_checkpoint_fn(epoch: int, _env_step: int, _grad_step: int) -> str:
+        torch.save(algorithm.state_dict(), epoch_path)
+        return str(epoch_path)
+
     params = OnPolicyTrainerParams(
         train_collector=train_collector,
         test_collector=test_collector,
@@ -156,6 +176,7 @@ def train(config_path: str) -> Path:
         test_step_num_episodes=test_episodes,
         batch_size=batch_size,
         save_best_fn=save_best_fn,
+        save_checkpoint_fn=save_checkpoint_fn,
         logger=logger,
         test_in_train=False,
     )

@@ -50,6 +50,8 @@ _ENV_KEYS = {
     "epi_threshold",
     "epi_density_scale",
     "do_nothing_cost",
+    "epi_model",
+    "initial_infected_fraction",
     "start_day",
     "lab_delay_days",
     "settle_days",
@@ -67,7 +69,7 @@ _ENV_KEYS = {
 }
 
 # Chaves do YAML que selecionam o gerador (não vão para o __init__ do env).
-_GENERATOR_KEYS = {"generator", "surfaces_path"}
+_GENERATOR_KEYS = {"generator", "surfaces_path", "mix", "augment_surfaces"}
 
 _WRAPPER_BUILDERS = {
     "map_tensor": DengueWrapper,
@@ -78,40 +80,119 @@ _WRAPPER_BUILDERS = {
 DEFAULT_WRAPPERS = ["map_tensor", "case_by_case"]
 
 
+def _synthetic_world(env: DengueDiagnosticsEnv):
+    """Constrói explicitamente o World sintético padrão.
+
+    O env já faz isso quando `world_builder is None`; esta função existe para
+    que o gerador `mixed` possa ESCOLHER o sintético em tempo de execução, o
+    que exige construí-lo de dentro de um builder.
+    """
+    from dengue_envs.data.generator import World
+
+    return World(
+        env.size,
+        env.episize,
+        env.epilength,
+        env.dengue_center,
+        env.chik_center,
+        env.dengue_radius,
+        env.chik_radius,
+        dengue_r0=env.dengue_r0,
+        chik_r0=env.chik_r0,
+        other_prevalence=env.other_prevalence,
+        random_state=env.np_random,
+    )
+
+
 def _make_world_builder(env_cfg: dict) -> Optional[Callable]:
     """Retorna um ``world_builder(env)`` ou None (World sintético padrão)."""
     generator = env_cfg.get("generator", "synthetic")
     if generator in (None, "synthetic"):
         return None
 
+    if generator == "mixed":
+        # Sorteia a distribuição espacial A CADA MUNDO NOVO (ver `_create_world`).
+        #
+        # Motivação medida: hoje o mapa é decorativo — zerá-lo muda 0-2% das
+        # decisões do agente, porque dentro de UMA distribuição ele não
+        # acrescenta nada às features do caso. Misturando duas, o mapa passa a
+        # ser a única forma de saber em que regime se está — e os regimes pedem
+        # políticas opostas: no sintético a posição acerta a doença em 93,7% (o
+        # exame é redundante); no kriging, 47,1% (o exame é tudo).
+        #
+        # Config:
+        #   generator: mixed
+        #   mix:
+        #     - {generator: synthetic, weight: 0.5}
+        #     - {generator: kriging,   weight: 0.5}
+        entradas = env_cfg.get("mix")
+        if not entradas:
+            raise ValueError(
+                "generator: mixed exige a chave `mix` com as distribuições. "
+                "Ex.: mix: [{generator: synthetic}, {generator: kriging}]"
+            )
+        construtores, pesos = [], []
+        for item in entradas:
+            sub = dict(env_cfg)
+            sub.pop("mix", None)
+            sub.update(item)
+            peso = float(sub.pop("weight", 1.0))
+            if peso <= 0:
+                continue
+            b = _make_world_builder(sub)
+            construtores.append(b if b is not None else _synthetic_world)
+            pesos.append(peso)
+        if not construtores:
+            raise ValueError("`mix` não produziu nenhuma distribuição com peso > 0")
+        pesos = [p / sum(pesos) for p in pesos]
+
+        def mixed_builder(env: DengueDiagnosticsEnv):
+            # `env.np_random` é o RNG semeado do episódio: a escolha é
+            # reprodutível para uma dada seed.
+            i = int(env.np_random.choice(len(construtores), p=pesos))
+            env.mixture_component = i
+            return construtores[i](env)
+
+        return mixed_builder
+
     if generator == "kriging":
         from dengue_envs.data.kriging_generator import (
             DEFAULT_SURFACES_PATH,
             KrigingDensityGenerator,
+            augment_surfaces,
             load_kriging_surfaces,
         )
 
         path = Path(env_cfg.get("surfaces_path", DEFAULT_SURFACES_PATH))
         surfaces = load_kriging_surfaces(path)
+        # `augment` sorteia uma transformação rígida por episódio (rotação,
+        # espelho, deslocamento). Sem isso a superfície é SEMPRE a mesma cidade
+        # no mesmo surto, e o agente pode decorar a geografia. A transformação
+        # é conjunta às duas doenças, então preserva a dificuldade — ver
+        # `augment_surfaces`.
+        augment = bool(env_cfg.get("augment_surfaces", False))
 
         def builder(env: DengueDiagnosticsEnv):
+            sup = augment_surfaces(surfaces, env.np_random) if augment else surfaces
             gen = KrigingDensityGenerator(
                 size=env.size,
                 episize=env.episize,
                 epilength=env.epilength,
-                surfaces=surfaces,
+                surfaces=sup,
             )
             return gen.build_world(
                 random_state=env.np_random,
                 dengue_r0=env.dengue_r0,
                 chik_r0=env.chik_r0,
+                epi_model=env.epi_model,
+                initial_infected_fraction=env.initial_infected_fraction,
             )
 
         return builder
 
     raise ValueError(
         f"Gerador desconhecido: {generator!r}. "
-        "Disponíveis: 'synthetic', 'kriging'."
+        "Disponíveis: 'synthetic', 'kriging', 'mixed'."
     )
 
 
@@ -154,6 +235,7 @@ def make_env(config: Optional[dict] = None, **kwargs):
         wrappers = config["wrappers"]
     context_features = bool((config or {}).get("context_features", False))
     per_case_reward = bool((config or {}).get("per_case_reward", False))
+    temporal_features = bool((config or {}).get("temporal_features", False))
     # Resolução da observação de mapa. `None` = mesma do mundo (comportamento
     # histórico). Ver DengueWrapper: o encoder reduz tudo a 6x6 de qualquer
     # forma, então resolução extra só encarece o caminho dos dados.
@@ -170,6 +252,7 @@ def make_env(config: Optional[dict] = None, **kwargs):
                 env,
                 context_features=context_features,
                 per_case_reward=per_case_reward,
+                temporal_features=temporal_features,
             )
         elif name == "map_tensor":
             env = DengueWrapper(env, map_size=map_size)

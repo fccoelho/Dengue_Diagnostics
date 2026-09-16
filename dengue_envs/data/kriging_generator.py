@@ -230,6 +230,73 @@ def probability_to_env_grid(prob: np.ndarray, size: int) -> np.ndarray:
     return canvas
 
 
+def augment_surfaces(
+    surfaces: "KrigingSurfaces", rng: np.random.Generator
+) -> "KrigingSurfaces":
+    """Devolve uma cópia das superfícies sob uma transformação rígida aleatória.
+
+    Rotação de 0/90/180/270 graus, espelhamento opcional e deslocamento
+    circular pequeno — aplicados **conjuntamente** às duas doenças.
+
+    Por que conjuntamente: a propriedade que define a dificuldade do ambiente é
+    a geometria RELATIVA entre os focos de dengue e chik. Medido: no kriging, a
+    posição sozinha acerta a doença em 47,1% (contra 93,7% no sintético). Uma
+    transformação rígida aplicada às duas superfícies preserva essa razão
+    exatamente — muda ONDE as coisas estão, não QUÃO difícil é distingui-las.
+    Transformar cada doença por conta própria mudaria a sobreposição e,
+    portanto, a dificuldade; seria outro experimento.
+
+    Serve para que o agente não decore a geografia de um único surto: a
+    superfície do kriging é carregada uma vez do `.npz` e, sem isto, é sempre a
+    mesma cidade em todos os episódios.
+    """
+    import dataclasses
+
+    # Quatro transformações, todas preservando a RAZÃO DE ASPECTO:
+    # identidade, 180 graus, espelho horizontal, espelho vertical.
+    #
+    # Duas alternativas foram excluídas por argumento geométrico:
+    #
+    # - Deslocamento circular (`np.roll`): envolve as bordas e parte focos que
+    #   ficam perto delas — deixa de ser rígido.
+    # - Rotação de 90/270 graus: a superfície NÃO é quadrada (91x145), então
+    #   girar troca o aspecto e o redimensionamento para o grid do env
+    #   (`probability_to_env_grid`) estica de forma diferente.
+    #
+    # As quatro restantes sobrevivem ao redimensionamento intactas.
+    #
+    # Nota sobre a verificação: a métrica "% em que a posição acerta a doença"
+    # é ruidosa entre grupos de seeds (medido: 50,7 +- 2,4 no kriging sem
+    # perturbação, sobre 4 grupos de 5 seeds). Com a perturbação dá 52,5 +- 1,1
+    # — dentro de um desvio, isto é, **sem efeito detectável sobre a
+    # dificuldade**, que é o que se queria. Diferenças menores que ~5 pontos
+    # nessa métrica não são interpretáveis com poucos seeds.
+    op = int(rng.integers(0, 4))
+
+    def _t(a):
+        if a is None:
+            return None
+        if op == 1:
+            b = np.rot90(a, 2)
+        elif op == 2:
+            b = np.fliplr(a)
+        elif op == 3:
+            b = np.flipud(a)
+        else:
+            b = a
+        return np.ascontiguousarray(b)
+
+    return dataclasses.replace(
+        surfaces,
+        prob_dengue=_t(surfaces.prob_dengue),
+        prob_chik=_t(surfaces.prob_chik),
+        intensity_dengue=_t(surfaces.intensity_dengue),
+        intensity_chik=_t(surfaces.intensity_chik),
+        class_prob_dengue=_t(surfaces.class_prob_dengue),
+        class_prob_chik=_t(surfaces.class_prob_chik),
+    )
+
+
 def sample_xy_from_prob(
     prob_xy: np.ndarray,
     n: int,
@@ -295,8 +362,12 @@ class KrigingWorld:
         dengue_r0: float = 1.5,
         chik_r0: float = 1.2,
         random_state: Optional[np.random.Generator] = None,
+        epi_model: str = "legacy",
+        initial_infected_fraction: float = 0.01,
     ):
         self.size = int(size)
+        self.epi_model = epi_model
+        self.initial_infected_fraction = float(initial_infected_fraction)
         self.popsize = int(popsize)
         self.epilength = int(epilength)
         self.dengue_r0 = float(dengue_r0)
@@ -309,8 +380,8 @@ class KrigingWorld:
         self.dengue_center, self.dengue_radius = _focus_from_prob(self.prob_dengue)
         self.chik_center, self.chik_radius = _focus_from_prob(self.prob_chik)
 
-        self.dengue_curve = _sir_cumulative(self.popsize, self.epilength, self.dengue_r0)
-        self.chik_curve = _sir_cumulative(self.popsize, self.epilength, self.chik_r0)
+        self.dengue_curve = self._curve(self.dengue_r0, disease=0)
+        self.chik_curve = self._curve(self.chik_r0, disease=1)
 
         self.case_series = []
         self.case_dict = {}
@@ -319,6 +390,19 @@ class KrigingWorld:
         self.casedf = None
         self.build_case_series()
         self.build_case_dataframe()
+
+    def _curve(self, r0: float, disease: int) -> np.ndarray:
+        """Mesma escolha de modelo temporal do `World` sintético."""
+        from dengue_envs.core.epi_model import CHIK, DENGUE, seir_cumulative_cases
+
+        if self.epi_model == "legacy":
+            return _sir_cumulative(self.popsize, self.epilength, r0)
+        if self.epi_model != "seir":
+            raise ValueError(f"epi_model deve ser 'legacy' ou 'seir'; recebido {self.epi_model!r}")
+        params = DENGUE if disease == 0 else CHIK
+        return seir_cumulative_cases(
+            r0, params, self.popsize, self.epilength, self.initial_infected_fraction
+        )
 
     def _sample(self, disease: int, n: int) -> Tuple[np.ndarray, np.ndarray]:
         prob = self.prob_dengue if disease == 0 else self.prob_chik
@@ -445,6 +529,8 @@ class KrigingDensityGenerator:
         random_state: Optional[np.random.Generator] = None,
         dengue_r0: Optional[float] = None,
         chik_r0: Optional[float] = None,
+        epi_model: str = "legacy",
+        initial_infected_fraction: float = 0.01,
     ) -> KrigingWorld:
         return KrigingWorld(
             self.size,
@@ -454,6 +540,8 @@ class KrigingDensityGenerator:
             dengue_r0=self.dengue_r0 if dengue_r0 is None else dengue_r0,
             chik_r0=self.chik_r0 if chik_r0 is None else chik_r0,
             random_state=random_state,
+            epi_model=epi_model,
+            initial_infected_fraction=initial_infected_fraction,
         )
 
     def generate(self, seed: Optional[int] = None) -> pd.DataFrame:
