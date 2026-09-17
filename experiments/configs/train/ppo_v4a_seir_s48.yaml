@@ -1,0 +1,30 @@
+# PPO v4 BRACO A — SEIR com GAE padrao, seed 47.
+#
+# Isola o efeito da correcao do modelo temporal sozinha: mesmo PPO do v2/v3,
+# agora numa epidemia de ~6 meses em vez de 9 dias. Alvo: testonce +2782,
+# clinical -64 (baselines kriging_v8, 10 seeds).
+env_config: ../env/kriging_v8.yaml
+
+context_features: true
+reward_scale: 0.10
+
+train:
+  seed: 48
+  epochs: 10
+  step_per_epoch: 30000
+  step_per_collect: 2000
+  repeat_per_collect: 10
+  batch_size: 256
+  lr: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  eps_clip: 0.2
+  ent_coef: 0.02
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  num_train_envs: 8
+  num_test_envs: 10
+  test_episodes: 20
+  vector_env: dummy
+
+output_dir: results/ppo_v4a_seir_s48

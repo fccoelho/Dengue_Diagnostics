@@ -1,0 +1,37 @@
+# PPO v4 BRACO C — SEIR + credito por caso, SEM features temporais, seed 47.
+#
+# ABLACAO do braco B, que mudou duas coisas de uma vez: o credito por caso
+# (agents/ppo/credit.py) e as 4 features temporais na observacao. Este braco
+# mantem so o credito, com a observacao IDENTICA a do braco A.
+#
+# Medido (3 seeds, checkpoint final, benchmark de 10 seeds):
+#   A (GAE padrao, sem tempo)      +729 +- 119 | 30 exames  | 74,3%
+#   B (credito + tempo)           +2649 +-  50 | 266 exames | 93,1%
+# Perto de B => o ganho e do credito. Perto de A => a observacao temporal
+# tambem e necessaria.
+env_config: ../env/kriging_v8.yaml
+
+context_features: true
+reward_scale: 0.10
+
+train:
+  seed: 48
+  per_case_credit: true
+  epochs: 10
+  step_per_epoch: 30000
+  step_per_collect: 2000
+  repeat_per_collect: 10
+  batch_size: 256
+  lr: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  eps_clip: 0.2
+  ent_coef: 0.02
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  num_train_envs: 8
+  num_test_envs: 10
+  test_episodes: 20
+  vector_env: dummy
+
+output_dir: results/ppo_v4c_credito_sem_tempo_s48
