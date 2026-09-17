@@ -253,6 +253,12 @@ braços; seeds 45, 46, 47. Baselines: `benchmark_v8seir_kriging.yaml`.
 Resultados brutos em `results/bm_ppo_v4{a,b,c}_*` e
 `results/baseline_v8seir_kriging`.
 
+**Análise visual e tabelas:** `notebooks/analise_v4.ipynb` — recalcula tudo a
+partir dos CSVs e de episódios rodados na hora (nenhum número digitado à mão),
+inclui as curvas de treino, a comparação de todos os agentes, o modelo epidêmico
+antes e depois, e o mapa do último dia da epidemia com as decisões de cada
+agente em duas seeds contrastantes.
+
 **Custo:** ~3h por seed (300 mil passos), com dois treinos simultâneos na GPU.
 O laço é limitado pelo **ambiente**, não pela rede — medido: 48 passos/s tanto
 em CPU quanto em CUDA.
