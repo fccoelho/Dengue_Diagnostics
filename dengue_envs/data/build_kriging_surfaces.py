@@ -46,12 +46,17 @@ def main() -> None:
         choices=("spherical", "exponential", "gaussian", "linear"),
     )
     parser.add_argument("--years", type=int, nargs="+", default=[2015, 2016])
+    parser.add_argument("--years-dengue", type=int, nargs="+", default=None,
+                        help="Anos só da dengue (sobrescreve --years para ela).")
+    parser.add_argument("--years-chik", type=int, nargs="+", default=None,
+                        help="Anos só da chikungunya (sobrescreve --years para ela).")
     args = parser.parse_args()
 
     if not args.gpkg.exists():
         raise SystemExit(f"GeoPackage não encontrado: {args.gpkg.resolve()}")
 
     print(f"[kriging] lendo {args.gpkg}")
+    print(f"[kriging] anos: {args.years} | dengue={args.years_dengue} | chik={args.years_chik}")
     print(f"[kriging] doenças do modelo: {MODEL_DISEASES} (Zika excluída)")
     print(
         f"[kriging] obs_cell={args.obs_cell}m pred_cell={args.pred_cell}m "
@@ -64,6 +69,9 @@ def main() -> None:
         pred_cell_m=args.pred_cell,
         variogram_model=args.variogram,
         diseases=MODEL_DISEASES,
+        years_by_disease={
+            d: tuple(a) for d, a in (("Dengue", args.years_dengue), ("Chikungunya", args.years_chik)) if a
+        },
     )
     # Garante que o NPZ do treino não carregue chaves de Zika.
     for key in list(payload.keys()):

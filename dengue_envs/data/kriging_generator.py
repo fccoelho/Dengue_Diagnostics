@@ -106,10 +106,17 @@ def build_kriging_surfaces(
     pred_cell_m: float = 500.0,
     variogram_model: str = "spherical",
     diseases: Tuple[str, ...] = MODEL_DISEASES,
+    years_by_disease: Optional[Dict[str, Tuple[int, ...]]] = None,
 ) -> Tuple[KrigingSurfaces, Dict[str, Any]]:
     """Pipeline do notebook: zikario → Ordinary Kriging → probabilidades.
 
     Por padrão só Dengue e Chikungunya (as classes do env). Zika não entra.
+
+    `years_by_disease` sobrescreve `years` para as doenças listadas (ex.:
+    ``{"Dengue": (2015,)}``), para montar cenários em que cada doença vem de
+    um ano. Existe porque a chikungunya quase não circulou no Rio em 2015
+    (70 notificações, contra 14 mil em 2016): uma superfície de chik de 2015
+    não é estimável, e um cenário "2015" só é possível trocando a dengue.
     """
     if not diseases:
         raise ValueError("diseases não pode ser vazio")
@@ -126,9 +133,10 @@ def build_kriging_surfaces(
             stacklevel=2,
         )
 
+    anos = {d: tuple((years_by_disease or {}).get(d, years)) for d in diseases}
     cases = load_zikario_cases(
         str(gpkg_path),
-        years=years,
+        years=sorted(set(chain.from_iterable(anos.values()))),
         bbox_lonlat=DEFAULT_RIO_BBOX_LONLAT,
         diseases=diseases,
     )
@@ -136,7 +144,7 @@ def build_kriging_surfaces(
 
     results: Dict[str, Dict[str, Any]] = {}
     for disease in diseases:
-        sub = cases[cases["Doenca"] == disease]
+        sub = cases[(cases["Doenca"] == disease) & cases["DT_SIN_PRI"].dt.year.isin(anos[disease])]
         if len(sub) < 3:
             raise ValueError(f"Poucos casos para Kriging de {disease}: n={len(sub)}")
         counts, intensity, sigma, pred_grid = intensity_surface_from_points(
@@ -187,6 +195,8 @@ def build_kriging_surfaces(
         "obs_cell_size": obs_cell_m,
     }
     for disease, r in results.items():
+        payload[f"years_{disease.lower()}"] = np.asarray(anos[disease], dtype=int)
+        payload[f"n_{disease.lower()}"] = r["n"]
         key = disease.lower()
         payload[f"intensity_{key}"] = r["intensity"]
         payload[f"prob_{key}"] = r["prob"]

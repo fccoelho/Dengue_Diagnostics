@@ -110,12 +110,12 @@ def carrega_benchmark_v4(raiz: Path = RESULTADOS) -> pd.DataFrame:
     return df[["braco", "seed_treino", "seed_aval", *METRICAS_BENCHMARK.values()]]
 
 
-def carrega_seeds_ineditas(raiz: Path = RESULTADOS) -> pd.DataFrame:
-    """Mesma tabela, para os surtos inéditos (9001+) de `robustez.seeds_ineditas`."""
-    df = pd.read_csv(raiz / "demo" / "seeds_ineditas.csv")
+def carrega_demo(nome: str, raiz: Path = RESULTADOS) -> pd.DataFrame:
+    """Mesma tabela, para um experimento de `robustez` (cache `results/demo/<nome>.csv`)."""
+    df = pd.read_csv(raiz / "demo" / f"{nome}.csv")
     rotulos = {"ppo A": "A (GAE)", "ppo C": "C (crédito)"}
     df["braco"] = df["agente"].map(rotulos).fillna(df["agente"])
-    # Os baselines foram rodados uma vez, sob o rótulo de seed de treino 45.
+    # Os baselines rodam uma vez só, sob o rótulo de seed de treino 45.
     df.loc[~df["agente"].str.startswith("ppo"), "seed_treino"] = 0
     return df.rename(columns={"seed": "seed_aval"})[
         ["braco", "seed_treino", "seed_aval", "recompensa", "acuracia", "exames"]
@@ -262,7 +262,10 @@ def tabela_markdown(bracos: pd.DataFrame, comps: pd.DataFrame, metrica: str = "r
 
 CONJUNTOS = {
     "benchmark": carrega_benchmark_v4,
-    "seeds_ineditas": carrega_seeds_ineditas,
+    "seeds_ineditas": lambda: carrega_demo("seeds_ineditas"),
+    # Superfícies de um único ano, mesmas seeds do benchmark oficial.
+    "dengue_2015": lambda: carrega_demo("dengue_2015"),
+    "rio_2016": lambda: carrega_demo("rio_2016"),
 }
 
 

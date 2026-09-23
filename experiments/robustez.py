@@ -374,6 +374,45 @@ def transferencia_espacial(seeds: Sequence[int] = SEEDS_INEDITAS[:6]) -> pd.Data
     return pd.concat(partes, ignore_index=True)
 
 
+# Superfícies do Rio por ano (`build_kriging_surfaces --years-dengue/--years-chik`).
+# A chikungunya quase não circulou em 2015 (70 notificações), então o cenário
+# "2015" troca só a dengue; a chik é a de 2016 nos dois.
+SUPERFICIES_POR_ANO = {
+    "dengue 2015 + chik 2016": "results/kriging/rio_d2015_c2016_kriging_surfaces.npz",
+    "dengue 2016 + chik 2016": "results/kriging/rio_2016_kriging_surfaces.npz",
+}
+
+
+def _superficie_por_ano(rotulo: str, seeds_treino: Sequence[int] = (45, 46, 47, 48),
+                        seeds: Sequence[int] = SEEDS_BENCHMARK) -> pd.DataFrame:
+    """Os agentes do v4, sem retreino, sobre a superfície de um único ano.
+
+    A superfície de referência junta 2015 e 2016, então nenhum dos dois anos é
+    inédito para o agente: isto mede CONSISTÊNCIA entre anos, não
+    generalização. Medido antes de rodar: a posição sozinha acerta a doença em
+    53-54% nas três superfícies (Bayes, prior igual), e a dengue de 2015 tem
+    correlação 0,90 com a de 2016. As seeds são as do benchmark oficial, para
+    que o bootstrap pareie estes episódios com os da referência.
+    """
+    cfg = config_ambiente("kriging_v8", surfaces_path=str(_RAIZ / SUPERFICIES_POR_ANO[rotulo]))
+    extras = {"superficie": rotulo}
+    partes = []
+    for agente in ("ppo C", "ppo A"):
+        for st in seeds_treino:
+            partes.append(avalia(agente, cfg, seeds, seed_treino=st, extras=extras))
+    for fixa in ("testonce", "testtwice", "clinical", "confirmall"):
+        partes.append(avalia(fixa, cfg, seeds, extras=extras))
+    return pd.concat(partes, ignore_index=True)
+
+
+def dengue_2015(**kw) -> pd.DataFrame:
+    return _superficie_por_ano("dengue 2015 + chik 2016", **kw)
+
+
+def rio_2016(**kw) -> pd.DataFrame:
+    return _superficie_por_ano("dengue 2016 + chik 2016", **kw)
+
+
 EXPERIMENTOS = {
     "seeds_ineditas": seeds_ineditas,
     "qualidade_do_medico": qualidade_do_medico,
@@ -382,6 +421,8 @@ EXPERIMENTOS = {
     "ablacao_de_entradas": ablacao_de_entradas,
     "orcamento_aleatorio": orcamento_aleatorio,
     "transferencia_espacial": transferencia_espacial,
+    "dengue_2015": dengue_2015,
+    "rio_2016": rio_2016,
 }
 
 

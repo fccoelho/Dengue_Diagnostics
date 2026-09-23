@@ -185,3 +185,47 @@ class KrigingFactoryTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestYearsByDisease(unittest.TestCase):
+    """Cada doença usa só os casos dos seus anos (sem PyKrige: o kriging é trocado por um espião)."""
+
+    def _build(self, **kw):
+        from unittest import mock
+
+        import dengue_envs.data.kriging_generator as kg
+
+        casos = pd.DataFrame({
+            "Doenca": ["Dengue"] * 6 + ["Chikungunya"] * 4,
+            "DT_SIN_PRI": pd.to_datetime(["2015-03-01"] * 3 + ["2016-03-01"] * 3 + ["2016-03-01"] * 4),
+            "x": [1.0, 2.0, 3.0, 30.0, 31.0, 32.0, 50.0, 51.0, 52.0, 53.0],
+            "y": [0.0] * 10,
+        })
+        recebido = {}
+
+        def espiao_kriging(x, y, **_):
+            from dengue_envs.data.kriging import GridSpec
+
+            recebido[len(recebido)] = sorted(x.tolist())
+            return None, np.ones((2, 2)), np.zeros((2, 2)), GridSpec(0, 2, 0, 2, 1)
+
+        with mock.patch.object(kg, "load_zikario_cases", return_value=casos) as carrega, \
+             mock.patch.object(kg, "intensity_surface_from_points", side_effect=espiao_kriging):
+            _, payload = kg.build_kriging_surfaces("ignorado.gpkg", **kw)
+        return carrega.call_args.kwargs["years"], recebido, payload
+
+    def test_padrao_usa_os_mesmos_anos_para_as_duas(self):
+        anos, recebido, payload = self._build(years=(2015, 2016))
+        self.assertEqual(list(anos), [2015, 2016])
+        self.assertEqual(recebido[0], [1.0, 2.0, 3.0, 30.0, 31.0, 32.0])  # dengue, os dois anos
+        self.assertEqual(int(payload["n_dengue"]), 6)
+
+    def test_dengue_de_um_ano_e_chik_de_outro(self):
+        anos, recebido, payload = self._build(
+            years=(2016,), years_by_disease={"Dengue": (2015,)})
+        # O arquivo é lido com a UNIÃO dos anos; o filtro por doença vem depois.
+        self.assertEqual(list(anos), [2015, 2016])
+        self.assertEqual(recebido[0], [1.0, 2.0, 3.0])            # só a dengue de 2015
+        self.assertEqual(recebido[1], [50.0, 51.0, 52.0, 53.0])  # chik de 2016
+        self.assertEqual(payload["years_dengue"].tolist(), [2015])
+        self.assertEqual(payload["years_chikungunya"].tolist(), [2016])
