@@ -69,7 +69,10 @@ _ENV_KEYS = {
 }
 
 # Chaves do YAML que selecionam o gerador (não vão para o __init__ do env).
-_GENERATOR_KEYS = {"generator", "surfaces_path", "mix", "augment_surfaces"}
+_GENERATOR_KEYS = {
+    "generator", "surfaces_path", "mix", "augment_surfaces",
+    "surface_temperature", "surface_clamp", "surface_mix_uniform",
+}
 
 _WRAPPER_BUILDERS = {
     "map_tensor": DengueWrapper,
@@ -161,10 +164,19 @@ def _make_world_builder(env_cfg: dict) -> Optional[Callable]:
             KrigingDensityGenerator,
             augment_surfaces,
             load_kriging_surfaces,
+            transform_surfaces,
         )
 
         path = Path(env_cfg.get("surfaces_path", DEFAULT_SURFACES_PATH))
-        surfaces = load_kriging_surfaces(path)
+        # Quanto a posição informa a doença (ver `transform_surfaces`). Fixo
+        # por ambiente, aplicado uma vez; comuta com o `augment`, que é rígido.
+        clamp = env_cfg.get("surface_clamp")
+        surfaces = transform_surfaces(
+            load_kriging_surfaces(path),
+            temperature=float(env_cfg.get("surface_temperature", 1.0)),
+            clamp_quantiles=tuple(clamp) if clamp is not None else None,
+            mix_uniform=float(env_cfg.get("surface_mix_uniform", 0.0)),
+        )
         # `augment` sorteia uma transformação rígida por episódio (rotação,
         # espelho, deslocamento). Sem isso a superfície é SEMPRE a mesma cidade
         # no mesmo surto, e o agente pode decorar a geografia. A transformação

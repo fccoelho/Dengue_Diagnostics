@@ -307,6 +307,73 @@ def augment_surfaces(
     )
 
 
+def transform_surfaces(
+    surfaces: "KrigingSurfaces",
+    *,
+    temperature: float = 1.0,
+    clamp_quantiles: Optional[Tuple[float, float]] = None,
+    mix_uniform: float = 0.0,
+) -> "KrigingSurfaces":
+    """Muda QUANTO a posição informa a doença, preservando onde estão os focos.
+
+    A superfície do kriging é quase plana (razão de 8x entre a célula mais e a
+    menos provável, nenhuma célula zerada), e é isso que faz a posição acertar
+    a doença em só ~54% (`position_bayes_accuracy`). Os três botões, aplicados
+    nesta ordem e igualmente às duas doenças:
+
+    - `temperature` (τ): p ∝ p^τ. τ > 1 concentra a massa nos focos e separa
+      as doenças (medido: τ=8 -> 0,74; τ=32 -> 0,94, o nível do sintético);
+      τ < 1 achata; τ = 0 é a uniforme.
+    - `clamp_quantiles` (q_lo, q_hi): corta cada superfície nos próprios
+      quantis. Cortar o topo achata os focos; o piso tira a cauda.
+    - `mix_uniform` (α): (1-α)·p + α·uniforme. α = 1 apaga a geografia.
+
+    Tudo com os valores padrão devolve as superfícies intactas.
+    """
+    import dataclasses
+
+    if temperature == 1.0 and clamp_quantiles is None and mix_uniform == 0.0:
+        return surfaces
+    if temperature < 0:
+        raise ValueError(f"temperature deve ser >= 0; recebido {temperature}")
+    if not 0.0 <= mix_uniform <= 1.0:
+        raise ValueError(f"mix_uniform deve estar em [0, 1]; recebido {mix_uniform}")
+
+    def _t(p: np.ndarray) -> np.ndarray:
+        p = np.clip(np.asarray(p, dtype=float), 0.0, None)
+        if temperature != 1.0:
+            # Em log, para τ grande não estourar para zero.
+            with np.errstate(divide="ignore"):
+                logp = np.where(p > 0, np.log(p), -np.inf) * temperature
+            p = np.exp(logp - logp[np.isfinite(logp)].max())
+        if clamp_quantiles is not None:
+            lo, hi = np.quantile(p, clamp_quantiles)
+            p = np.clip(p, lo, hi)
+        p = normalize_probability(p)
+        if mix_uniform:
+            p = (1.0 - mix_uniform) * p + mix_uniform / p.size
+        return p
+
+    return dataclasses.replace(
+        surfaces,
+        prob_dengue=_t(surfaces.prob_dengue),
+        prob_chik=_t(surfaces.prob_chik),
+        meta={**(surfaces.meta or {}), "temperature": temperature,
+              "clamp_quantiles": clamp_quantiles, "mix_uniform": mix_uniform},
+    )
+
+
+def position_bayes_accuracy(surfaces: "KrigingSurfaces", size: int = 400) -> float:
+    """Acerto do melhor classificador dengue × chik que só vê a posição.
+
+    Com prior igual entre as doenças: 0,5·Σ max(p_dengue, p_chik) no grid do
+    env. É a dificuldade espacial do cenário sem ruído de amostragem — 0,5 é
+    a posição não dizer nada; 1,0 é a posição resolver o caso.
+    """
+    d = probability_to_env_grid(surfaces.prob_dengue, size)
+    c = probability_to_env_grid(surfaces.prob_chik, size)
+    return float(0.5 * np.maximum(d, c).sum())
+
 def sample_xy_from_prob(
     prob_xy: np.ndarray,
     n: int,

@@ -267,12 +267,49 @@ CONJUNTOS = {
     "dengue_2015": lambda: carrega_demo("dengue_2015"),
     "rio_2016": lambda: carrega_demo("rio_2016"),
 }
+# Varredura de dificuldade espacial (robustez.temperatura_espacial).
+TEMPERATURAS = (0, 0.5, 1, 2, 4, 8, 16, 32)
+CONJUNTOS.update({f"temperatura_{t:g}": (lambda t=t: carrega_demo(f"temperatura_{t:g}"))
+                  for t in TEMPERATURAS})
+
+
+def curva_temperatura(n_replicas: int = N_REPLICAS) -> pd.DataFrame:
+    """Uma linha por temperatura: recompensa de cada agente e os dois contrastes.
+
+    Lê os caches que existirem; temperaturas ainda não avaliadas ficam de fora.
+    """
+    linhas = []
+    for t in TEMPERATURAS:
+        caminho = RESULTADOS / "demo" / f"temperatura_{t:g}.csv"
+        if not caminho.exists():
+            continue
+        acerto = float(pd.read_csv(caminho)["acerto_posicao"].iloc[0])
+        mats, _ = matrizes(carrega_demo(f"temperatura_{t:g}"), "recompensa")
+        bracos, comps = bootstrap(mats, [("C (crédito)", "A (GAE)"), ("C (crédito)", "testonce"),
+                                         ("C (crédito)", "testtwice")], n_replicas=n_replicas)
+        linha = {"temperatura": t, "acerto_posicao": acerto}
+        for _, r in bracos.iterrows():
+            linha[r.braco] = r.media
+            linha[f"{r.braco} lo"] = r.media_lo
+            linha[f"{r.braco} hi"] = r.media_hi
+        for _, r in comps.iterrows():
+            chave = f"{r.x.split()[0]}-{r.y.split()[0]}"
+            linha[chave] = r.diferenca
+            linha[f"{chave} lo"] = r.dif_lo
+            linha[f"{chave} hi"] = r.dif_hi
+            linha[f"P {chave}"] = r.p_x_melhor
+        linhas.append(linha)
+    return pd.DataFrame(linhas)
 
 
 def main(nomes: Optional[List[str]] = None) -> None:
     SAIDA.mkdir(parents=True, exist_ok=True)
     for nome in (nomes or list(CONJUNTOS)):
-        df = CONJUNTOS[nome]()
+        try:
+            df = CONJUNTOS[nome]()
+        except FileNotFoundError as e:
+            print(f"[{nome}] ignorado: {e}")
+            continue
         bracos, comps = analisa(df)
         bracos.to_csv(SAIDA / f"{nome}_bracos.csv", index=False)
         comps.to_csv(SAIDA / f"{nome}_comparacoes.csv", index=False)

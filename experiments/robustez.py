@@ -413,6 +413,32 @@ def rio_2016(**kw) -> pd.DataFrame:
     return _superficie_por_ano("dengue 2016 + chik 2016", **kw)
 
 
+# Varredura de dificuldade espacial (`transform_surfaces`): τ -> acerto da
+# posição sozinha (Bayes, prior igual), medido na superfície de referência.
+TEMPERATURAS = {0.0: 0.500, 0.5: 0.522, 1.0: 0.544, 2.0: 0.586,
+                4.0: 0.651, 8.0: 0.740, 16.0: 0.852, 32.0: 0.939}
+
+
+def temperatura_espacial(tau: float, seeds_treino: Sequence[int] = (45, 46, 47, 48),
+                         seeds: Sequence[int] = SEEDS_BENCHMARK) -> pd.DataFrame:
+    """Os agentes do v4, sem retreino, com a geografia mais ou menos informativa.
+
+    τ = 1 é o ambiente de treino; τ = 0 apaga a geografia; τ = 32 separa as
+    doenças tanto quanto o sintético (0,94). Diferente da `transferencia_espacial`,
+    que troca de gerador inteiro, aqui só a concentração das MESMAS superfícies
+    muda: os focos continuam onde estão.
+    """
+    cfg = config_ambiente("kriging_v8", surface_temperature=float(tau))
+    extras = {"temperatura": float(tau), "acerto_posicao": TEMPERATURAS.get(float(tau))}
+    partes = []
+    for agente in ("ppo C", "ppo A"):
+        for st in seeds_treino:
+            partes.append(avalia(agente, cfg, seeds, seed_treino=st, extras=extras))
+    for fixa in ("testonce", "testtwice", "clinical"):
+        partes.append(avalia(fixa, cfg, seeds, extras=extras))
+    return pd.concat(partes, ignore_index=True)
+
+
 EXPERIMENTOS = {
     "seeds_ineditas": seeds_ineditas,
     "qualidade_do_medico": qualidade_do_medico,
@@ -423,6 +449,7 @@ EXPERIMENTOS = {
     "transferencia_espacial": transferencia_espacial,
     "dengue_2015": dengue_2015,
     "rio_2016": rio_2016,
+    **{f"temperatura_{t:g}": (lambda t=t: temperatura_espacial(t)) for t in TEMPERATURAS},
 }
 
 

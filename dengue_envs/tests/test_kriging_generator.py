@@ -229,3 +229,74 @@ class TestYearsByDisease(unittest.TestCase):
         self.assertEqual(recebido[1], [50.0, 51.0, 52.0, 53.0])  # chik de 2016
         self.assertEqual(payload["years_dengue"].tolist(), [2015])
         self.assertEqual(payload["years_chikungunya"].tolist(), [2016])
+
+
+class TestTransformSurfaces(unittest.TestCase):
+    """Os botões de dificuldade espacial fazem o que dizem, e só isso."""
+
+    def setUp(self):
+        self.s = _tiny_surfaces()
+
+    def _acc(self, s):
+        from dengue_envs.data.kriging_generator import position_bayes_accuracy
+
+        return position_bayes_accuracy(s, size=40)
+
+    def test_padrao_e_identidade(self):
+        from dengue_envs.data.kriging_generator import transform_surfaces
+
+        self.assertIs(transform_surfaces(self.s), self.s)
+
+    def test_saidas_sao_probabilidades(self):
+        from dengue_envs.data.kriging_generator import transform_surfaces
+
+        for kw in ({"temperature": 0.0}, {"temperature": 50.0}, {"clamp_quantiles": (0.1, 0.9)},
+                   {"mix_uniform": 0.3}):
+            t = transform_surfaces(self.s, **kw)
+            for p in (t.prob_dengue, t.prob_chik):
+                self.assertAlmostEqual(float(p.sum()), 1.0, places=9, msg=str(kw))
+                self.assertTrue(np.all(np.isfinite(p)) and np.all(p >= 0), msg=str(kw))
+
+    def test_temperatura_separa_as_doencas_monotonicamente(self):
+        from dengue_envs.data.kriging_generator import transform_surfaces
+
+        accs = [self._acc(transform_surfaces(self.s, temperature=t)) for t in (0.0, 0.5, 1.0, 2.0, 8.0)]
+        self.assertAlmostEqual(accs[0], 0.5, places=9)  # τ = 0 é a uniforme
+        self.assertEqual(accs, sorted(accs))
+        self.assertGreater(accs[-1], accs[2])
+
+    def test_mistura_total_apaga_a_geografia(self):
+        from dengue_envs.data.kriging_generator import transform_surfaces
+
+        self.assertAlmostEqual(self._acc(transform_surfaces(self.s, mix_uniform=1.0)), 0.5, places=9)
+        self.assertLess(self._acc(transform_surfaces(self.s, mix_uniform=0.5)), self._acc(self.s))
+
+    def test_clamp_limita_a_razao_entre_celulas(self):
+        from dengue_envs.data.kriging_generator import transform_surfaces
+
+        t = transform_surfaces(self.s, clamp_quantiles=(0.2, 0.8))
+        antes = self.s.prob_dengue.max() / self.s.prob_dengue.min()
+        depois = t.prob_dengue.max() / t.prob_dengue.min()
+        self.assertLess(depois, antes)
+
+    def test_parametros_invalidos(self):
+        from dengue_envs.data.kriging_generator import transform_surfaces
+
+        with self.assertRaises(ValueError):
+            transform_surfaces(self.s, temperature=-1.0)
+        with self.assertRaises(ValueError):
+            transform_surfaces(self.s, mix_uniform=1.5)
+
+    def test_yaml_chega_ao_mundo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_tiny_npz(Path(tmp) / "s.npz")
+            base = {"generator": "kriging", "surfaces_path": str(path), "size": 50,
+                    "episize": 25, "epilength": 6, "start_day": 1, "reward_delay_days": 0,
+                    "lab_delay_days": 0, "randomize_outbreak": False}
+            probs = {}
+            for nome, extra in (("ref", {}), ("quente", {"surface_temperature": 8.0})):
+                env = make_raw_env({"env": {**base, **extra}})
+                env.reset(seed=1)
+                probs[nome] = env.world.prob_dengue.copy()
+            self.assertFalse(np.allclose(probs["ref"], probs["quente"]))
+            self.assertGreater(probs["quente"].max(), probs["ref"].max())
