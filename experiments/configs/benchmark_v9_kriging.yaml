@@ -1,0 +1,6 @@
+# Baselines no kriging_v9 (v8 + casos "outro"). Mesmas seeds do benchmark v8.
+env_config: env/kriging_v9.yaml
+agents: [clinical, confirmall, testonce, testtwice, random]
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/baseline_v9_kriging
+save_artifacts: false

@@ -300,3 +300,45 @@ class TestTransformSurfaces(unittest.TestCase):
                 probs[nome] = env.world.prob_dengue.copy()
             self.assertFalse(np.allclose(probs["ref"], probs["quente"]))
             self.assertGreater(probs["quente"].max(), probs["ref"].max())
+
+
+class TestKrigingOtherCases(unittest.TestCase):
+    """Casos "outro" no kriging: opt-in no v9, e o v8 continua reproduzível."""
+
+    def _env(self, **extra):
+        import warnings
+
+        self.tmp = tempfile.TemporaryDirectory()
+        path = _write_tiny_npz(Path(self.tmp.name) / "s.npz")
+        cfg = {"env": {"generator": "kriging", "surfaces_path": str(path), "size": 50,
+                       "episize": 200, "epilength": 60, "start_day": 1, "reward_delay_days": 0,
+                       "lab_delay_days": 0, "randomize_outbreak": False, "other_prevalence": 0.25,
+                       **extra}}
+        with warnings.catch_warnings(record=True) as avisos:
+            warnings.simplefilter("always")
+            env = make_raw_env(cfg)
+        env.reset(seed=3)
+        return env.world.casedf, [str(a.message) for a in avisos]
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_v9_gera_a_prevalencia_declarada(self):
+        df, _ = self._env(kriging_other_cases=True)
+        frac = float((df.disease == 2).mean())
+        self.assertAlmostEqual(frac, 0.25, delta=0.03)
+        outros = df[df.disease == 2]
+        self.assertTrue(outros.x.between(0, 49).all() and outros.y.between(0, 49).all())
+
+    def test_v8_ignora_mas_avisa(self):
+        df, avisos = self._env()
+        self.assertFalse((df.disease == 2).any())
+        self.assertTrue(any("IGNORADO" in a for a in avisos))
+
+    def test_arbovirais_iguais_com_e_sem_outros(self):
+        # Os casos "outro" são sorteados DEPOIS dos arbovirais de cada dia; a
+        # contagem de dengue/chik por dia não muda.
+        sem, _ = self._env()
+        com, _ = self._env(kriging_other_cases=True)
+        por_dia = lambda d: d[d.disease < 2].groupby(["t", "disease"]).size()
+        self.assertTrue(por_dia(sem).equals(por_dia(com)))

@@ -1,0 +1,30 @@
+# PPO v5 BRACO C — credito por caso no kriging_v9 (com casos "outro"), seed 45.
+#
+# Mesmo treino do v4c; so o ambiente muda (v8 -> v9, ver cabecalho do v9).
+# Uma seed so, por falta de tempo: resultado preliminar.
+env_config: ../env/kriging_v9.yaml
+
+context_features: true
+reward_scale: 0.10
+
+train:
+  seed: 45
+  per_case_credit: true
+  epochs: 10
+  step_per_epoch: 30000
+  step_per_collect: 2000
+  repeat_per_collect: 10
+  batch_size: 256
+  lr: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  eps_clip: 0.2
+  ent_coef: 0.02
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  num_train_envs: 8
+  num_test_envs: 10
+  test_episodes: 20
+  vector_env: dummy
+
+output_dir: results/ppo_v5c_credito_s45

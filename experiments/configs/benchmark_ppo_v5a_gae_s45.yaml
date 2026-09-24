@@ -1,0 +1,8 @@
+# PPO v5 a_gae seed 45, checkpoint FINAL, no kriging_v9.
+env_config: env/kriging_v9.yaml
+agents: [clinical, testonce, ppo]
+checkpoints:
+  ppo: results/ppo_v5a_gae_s45/policy_final.pth
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/bm_ppo_v5a_gae_s45
+save_artifacts: false

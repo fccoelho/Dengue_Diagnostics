@@ -72,6 +72,7 @@ _ENV_KEYS = {
 _GENERATOR_KEYS = {
     "generator", "surfaces_path", "mix", "augment_surfaces",
     "surface_temperature", "surface_clamp", "surface_mix_uniform",
+    "kriging_other_cases",
 }
 
 _WRAPPER_BUILDERS = {
@@ -183,6 +184,19 @@ def _make_world_builder(env_cfg: dict) -> Optional[Callable]:
         # é conjunta às duas doenças, então preserva a dificuldade — ver
         # `augment_surfaces`.
         augment = bool(env_cfg.get("augment_surfaces", False))
+        # Até o v8 o KrigingWorld ignorava `other_prevalence`: o ambiente não
+        # tinha casos "outro", e um exame sempre bastava. A correção é opt-in
+        # para que os resultados do v8 continuem reproduzíveis.
+        other_cases = bool(env_cfg.get("kriging_other_cases", False))
+        if not other_cases and float(env_cfg.get("other_prevalence", 0.0)) > 0:
+            import warnings
+
+            warnings.warn(
+                "gerador kriging: other_prevalence é IGNORADO sem `kriging_other_cases: true` "
+                "(comportamento do v8, sem casos 'outro').",
+                UserWarning,
+                stacklevel=2,
+            )
 
         def builder(env: DengueDiagnosticsEnv):
             sup = augment_surfaces(surfaces, env.np_random) if augment else surfaces
@@ -198,6 +212,7 @@ def _make_world_builder(env_cfg: dict) -> Optional[Callable]:
                 chik_r0=env.chik_r0,
                 epi_model=env.epi_model,
                 initial_infected_fraction=env.initial_infected_fraction,
+                other_prevalence=env.other_prevalence if other_cases else 0.0,
             )
 
         return builder

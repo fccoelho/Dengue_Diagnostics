@@ -441,9 +441,13 @@ class KrigingWorld:
         random_state: Optional[np.random.Generator] = None,
         epi_model: str = "legacy",
         initial_infected_fraction: float = 0.01,
+        other_prevalence: float = 0.0,
     ):
         self.size = int(size)
         self.epi_model = epi_model
+        if not 0.0 <= other_prevalence < 1.0:
+            raise ValueError(f"other_prevalence deve estar em [0,1); recebido {other_prevalence}")
+        self.other_prevalence = float(other_prevalence)
         self.initial_infected_fraction = float(initial_infected_fraction)
         self.popsize = int(popsize)
         self.epilength = int(epilength)
@@ -489,6 +493,7 @@ class KrigingWorld:
         self.case_series = []
         self.dengue_total = 0
         self.chik_total = 0
+        self.other_total = 0
         for t in range(self.epilength):
             dcases_t = int(np.round(self.dengue_curve[t]))
             ccases_t = int(np.round(self.chik_curve[t]))
@@ -509,7 +514,28 @@ class KrigingWorld:
                 {"t": t, "x": int(x), "y": int(y), "disease": 1, "testd": 0, "testc": 0, "epiconf": 0}
                 for x, y in zip(cx, cy)
             ]
-            self.case_series.append(dengue_cases + chik_cases)
+            self.case_series.append(dengue_cases + chik_cases + self._other_cases(t, new_d + new_c))
+
+    def _other_cases(self, t: int, n_arbo: int) -> list:
+        """Casos notificados que não são arbovirose — mesmo modelo do `World` sintético.
+
+        Sem eles, um laudo negativo de dengue implica chikungunya: um exame
+        sempre basta e descartar nunca é correto. Espaço uniforme (doença
+        febril de fundo não segue os focos do vetor) e quantidade proporcional
+        aos arbovirais do dia, para a prevalência ficar estável no episódio.
+        """
+        if self.other_prevalence <= 0 or n_arbo <= 0:
+            return []
+        n_other = int(np.round(n_arbo * self.other_prevalence / (1.0 - self.other_prevalence)))
+        if n_other <= 0:
+            return []
+        xs = self._rng.integers(0, self.size, n_other)
+        ys = self._rng.integers(0, self.size, n_other)
+        self.other_total += n_other
+        return [
+            {"t": t, "x": int(x), "y": int(y), "disease": 2, "testd": 0, "testc": 0, "epiconf": 0}
+            for x, y in zip(xs, ys)
+        ]
 
     def build_case_dataframe(self) -> None:
         self.casedf = pd.DataFrame.from_records([c for c in chain(*self.case_series)])
@@ -608,6 +634,7 @@ class KrigingDensityGenerator:
         chik_r0: Optional[float] = None,
         epi_model: str = "legacy",
         initial_infected_fraction: float = 0.01,
+        other_prevalence: float = 0.0,
     ) -> KrigingWorld:
         return KrigingWorld(
             self.size,
@@ -619,6 +646,7 @@ class KrigingDensityGenerator:
             random_state=random_state,
             epi_model=epi_model,
             initial_infected_fraction=initial_infected_fraction,
+            other_prevalence=other_prevalence,
         )
 
     def generate(self, seed: Optional[int] = None) -> pd.DataFrame:
