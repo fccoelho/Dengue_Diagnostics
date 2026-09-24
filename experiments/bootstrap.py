@@ -71,6 +71,7 @@ COMPARACOES = (
     ("C (crédito)", "testonce"),             # distância até a melhor política fixa
     ("B (crédito + tempo)", "testonce"),
     ("A (GAE)", "clinical"),
+    ("C (crédito)", "testtwice"),            # no v9 o testtwice é a melhor política fixa
 )
 
 
@@ -86,7 +87,15 @@ def _seed_do_diretorio(diretorio: Path) -> int:
     return int(diretorio.name.rsplit("_s", 1)[1])
 
 
-def carrega_benchmark_v4(raiz: Path = RESULTADOS) -> pd.DataFrame:
+# Braços do v5: os mesmos A e C, retreinados no kriging_v9 (com casos "outro").
+BRACOS_V5 = {
+    "A (GAE)": "bm_ppo_v5a_gae_s*",
+    "C (crédito)": "bm_ppo_v5c_credito_s*",
+}
+
+
+def carrega_benchmark_v4(raiz: Path = RESULTADOS, bracos: Dict[str, str] = BRACOS_V4,
+                         baselines: str = "baseline_v8seir_kriging") -> pd.DataFrame:
     """Tabela longa do benchmark oficial: uma linha por (braço, seed_treino, episódio).
 
     Os baselines são determinísticos e aparecem repetidos em todo arquivo do
@@ -94,7 +103,7 @@ def carrega_benchmark_v4(raiz: Path = RESULTADOS) -> pd.DataFrame:
     `seed_treino = 0`.
     """
     partes = []
-    for braco, padrao in BRACOS_V4.items():
+    for braco, padrao in bracos.items():
         dirs = sorted(raiz.glob(padrao))
         if not dirs:
             raise FileNotFoundError(f"nenhum resultado para {braco} em {raiz / padrao}")
@@ -102,7 +111,7 @@ def carrega_benchmark_v4(raiz: Path = RESULTADOS) -> pd.DataFrame:
             raw = _le_raw(d)
             raw = raw[raw["agent"] == "ppo"].assign(braco=braco, seed_treino=_seed_do_diretorio(d))
             partes.append(raw)
-    base = _le_raw(raiz / "baseline_v8seir_kriging")
+    base = _le_raw(raiz / baselines)
     base = base[base["agent"].isin(BASELINES)]
     partes.append(base.assign(braco=base["agent"], seed_treino=0))
 
@@ -262,6 +271,7 @@ def tabela_markdown(bracos: pd.DataFrame, comps: pd.DataFrame, metrica: str = "r
 
 CONJUNTOS = {
     "benchmark": carrega_benchmark_v4,
+    "benchmark_v9": lambda: carrega_benchmark_v4(bracos=BRACOS_V5, baselines="baseline_v9_kriging"),
     "seeds_ineditas": lambda: carrega_demo("seeds_ineditas"),
     # Superfícies de um único ano, mesmas seeds do benchmark oficial.
     "dengue_2015": lambda: carrega_demo("dengue_2015"),
