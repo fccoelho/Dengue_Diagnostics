@@ -1,0 +1,7 @@
+# Baselines sequenciais no kriging_v9: o segundo exame só quando o primeiro não
+# resolve. Respondem se o PPO C pede exame demais (675 contra 489 do testonce).
+env_config: env/kriging_v9.yaml
+agents: [sequencial, sequencial_clinico, testonce, testtwice]
+seeds: [100, 150, 200, 250, 300, 350, 400, 450, 500, 550]
+output_dir: results/baseline_v9_sequencial
+save_artifacts: false
