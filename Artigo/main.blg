@@ -16,7 +16,6 @@ Reallocating 'singl_function' (item size: 4) to 100 items.
 Reallocating 'wiz_functions' (item size: 4) to 9000 items.
 Database file #1: abntex2-options.bib
 Database file #2: refs.bib
-Warning--I didn't find a database entry for "yaesoubi_generalized_2011"
 Reallocating 'singl_function' (item size: 4) to 100 items.
 Reallocating 'glb_str_end' (item size: 4) to 20 items.
 Reallocating 'glb_str_ptr' (item size: 4) to 20 items.
@@ -24,50 +23,52 @@ Reallocating 'global_strs' (item size: 1) to 4000000 items.
 Warning--campo year vazio ou faltando em govbr_arboviroses
 Warning--campo year vazio ou faltando em govbr_chick
 Warning--campo year vazio ou faltando em noauthor_gymnasium_nodate
+Warning--campo title vazio em moreira2023chikungunya
+Warning--campo year vazio ou faltando em syntheticpop
 +---------------------------------------------------------+
 | Estilo bibliográfico abntex2-num.bst versão v-1.9.7           |
 | Em caso de dúvidas ou problemas com este estilo procure |
 | http://www.abntex.net.br/                               |
 +---------------------------------------------------------+
-You've used 20 entries,
+You've used 32 entries,
             6714 wiz_defined-function locations,
-            1320 strings with 13435 characters,
-and the built_in function-call counts, 24954 in all, are:
-= -- 2855
-> -- 501
-< -- 517
-+ -- 742
-- -- 148
-* -- 1571
-:= -- 3059
-add.period$ -- 76
-call.type$ -- 20
-change.case$ -- 215
-chr.to.int$ -- 50
-cite$ -- 22
-duplicate$ -- 2205
-empty$ -- 1104
-format.name$ -- 777
-if$ -- 5283
+            1386 strings with 16072 characters,
+and the built_in function-call counts, 37834 in all, are:
+= -- 4064
+> -- 875
+< -- 692
++ -- 1040
+- -- 258
+* -- 2476
+:= -- 4619
+add.period$ -- 121
+call.type$ -- 32
+change.case$ -- 366
+chr.to.int$ -- 80
+cite$ -- 36
+duplicate$ -- 3157
+empty$ -- 1813
+format.name$ -- 1358
+if$ -- 8148
 int.to.chr$ -- 0
 int.to.str$ -- 0
-missing$ -- 354
-newline$ -- 113
-num.names$ -- 72
-pop$ -- 496
+missing$ -- 568
+newline$ -- 171
+num.names$ -- 120
+pop$ -- 803
 preamble$ -- 1
-purify$ -- 82
+purify$ -- 136
 quote$ -- 0
-skip$ -- 2385
+skip$ -- 3371
 stack$ -- 1
-substring$ -- 1002
-swap$ -- 866
-text.length$ -- 33
+substring$ -- 1540
+swap$ -- 1278
+text.length$ -- 55
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 10
-warning$ -- 3
-while$ -- 115
+type$ -- 13
+warning$ -- 5
+while$ -- 193
 width$ -- 0
-write$ -- 276
-(There were 4 warnings)
+write$ -- 444
+(There were 5 warnings)

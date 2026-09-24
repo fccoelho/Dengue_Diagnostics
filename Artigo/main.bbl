@@ -68,6 +68,13 @@ ISSN 1999-4915.}
 ArXiv:2302.10261 [cs].
 Dispon{\'\i}vel em: \url{http://arxiv.org/abs/2302.10261}.}
 
+\bibitem{yaesoubi_generalized_2011}
+\abntrefinfo{Yaesoubi e Cohen}{YAESOUBI; COHEN}{2011}
+{YAESOUBI, R.; COHEN, T. Generalized {Markov} models of infectious disease
+  spread: A novel framework for developing dynamic health policies.
+\emph{European Journal of Operational Research}, v.~215, n.~3, p. 679--687,
+  2011.}
+
 \bibitem{sutton2018reinforcement}
 \abntrefinfo{Sutton e Barto}{SUTTON; BARTO}{2018}
 {SUTTON, R.~S.; BARTO, A.~G. \emph{Reinforcement learning: An introduction}.
@@ -85,15 +92,6 @@ Dispon{\'\i}vel em: \url{https://gymnasium.farama.org/index.html}.}
   Automation, and More}. Second. [S.l.]: Packt Publishing, 2020.
 ISBN 978-1-83882-699-4.}
 
-\bibitem{frommeyer_reinforcement_2025}
-\abntrefinfo{Frommeyer et al.}{FROMMEYER et al.}{2025}
-{FROMMEYER, T.~C. et al. Reinforcement {Learning} and {Its} {Clinical}
-  {Applications} {Within} {Healthcare}: {A} {Systematic} {Review} of
-  {Precision} {Medicine} and {Dynamic} {Treatment} {Regimes}.
-\emph{Healthcare}, v.~13, n.~14, p.~1752, jul. 2025.
-ISSN 2227-9032.
-Dispon{\'\i}vel em: \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC12295150/}.}
-
 \bibitem{side2015sir}
 \abntrefinfo{Side e Noorani}{SIDE; NOORANI}{2015}
 {SIDE, S.; NOORANI, M. Sir-network model and its application to dengue fever.
@@ -106,6 +104,36 @@ Dispon{\'\i}vel em: \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC12295150/}.}
 \emph{BioMedical Engineering OnLine}, v.~2, p.~4, fev. 2003.
 ISSN 1475-925X.
 Dispon{\'\i}vel em: \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC153427/}.}
+
+\bibitem{chan2012incubation}
+\abntrefinfo{Chan e Johansson}{CHAN; JOHANSSON}{2012}
+{CHAN, M.; JOHANSSON, M.~A. The incubation periods of dengue viruses.
+\emph{PLoS ONE}, v.~7, n.~11, p. e50972, 2012.}
+
+\bibitem{carrington2014human}
+\abntrefinfo{Carrington e Simmons}{CARRINGTON; SIMMONS}{2014}
+{CARRINGTON, L.~B.; SIMMONS, C.~P. Human to mosquito transmission of dengue
+  viruses.
+\emph{Frontiers in Immunology}, v.~5, p.~290, 2014.}
+
+\bibitem{aldstadt2012spacetime}
+\abntrefinfo{Aldstadt et al.}{ALDSTADT et al.}{2012}
+{ALDSTADT, J. et al. Space-time analysis of hospitalised dengue patients in
+  rural {Thailand} reveals important temporal intervals in the pattern of
+  dengue virus transmission.
+\emph{Tropical Medicine \& International Health}, v.~17, n.~9, p. 1076--1085,
+  2012.}
+
+\bibitem{villela2017zika}
+\abntrefinfo{Villela et al.}{VILLELA et al.}{2017}
+{VILLELA, D. A.~M. et al. Zika in {Rio de Janeiro}: Assessment of basic
+  reproduction number and comparison with dengue outbreaks.
+\emph{Epidemiology and Infection}, v.~145, n.~8, p. 1649--1657, 2017.}
+
+\bibitem{moreira2023chikungunya}
+\abntrefinfo{Moreira et al.}{MOREIRA et al.}{2023}
+{MOREIRA, F. R.~R. et al.
+\emph{PLoS Neglected Tropical Diseases}, v.~17, n.~9, p. e0011536, 2023.}
 
 \bibitem{towers_gymnasium_2023}
 \abntrefinfo{Towers et al.}{TOWERS et al.}{2023}
@@ -133,11 +161,59 @@ Dispon{\'\i}vel em: \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC153427/}.}
 {GOODFELLOW, I.; BENGIO, Y.; COURVILLE, A. \emph{Deep Learning}. [S.l.]: MIT
   Press, 2016.}
 
+\bibitem{schulman2017ppo}
+\abntrefinfo{Schulman et al.}{SCHULMAN et al.}{2017}
+{SCHULMAN, J. et al. \emph{Proximal Policy Optimization Algorithms}. 2017.
+  ArXiv:1707.06347.
+Dispon{\'\i}vel em: \url{https://arxiv.org/abs/1707.06347}.}
+
+\bibitem{schulman2016gae}
+\abntrefinfo{Schulman et al.}{SCHULMAN et al.}{2016}
+{SCHULMAN, J. et al. High-dimensional continuous control using generalized
+  advantage estimation. In:  \emph{International Conference on Learning
+  Representations (ICLR)}. [s.n.], 2016. Dispon{\'\i}vel em:
+  \url{https://arxiv.org/abs/1506.02438}.}
+
+\bibitem{ng1999policy}
+\abntrefinfo{Ng, Harada e Russell}{NG; HARADA; RUSSELL}{1999}
+{NG, A.~Y.; HARADA, D.; RUSSELL, S. Policy invariance under reward
+  transformations: Theory and application to reward shaping. In:
+  \emph{Proceedings of the Sixteenth International Conference on Machine
+  Learning (ICML)}. [S.l.: s.n.], 1999. p. 278--287.}
+
+\bibitem{frommeyer_reinforcement_2025}
+\abntrefinfo{Frommeyer et al.}{FROMMEYER et al.}{2025}
+{FROMMEYER, T.~C. et al. Reinforcement {Learning} and {Its} {Clinical}
+  {Applications} {Within} {Healthcare}: {A} {Systematic} {Review} of
+  {Precision} {Medicine} and {Dynamic} {Treatment} {Regimes}.
+\emph{Healthcare}, v.~13, n.~14, p.~1752, jul. 2025.
+ISSN 2227-9032.
+Dispon{\'\i}vel em: \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC12295150/}.}
+
 \bibitem{weng2021tianshou}
 \abntrefinfo{Weng et al.}{WENG et al.}{2021}
 {WENG, J. et al. Tianshou: A highly modularized deep reinforcement learning
   library.
 \emph{Journal of Machine Learning Research}, v.~22, n.~255, p.~1--6, 2021.
 Dispon{\'\i}vel em: \url{http://jmlr.org/papers/v22/21-0883.html}.}
+
+\bibitem{saravanan2020hierarchical}
+\abntrefinfo{Saravanan, Berman e Sober}{SARAVANAN; BERMAN; SOBER}{2020}
+{SARAVANAN, V.; BERMAN, G.~J.; SOBER, S.~J. Application of the hierarchical
+  bootstrap to multi-level data in neuroscience.
+\emph{Neurons, Behavior, Data analysis, and Theory}, 2020.}
+
+\bibitem{agarwal2021precipice}
+\abntrefinfo{Agarwal et al.}{AGARWAL et al.}{2021}
+{AGARWAL, R. et al. Deep reinforcement learning at the edge of the statistical
+  precipice. In:  \emph{Advances in Neural Information Processing Systems}.
+  [s.n.], 2021. Dispon{\'\i}vel em: \url{https://arxiv.org/abs/2108.13264}.}
+
+\bibitem{syntheticpop}
+\abntrefinfo{{Mosqlimate Project}}{{Mosqlimate Project}}{}
+{{Mosqlimate Project}. \emph{synthetic-pop: população sintética a partir do
+  {Censo IBGE} 2022 e do {CNEFE}}. Repositório GitHub.
+Acesso em: set. 2026.
+Dispon{\'\i}vel em: \url{https://github.com/Mosqlimate-project/synthetic-pop}.}
 
 \end{thebibliography}

@@ -10,7 +10,6 @@
 \citation{donateli_visualizacao_2023,ministério2024boletim}
 \citation{junior_epidemiology_2022}
 \babel@aux{brazilian}{}
-\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
 \citation{govbr_chick}
 \citation{arrubla-hoyos_methodology_2024}
 \citation{junior_epidemiology_2022}
@@ -18,53 +17,148 @@
 \citation{yaesoubi_generalized_2011}
 \citation{yaesoubi_generalized_2011,sutton2018reinforcement}
 \citation{noauthor_gymnasium_nodate,lapan2020deep}
-\citation{frommeyer_reinforcement_2025}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introdução}{2}{section.1}\protected@file@percent }
 \citation{sutton2018reinforcement}
 \citation{side2015sir,derouich_model_2003}
-\citation{derouich_model_2003}
-\@writefile{toc}{\contentsline {section}{\numberline {2}Methodology}{3}{section.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Flowchart of the experimental design, detailing the stages from the generation of simulated data (spatial SIR) to the training and evaluation of the Reinforcement Learning agents.}}{3}{figure.1}\protected@file@percent }
-\newlabel{fig:fluxograma_metodos}{{1}{3}{Flowchart of the experimental design, detailing the stages from the generation of simulated data (spatial SIR) to the training and evaluation of the Reinforcement Learning agents}{figure.1}{}}
-\newlabel{subsec:sim_casos}{{2}{3}{Simulated Data Generation}{section*.2}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Simulated epidemiological dynamics. Shaded areas indicate daily incidence and its peaks; lines represent cumulative incidence and the logistic saturation of the SIR model.}}{4}{figure.2}\protected@file@percent }
-\newlabel{fig:epidemic_evolution}{{2}{4}{Simulated epidemiological dynamics. Shaded areas indicate daily incidence and its peaks; lines represent cumulative incidence and the logistic saturation of the SIR model}{figure.2}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Example of the spatial distribution of simulated cases on the $400 \times 400$ grid, highlighting the spatial overlap between dengue (green) and chikungunya (red) cases.}}{4}{figure.3}\protected@file@percent }
-\newlabel{fig:distribuicao_casos}{{3}{4}{Example of the spatial distribution of simulated cases on the $400 \times 400$ grid, highlighting the spatial overlap between dengue (green) and chikungunya (red) cases}{figure.3}{}}
-\citation{noauthor_gymnasium_nodate,towers_gymnasium_2023}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Metodologia}{3}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Desenho do estudo}{3}{subsection.2.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Fluxograma do desenho experimental, da geração dos dados simulados ao treinamento e à avaliação dos agentes de Aprendizagem por Reforço.}}{3}{figure.1}\protected@file@percent }
+\newlabel{fig:fluxograma_metodos}{{1}{3}{Fluxograma do desenho experimental, da geração dos dados simulados ao treinamento e à avaliação dos agentes de Aprendizagem por Reforço}{figure.1}{}}
+\citation{chan2012incubation}
+\citation{carrington2014human}
+\citation{aldstadt2012spacetime}
+\citation{villela2017zika}
+\citation{moreira2023chikungunya}
+\citation{chan2012incubation,carrington2014human,aldstadt2012spacetime,villela2017zika,moreira2023chikungunya}
+\citation{chan2012incubation,carrington2014human,aldstadt2012spacetime,villela2017zika,moreira2023chikungunya}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Dinâmica temporal: modelo SEIR}{4}{subsection.2.2}\protected@file@percent }
+\newlabel{subsec:seir}{{2.2}{4}{Dinâmica temporal: modelo SEIR}{subsection.2.2}{}}
+\newlabel{eq:seir}{{1}{4}{Dinâmica temporal: modelo SEIR}{equation.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Parâmetros do modelo SEIR. A cada episódio, o $R_0$ de cada doença é sorteado uniformemente na faixa indicada. Fontes: \citeonline  {chan2012incubation, carrington2014human, aldstadt2012spacetime, villela2017zika, moreira2023chikungunya}.}}{4}{table.1}\protected@file@percent }
+\newlabel{tab:seir}{{1}{4}{Parâmetros do modelo SEIR. A cada episódio, o $R_0$ de cada doença é sorteado uniformemente na faixa indicada. Fontes: \citeonline {chan2012incubation, carrington2014human, aldstadt2012spacetime, villela2017zika, moreira2023chikungunya}}{table.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Dinâmica temporal do ambiente. À esquerda, incidência diária gerada pelo SEIR para dengue e chikungunya, comparada com o modelo SIR original, cuja epidemia se esgotava em poucos dias. À direita, fração final infectada produzida pelo gerador em função do $R_0$, sobreposta à equação do tamanho final.}}{5}{figure.2}\protected@file@percent }
+\newlabel{fig:seir}{{2}{5}{Dinâmica temporal do ambiente. À esquerda, incidência diária gerada pelo SEIR para dengue e chikungunya, comparada com o modelo SIR original, cuja epidemia se esgotava em poucos dias. À direita, fração final infectada produzida pelo gerador em função do $R_0$, sobreposta à equação do tamanho final}{figure.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Distribuição espacial dos casos}{5}{subsection.2.3}\protected@file@percent }
+\newlabel{subsec:espacial}{{2.3}{5}{Distribuição espacial dos casos}{subsection.2.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{Gerador sintético.}{5}{section*.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Gerador por \textit  {kriging}.}{5}{section*.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Exemplo da distribuição espacial dos casos no gerador sintético, na grade $400 \times 400$, com a sobreposição entre dengue (verde) e chikungunya (vermelho).}}{6}{figure.3}\protected@file@percent }
+\newlabel{fig:distribuicao_casos}{{3}{6}{Exemplo da distribuição espacial dos casos no gerador sintético, na grade $400 \times 400$, com a sobreposição entre dengue (verde) e chikungunya (vermelho)}{figure.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Superfícies de probabilidade espacial estimadas por \textit  {kriging} sobre as notificações do Rio de Janeiro: $P(\text  {célula} \mid \text  {dengue})$, $P(\text  {célula} \mid \text  {chikungunya})$ e o contraste entre elas. O contraste fraco é o que faz a posição do caso, sozinha, pouco informar sobre a doença.}}{6}{figure.4}\protected@file@percent }
+\newlabel{fig:kriging}{{4}{6}{Superfícies de probabilidade espacial estimadas por \textit {kriging} sobre as notificações do Rio de Janeiro: $P(\text {célula} \mid \text {dengue})$, $P(\text {célula} \mid \text {chikungunya})$ e o contraste entre elas. O contraste fraco é o que faz a posição do caso, sozinha, pouco informar sobre a doença}{figure.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{Variações do cenário real.}{6}{section*.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Casos que não são arboviroses.}{7}{section*.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Incerteza clínica: modelando o médico}{7}{subsection.2.4}\protected@file@percent }
+\newlabel{subsec:clinico}{{2.4}{7}{Incerteza clínica: modelando o médico}{subsection.2.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Níveis de competência clínica disponíveis no ambiente. Sensibilidade e especificidade de cada médico são sorteadas de distribuições Beta com essas médias e concentração $\kappa = 20$ (desvio-padrão $\approx 0{,}09$).}}{7}{table.2}\protected@file@percent }
+\newlabel{tab:clinical_levels}{{2}{7}{Níveis de competência clínica disponíveis no ambiente. Sensibilidade e especificidade de cada médico são sorteadas de distribuições Beta com essas médias e concentração $\kappa = 20$ (desvio-padrão $\approx 0{,}09$)}{table.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.5}Confirmação laboratorial e epidemiológica}{7}{subsection.2.5}\protected@file@percent }
 \citation{sutton2018reinforcement}
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Clinical competence levels. Each physician's sensitivity and specificity are drawn from Beta distributions with these means and concentration $\kappa = 20$ (standard deviation $\approx 0.09$).}}{5}{table.1}\protected@file@percent }
-\newlabel{tab:clinical_levels}{{1}{5}{Clinical competence levels. Each physician's sensitivity and specificity are drawn from Beta distributions with these means and concentration $\kappa = 20$ (standard deviation $\approx 0.09$)}{table.1}{}}
-\newlabel{subsec:lifecycle}{{2}{6}{Case lifecycle}{section*.7}{}}
-\@writefile{toc}{\contentsline {paragraph}{Layer 1 --- Immediate cost.}{6}{section*.8}\protected@file@percent }
+\citation{sutton2018reinforcement}
+\citation{noauthor_gymnasium_nodate,towers_gymnasium_2023}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.6}Formulação como processo de decisão}{8}{subsection.2.6}\protected@file@percent }
+\newlabel{subsec:mdp}{{2.6}{8}{Formulação como processo de decisão}{subsection.2.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Ciclo de interação entre agente e ambiente em Aprendizagem por Reforço \cite  {sutton2018reinforcement}.}}{8}{figure.5}\protected@file@percent }
+\newlabel{fig:rl}{{5}{8}{Ciclo de interação entre agente e ambiente em Aprendizagem por Reforço \cite {sutton2018reinforcement}}{figure.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{Espaço de ações.}{8}{section*.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Ciclo de vida do caso.}{9}{section*.6}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Fluxo de decisão do agente.}}{9}{figure.6}\protected@file@percent }
+\newlabel{fig:decision_flow}{{6}{9}{Fluxo de decisão do agente}{figure.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.7}Função de recompensa}{9}{subsection.2.7}\protected@file@percent }
+\newlabel{subsec:recompensa}{{2.7}{9}{Função de recompensa}{subsection.2.7}{}}
 \citation{yu_deep_2023}
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Agent Decision Flow.}}{7}{figure.4}\protected@file@percent }
-\newlabel{fig:decision_flow}{{4}{7}{Agent Decision Flow}{figure.4}{}}
-\newlabel{eq:costs}{{1}{7}{Layer 1 --- Immediate cost}{equation.1}{}}
-\@writefile{toc}{\contentsline {paragraph}{Layer 2 --- Delayed decision outcome.}{7}{section*.9}\protected@file@percent }
-\newlabel{eq:decision}{{2}{7}{Layer 2 --- Delayed decision outcome}{equation.2}{}}
-\@writefile{toc}{\contentsline {paragraph}{Layer 3 --- Terminal score.}{7}{section*.10}\protected@file@percent }
-\newlabel{eq:terminal}{{3}{7}{Layer 3 --- Terminal score}{equation.3}{}}
-\@writefile{toc}{\contentsline {paragraph}{Test cost and scarcity.}{7}{section*.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Camada 1 --- Custo imediato.}{10}{section*.7}\protected@file@percent }
+\newlabel{eq:costs}{{2}{10}{Camada 1 --- Custo imediato}{equation.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Camada 2 --- Desfecho da decisão.}{10}{section*.8}\protected@file@percent }
+\newlabel{eq:decision}{{3}{10}{Camada 2 --- Desfecho da decisão}{equation.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{Camada 3 --- Placar terminal.}{10}{section*.9}\protected@file@percent }
+\newlabel{eq:terminal}{{4}{10}{Camada 3 --- Placar terminal}{equation.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{Casos em aberto.}{10}{section*.10}\protected@file@percent }
 \citation{watkins1992q}
 \citation{bellman1957dynamic}
-\citation{mnih2015human}
-\citation{goodfellow2016deep}
+\citation{mnih2015human,goodfellow2016deep}
+\@writefile{toc}{\contentsline {paragraph}{Custo do exame e escassez.}{11}{section*.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Decomposição por caso.}{11}{section*.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.8}Agentes avaliados}{11}{subsection.2.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Políticas fixas.}{11}{section*.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Q-Learning tabular.}{11}{section*.14}\protected@file@percent }
+\citation{schulman2017ppo}
+\citation{schulman2016gae}
+\citation{ng1999policy}
+\@writefile{toc}{\contentsline {paragraph}{Deep Q-Network.}{12}{section*.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Proximal Policy Optimization.}{12}{section*.16}\protected@file@percent }
+\newlabel{eq:gae}{{6}{12}{Proximal Policy Optimization}{equation.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.9}Atribuição de crédito por caso}{12}{subsection.2.9}\protected@file@percent }
+\newlabel{subsec:credito}{{2.9}{12}{Atribuição de crédito por caso}{subsection.2.9}{}}
+\@writefile{toc}{\contentsline {paragraph}{O problema.}{12}{section*.17}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{O método.}{12}{section*.18}\protected@file@percent }
+\citation{frommeyer_reinforcement_2025}
 \citation{weng2021tianshou}
-\newlabel{subsec:deepqnet}{{2}{8}{DQN Architecture and Training}{section*.13}{}}
-\@writefile{toc}{\contentsline {paragraph}{Reward scaling.}{9}{section*.14}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Contextual features.}{9}{section*.15}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3}Resultados e Discussão}{10}{section.3}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Desempenho médio sobre 10 cenários pareados. O oráculo indica o retorno obtido ao escolher, com conhecimento prévio, a melhor política fixa para cada episódio; ele delimita o ganho máximo acessível à adaptação.}}{10}{table.2}\protected@file@percent }
-\newlabel{tab:resultados_finais}{{2}{10}{Desempenho médio sobre 10 cenários pareados. O oráculo indica o retorno obtido ao escolher, com conhecimento prévio, a melhor política fixa para cada episódio; ele delimita o ganho máximo acessível à adaptação}{table.2}{}}
-\newlabel{subsec:ceiling}{{3}{10}{O teto de informação do ambiente}{section*.19}{}}
-\newlabel{subsec:confounder}{{3}{11}{A competência do médico domina a variância}{section*.20}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Distribuição de ações do agente DQN, separada por primeira avaliação e retorno após o laudo laboratorial.}}{12}{table.3}\protected@file@percent }
-\newlabel{tab:politica_dqn}{{3}{12}{Distribuição de ações do agente DQN, separada por primeira avaliação e retorno após o laudo laboratorial}{table.3}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces \textbf  {Mapa de acertos do Agente DQN.} Os pontos representam casos nos quais o agente realizou o diagnóstico correto. Nota-se a concentração de acertos nas zonas de alta densidade (\textit  {hotspots}).}}{12}{figure.5}\protected@file@percent }
-\newlabel{fig:dqn_tp}{{5}{12}{\textbf {Mapa de acertos do Agente DQN.} Os pontos representam casos nos quais o agente realizou o diagnóstico correto. Nota-se a concentração de acertos nas zonas de alta densidade (\textit {hotspots})}{figure.5}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces \textbf  {Estado final da simulação epidemiológica}. Ilustrando a complexidade visual e a sobreposição dos surtos que o agente deve processar.}}{13}{figure.6}\protected@file@percent }
-\newlabel{fig:dqn_final_env}{{6}{13}{\textbf {Estado final da simulação epidemiológica}. Ilustrando a complexidade visual e a sobreposição dos surtos que o agente deve processar}{figure.6}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {4}Conclusão}{14}{section.4}\protected@file@percent }
+\newlabel{eq:gae_caso}{{7}{13}{O método}{equation.7}{}}
+\@writefile{toc}{\contentsline {paragraph}{Limitação.}{13}{section*.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.10}Arquitetura e treinamento}{13}{subsection.2.10}\protected@file@percent }
+\newlabel{subsec:treino}{{2.10}{13}{Arquitetura e treinamento}{subsection.2.10}{}}
+\@writefile{toc}{\contentsline {paragraph}{Variáveis de contexto.}{13}{section*.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Treinamento do PPO.}{13}{section*.21}\protected@file@percent }
+\citation{saravanan2020hierarchical}
+\citation{agarwal2021precipice}
+\@writefile{toc}{\contentsline {paragraph}{Braços do experimento.}{14}{section*.22}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Braços de treino do PPO no ambiente v8. No v9, A e C têm uma semente de treino cada.}}{14}{table.3}\protected@file@percent }
+\newlabel{tab:bracos}{{3}{14}{Braços de treino do PPO no ambiente v8. No v9, A e C têm uma semente de treino cada}{table.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.11}Protocolo de avaliação}{14}{subsection.2.11}\protected@file@percent }
+\newlabel{subsec:protocolo}{{2.11}{14}{Protocolo de avaliação}{subsection.2.11}{}}
+\@writefile{toc}{\contentsline {paragraph}{Cenários pareados.}{14}{section*.23}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Checkpoint.}{14}{section*.24}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Bootstrap hierárquico e pareado.}{14}{section*.25}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Métricas.}{15}{section*.26}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.12}Implementação computacional e reprodutibilidade}{15}{subsection.2.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Resultados e Discussão}{15}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}O teto de informação do ambiente}{15}{subsection.3.1}\protected@file@percent }
+\newlabel{subsec:ceiling}{{3.1}{15}{O teto de informação do ambiente}{subsection.3.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}A competência do médico domina a variância}{16}{subsection.3.2}\protected@file@percent }
+\newlabel{subsec:confounder}{{3.2}{16}{A competência do médico domina a variância}{subsection.3.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Do DQN ao PPO: o algoritmo como primeiro gargalo}{16}{subsection.3.3}\protected@file@percent }
+\newlabel{subsec:dqn}{{3.3}{16}{Do DQN ao PPO: o algoritmo como primeiro gargalo}{subsection.3.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces DQN e PPO no mesmo ambiente sintético (versão anterior ao SEIR), média $\pm $ desvio entre sementes de treino. O resultado do PPO se reproduziu com sementes novas e mais treino ($+645{,}6 \pm 76{,}0$, três sementes, 300 mil passos).}}{16}{table.4}\protected@file@percent }
+\newlabel{tab:dqn_ppo}{{4}{16}{DQN e PPO no mesmo ambiente sintético (versão anterior ao SEIR), média $\pm $ desvio entre sementes de treino. O resultado do PPO se reproduziu com sementes novas e mais treino ($+645{,}6 \pm 76{,}0$, três sementes, 300 mil passos)}{table.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Atribuição de crédito: resultado principal}{17}{subsection.3.4}\protected@file@percent }
+\newlabel{subsec:resultado_credito}{{3.4}{17}{Atribuição de crédito: resultado principal}{subsection.3.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Desempenho no ambiente de referência v8 (\textit  {kriging} e SEIR), 10 cenários pareados. Médias com intervalos de confiança de 95\% por bootstrap hierárquico e pareado (10 mil réplicas); checkpoint final de cada semente de treino. Resultados preliminares: o v8 não contém casos não arbovirais (Seção \ref {subsec:ressalva}).}}{17}{table.5}\protected@file@percent }
+\newlabel{tab:resultado_v8}{{5}{17}{Desempenho no ambiente de referência v8 (\textit {kriging} e SEIR), 10 cenários pareados. Médias com intervalos de confiança de 95\% por bootstrap hierárquico e pareado (10 mil réplicas); checkpoint final de cada semente de treino. Resultados preliminares: o v8 não contém casos não arbovirais (Seção \ref {subsec:ressalva})}{table.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Comparações pareadas episódio a episódio no ambiente v8. $P(X>Y)$ é a probabilidade de um episódio de $X$ superar o mesmo episódio de $Y$ (empate vale 1/2).}}{17}{table.6}\protected@file@percent }
+\newlabel{tab:comparacoes_v8}{{6}{17}{Comparações pareadas episódio a episódio no ambiente v8. $P(X>Y)$ é a probabilidade de um episódio de $X$ superar o mesmo episódio de $Y$ (empate vale 1/2)}{table.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Recompensa (à esquerda; pontos são sementes de treino) e exames por episódio (à direita) dos três braços do PPO no ambiente v8. As linhas indicam \textit  {testonce} e a política clínica.}}{18}{figure.7}\protected@file@percent }
+\newlabel{fig:bracos}{{7}{18}{Recompensa (à esquerda; pontos são sementes de treino) e exames por episódio (à direita) dos três braços do PPO no ambiente v8. As linhas indicam \textit {testonce} e a política clínica}{figure.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Último dia da epidemia em dois cenários do ambiente v8, com a decisão final sobre cada caso: círculos são casos investigados e cruzes, não investigados; verde indica acerto e vermelho, erro. O número sob cada painel é a recompensa do episódio. Na linha superior (médico de especificidade 0,50), o agente A, que quase não investiga, herda os erros da triagem.}}{18}{figure.8}\protected@file@percent }
+\newlabel{fig:ultimo_dia}{{8}{18}{Último dia da epidemia em dois cenários do ambiente v8, com a decisão final sobre cada caso: círculos são casos investigados e cruzes, não investigados; verde indica acerto e vermelho, erro. O número sob cada painel é a recompensa do episódio. Na linha superior (médico de especificidade 0,50), o agente A, que quase não investiga, herda os erros da triagem}{figure.8}{}}
+\@writefile{toc}{\contentsline {paragraph}{Generalização para cenários inéditos.}{19}{section*.27}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}Consistência entre anos}{19}{subsection.3.5}\protected@file@percent }
+\newlabel{subsec:anos}{{3.5}{19}{Consistência entre anos}{subsection.3.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Avaliação sem retreino em superfícies de \textit  {kriging} de anos diferentes (ambiente v8, 10 cenários pareados). A chikungunya entra só com 2016, pois circulou muito pouco no Rio em 2015.}}{19}{table.7}\protected@file@percent }
+\newlabel{tab:anos}{{7}{19}{Avaliação sem retreino em superfícies de \textit {kriging} de anos diferentes (ambiente v8, 10 cenários pareados). A chikungunya entra só com 2016, pois circulou muito pouco no Rio em 2015}{table.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6}Varredura de dificuldade espacial}{19}{subsection.3.6}\protected@file@percent }
+\newlabel{subsec:temperatura}{{3.6}{19}{Varredura de dificuldade espacial}{subsection.3.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Varredura da temperatura $\tau $ das superfícies de \textit  {kriging}, sem retreino (ambiente v8, 10 cenários pareados). ``Acerto da posição'' é a acurácia de Bayes de um classificador que vê só a posição. A linha $\tau =1$ é uma reavaliação independente e difere ligeiramente da Tabela \ref {tab:resultado_v8}.}}{20}{table.8}\protected@file@percent }
+\newlabel{tab:temperatura}{{8}{20}{Varredura da temperatura $\tau $ das superfícies de \textit {kriging}, sem retreino (ambiente v8, 10 cenários pareados). ``Acerto da posição'' é a acurácia de Bayes de um classificador que vê só a posição. A linha $\tau =1$ é uma reavaliação independente e difere ligeiramente da Tabela \ref {tab:resultado_v8}}{table.8}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Recompensa em função da informatividade espacial.}}{20}{figure.9}\protected@file@percent }
+\newlabel{fig:temperatura}{{9}{20}{Recompensa em função da informatividade espacial}{figure.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.7}Uma ressalva crítica: o ambiente v8 não tinha casos não arbovirais}{20}{subsection.3.7}\protected@file@percent }
+\newlabel{subsec:ressalva}{{3.7}{20}{Uma ressalva crítica: o ambiente v8 não tinha casos não arbovirais}{subsection.3.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Políticas fixas nos geradores com SEIR (10 cenários pareados). A ordem entre \textit  {testonce} e \textit  {testtwice} se inverte no \textit  {kriging} v8, o único sem casos não arbovirais, e volta à ordem do sintético no v9.}}{21}{table.9}\protected@file@percent }
+\newlabel{tab:baselines}{{9}{21}{Políticas fixas nos geradores com SEIR (10 cenários pareados). A ordem entre \textit {testonce} e \textit {testtwice} se inverte no \textit {kriging} v8, o único sem casos não arbovirais, e volta à ordem do sintético no v9}{table.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.8}Resultados no ambiente corrigido (v9)}{21}{subsection.3.8}\protected@file@percent }
+\newlabel{subsec:v9}{{3.8}{21}{Resultados no ambiente corrigido (v9)}{subsection.3.8}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces Desempenho no ambiente v9 (\textit  {kriging} e SEIR, com casos não arbovirais), 10 cenários pareados. Intervalos de 95\% por bootstrap pareado sobre os episódios (10 mil réplicas). Com uma semente de treino por braço, os intervalos não capturam a variação entre sementes de treino.}}{21}{table.10}\protected@file@percent }
+\newlabel{tab:resultado_v9}{{10}{21}{Desempenho no ambiente v9 (\textit {kriging} e SEIR, com casos não arbovirais), 10 cenários pareados. Intervalos de 95\% por bootstrap pareado sobre os episódios (10 mil réplicas). Com uma semente de treino por braço, os intervalos não capturam a variação entre sementes de treino}{table.10}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces Comparações pareadas episódio a episódio no ambiente v9 (uma semente de treino por braço).}}{21}{table.11}\protected@file@percent }
+\newlabel{tab:comparacoes_v9}{{11}{21}{Comparações pareadas episódio a episódio no ambiente v9 (uma semente de treino por braço)}{table.11}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Trabalho em andamento e pendências}{22}{section.4}\protected@file@percent }
+\newlabel{sec:todo}{{4}{22}{Trabalho em andamento e pendências}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Concluído}{22}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Pendências}{22}{subsection.4.2}\protected@file@percent }
+\citation{syntheticpop}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Conclusão}{23}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Limitações e trabalhos futuros}{24}{subsection.5.1}\protected@file@percent }
 \bibstyle{abntex2-num}
 \bibdata{abntex2-options,refs}
 \bibcite{govbr_arboviroses}{1}
@@ -95,22 +189,22 @@
 \bibciteEXPL{yu_deep_2023}{Yu et al.}
 \bibciteIMPL{yu_deep_2023}{YU et al.}
 \bibciteYEAR{yu_deep_2023}{2023}
-\bibcite{sutton2018reinforcement}{8}
+\bibcite{yaesoubi_generalized_2011}{8}
+\bibciteEXPL{yaesoubi_generalized_2011}{Yaesoubi e Cohen}
+\bibciteIMPL{yaesoubi_generalized_2011}{YAESOUBI; COHEN}
+\bibciteYEAR{yaesoubi_generalized_2011}{2011}
+\bibcite{sutton2018reinforcement}{9}
 \bibciteEXPL{sutton2018reinforcement}{Sutton e Barto}
 \bibciteIMPL{sutton2018reinforcement}{SUTTON; BARTO}
 \bibciteYEAR{sutton2018reinforcement}{2018}
-\bibcite{noauthor_gymnasium_nodate}{9}
+\bibcite{noauthor_gymnasium_nodate}{10}
 \bibciteEXPL{noauthor_gymnasium_nodate}{Gymnasium\ldots  }
 \bibciteIMPL{noauthor_gymnasium_nodate}{GYMNASIUM\ldots  }
 \bibciteYEAR{noauthor_gymnasium_nodate}{}
-\bibcite{lapan2020deep}{10}
+\bibcite{lapan2020deep}{11}
 \bibciteEXPL{lapan2020deep}{Lapan}
 \bibciteIMPL{lapan2020deep}{LAPAN}
 \bibciteYEAR{lapan2020deep}{2020}
-\bibcite{frommeyer_reinforcement_2025}{11}
-\bibciteEXPL{frommeyer_reinforcement_2025}{Frommeyer et al.}
-\bibciteIMPL{frommeyer_reinforcement_2025}{FROMMEYER et al.}
-\bibciteYEAR{frommeyer_reinforcement_2025}{2025}
 \bibcite{side2015sir}{12}
 \bibciteEXPL{side2015sir}{Side e Noorani}
 \bibciteIMPL{side2015sir}{SIDE; NOORANI}
@@ -119,28 +213,76 @@
 \bibciteEXPL{derouich_model_2003}{Derouich, Boutayeb e Twizell}
 \bibciteIMPL{derouich_model_2003}{DEROUICH; BOUTAYEB; TWIZELL}
 \bibciteYEAR{derouich_model_2003}{2003}
-\bibcite{towers_gymnasium_2023}{14}
+\bibcite{chan2012incubation}{14}
+\bibciteEXPL{chan2012incubation}{Chan e Johansson}
+\bibciteIMPL{chan2012incubation}{CHAN; JOHANSSON}
+\bibciteYEAR{chan2012incubation}{2012}
+\bibcite{carrington2014human}{15}
+\bibciteEXPL{carrington2014human}{Carrington e Simmons}
+\bibciteIMPL{carrington2014human}{CARRINGTON; SIMMONS}
+\bibciteYEAR{carrington2014human}{2014}
+\bibcite{aldstadt2012spacetime}{16}
+\bibciteEXPL{aldstadt2012spacetime}{Aldstadt et al.}
+\bibciteIMPL{aldstadt2012spacetime}{ALDSTADT et al.}
+\bibciteYEAR{aldstadt2012spacetime}{2012}
+\bibcite{villela2017zika}{17}
+\bibciteEXPL{villela2017zika}{Villela et al.}
+\bibciteIMPL{villela2017zika}{VILLELA et al.}
+\bibciteYEAR{villela2017zika}{2017}
+\bibcite{moreira2023chikungunya}{18}
+\bibciteEXPL{moreira2023chikungunya}{Moreira et al.}
+\bibciteIMPL{moreira2023chikungunya}{MOREIRA et al.}
+\bibciteYEAR{moreira2023chikungunya}{2023}
+\bibcite{towers_gymnasium_2023}{19}
 \bibciteEXPL{towers_gymnasium_2023}{Towers et al.}
 \bibciteIMPL{towers_gymnasium_2023}{TOWERS et al.}
 \bibciteYEAR{towers_gymnasium_2023}{2023}
-\bibcite{watkins1992q}{15}
+\bibcite{watkins1992q}{20}
 \bibciteEXPL{watkins1992q}{Watkins e Dayan}
 \bibciteIMPL{watkins1992q}{WATKINS; DAYAN}
 \bibciteYEAR{watkins1992q}{1992}
-\bibcite{bellman1957dynamic}{16}
+\bibcite{bellman1957dynamic}{21}
 \bibciteEXPL{bellman1957dynamic}{Bellman}
 \bibciteIMPL{bellman1957dynamic}{BELLMAN}
 \bibciteYEAR{bellman1957dynamic}{1957}
-\bibcite{mnih2015human}{17}
+\bibcite{mnih2015human}{22}
 \bibciteEXPL{mnih2015human}{Mnih et al.}
 \bibciteIMPL{mnih2015human}{MNIH et al.}
 \bibciteYEAR{mnih2015human}{2015}
-\bibcite{goodfellow2016deep}{18}
+\bibcite{goodfellow2016deep}{23}
 \bibciteEXPL{goodfellow2016deep}{Goodfellow, Bengio e Courville}
 \bibciteIMPL{goodfellow2016deep}{GOODFELLOW; BENGIO; COURVILLE}
 \bibciteYEAR{goodfellow2016deep}{2016}
-\bibcite{weng2021tianshou}{19}
+\bibcite{schulman2017ppo}{24}
+\bibciteEXPL{schulman2017ppo}{Schulman et al.}
+\bibciteIMPL{schulman2017ppo}{SCHULMAN et al.}
+\bibciteYEAR{schulman2017ppo}{2017}
+\bibcite{schulman2016gae}{25}
+\bibciteEXPL{schulman2016gae}{Schulman et al.}
+\bibciteIMPL{schulman2016gae}{SCHULMAN et al.}
+\bibciteYEAR{schulman2016gae}{2016}
+\bibcite{ng1999policy}{26}
+\bibciteEXPL{ng1999policy}{Ng, Harada e Russell}
+\bibciteIMPL{ng1999policy}{NG; HARADA; RUSSELL}
+\bibciteYEAR{ng1999policy}{1999}
+\bibcite{frommeyer_reinforcement_2025}{27}
+\bibciteEXPL{frommeyer_reinforcement_2025}{Frommeyer et al.}
+\bibciteIMPL{frommeyer_reinforcement_2025}{FROMMEYER et al.}
+\bibciteYEAR{frommeyer_reinforcement_2025}{2025}
+\bibcite{weng2021tianshou}{28}
 \bibciteEXPL{weng2021tianshou}{Weng et al.}
 \bibciteIMPL{weng2021tianshou}{WENG et al.}
 \bibciteYEAR{weng2021tianshou}{2021}
-\gdef \@abspage@last{16}
+\bibcite{saravanan2020hierarchical}{29}
+\bibciteEXPL{saravanan2020hierarchical}{Saravanan, Berman e Sober}
+\bibciteIMPL{saravanan2020hierarchical}{SARAVANAN; BERMAN; SOBER}
+\bibciteYEAR{saravanan2020hierarchical}{2020}
+\bibcite{agarwal2021precipice}{30}
+\bibciteEXPL{agarwal2021precipice}{Agarwal et al.}
+\bibciteIMPL{agarwal2021precipice}{AGARWAL et al.}
+\bibciteYEAR{agarwal2021precipice}{2021}
+\bibcite{syntheticpop}{31}
+\bibciteEXPL{syntheticpop}{{Mosqlimate Project}}
+\bibciteIMPL{syntheticpop}{{Mosqlimate Project}}
+\bibciteYEAR{syntheticpop}{}
+\gdef \@abspage@last{27}
