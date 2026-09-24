@@ -1,0 +1,21 @@
+# Ambiente sintético com qualidade clínica controlada no nível "high".
+# A sensibilidade e a especificidade de CADA médico são amostradas de
+# distribuições Beta com esta média (ver dengue_envs/core/clinical.py).
+# Permite comparar ambientes/agentes em dificuldade clínica EQUIPARADA,
+# em vez do sorteio uniforme não controlado.
+env:
+  generator: synthetic
+  size: 400
+  episize: 150
+  epilength: 60
+  start_day: 1
+  reward_delay_days: 5
+  clinical_quality: high
+  dengue_center: [100, 100]
+  chik_center: [300, 300]
+  dengue_radius: 90
+  chik_radius: 90
+
+wrappers:
+  - map_tensor
+  - case_by_case

@@ -1,0 +1,26 @@
+# Ambiente com distribuição espacial Kriging (Ordinary Kriging sobre as
+# notificações do Rio 2015-16; P(célula | doença)). Zika fica fora.
+#
+# Mantém os MESMOS parâmetros do synthetic_default (size, episize, epilength,
+# delay, especificidade), trocando apenas o gerador — assim uma comparação
+# synthetic vs kriging isola o efeito da DISTRIBUIÇÃO espacial.
+#
+# Requer as superfícies pré-computadas (gera em results/kriging/*.npz):
+#   poetry run python -m dengue_envs.data.build_kriging_surfaces
+#
+# Self-contained de propósito: o benchmark (evaluate.py) carrega este YAML
+# direto, sem processar `include`.
+env:
+  generator: kriging
+  # surfaces_path: results/kriging/rio_2015_2016_kriging_surfaces.npz  # (é o default)
+  size: 400
+  episize: 150
+  epilength: 60
+  start_day: 1
+  reward_delay_days: 5
+  # [min, max] -> sorteia especificidade clínica por episódio (igual ao synthetic).
+  clinical_specificity: [0.5, 0.95]
+
+wrappers:
+  - map_tensor
+  - case_by_case

@@ -1,0 +1,19 @@
+# Ambiente sintético padrão (baseline reprodutível).
+# Trocar a distribuição no futuro = mudar `generator` (ex.: rio2016), sem código.
+env:
+  generator: synthetic
+  size: 400
+  episize: 150
+  epilength: 60
+  start_day: 1
+  reward_delay_days: 5
+  # [min, max] -> sorteia especificidade clínica por episódio.
+  clinical_specificity: [0.5, 0.95]
+  dengue_center: [100, 100]
+  chik_center: [300, 300]
+  dengue_radius: 90
+  chik_radius: 90
+
+wrappers:
+  - map_tensor
+  - case_by_case

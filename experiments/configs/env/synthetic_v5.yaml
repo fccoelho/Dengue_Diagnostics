@@ -1,0 +1,97 @@
+# Ambiente v5 = v4 com LAUDO MAIS RAPIDO (diagnostico, ver §13 do handoff).
+#
+# Motivacao (medido no v3): o CaseByCaseWrapper acumulava as acoes do dia e so
+# as aplicava no ultimo caso; ate la cada passo devolvia 0.0 e o dia inteiro
+# caia num unico passo. ~90% da variancia da recompensa de um passo vinha de
+# decisoes tomadas dias antes, sobre OUTROS casos -- ruido que inviabilizava o
+# aprendizado da funcao Q. Ver REFATORACAO_AMBIENTE.md secao 5.
+#
+# MUDANCA UNICA em relacao ao v4: `lab_delay_days` 5 -> 2.
+#
+# Nao e' uma proposta de design -- e' um EXPERIMENTO para testar a afirmacao
+# central de §12.3: a de que o exame de laboratorio nunca e' aprendido porque
+# sua cadeia de credito (~30 passos: 5 dias x ~6 casos/dia) fica na borda do
+# `n_step: 30`, enquanto a do `epi_confirm` (~6 passos) cabe com folga.
+#
+# Com laudo em 2 dias a cadeia cai para ~12 passos, dentro da mesma folga que o
+# `epi_confirm` tem. Se o agente passar a pedir exames, o mecanismo de §12.3
+# esta confirmado e o gargalo e' a razao cadeia/n_step. Se continuar com zero
+# exames, a explicacao esta errada e a causa e' outra.
+#
+# O v14 (n_step 60, ambiente v4) ja mostrou que atacar pelo outro lado NAO
+# funciona: -3765,62 e politica colapsada em 40,7% "nada".
+#
+# `per_case_reward: true` faz cada passo devolver a recompensa daquela decisao.
+# A soma sobre o episodio e IDENTICA a do modo agregado (coberto por teste de
+# invariancia); muda apenas quando o credito e entregue.
+#
+env:
+  generator: synthetic
+  size: 400
+  episize: 150
+  epilength: 60
+  start_day: 1
+  # ZERO por decisão de projeto: o atraso da RECOMPENSA só embaralhava o
+  # crédito entre casos (o desfecho de hoje maturava dias depois, num passo
+  # que pertencia a outro caso). O atraso do LAUDO (`lab_delay_days`) continua
+  # existindo — é ele que cria a investigação sequencial "testar hoje, decidir
+  # quando o resultado voltar".
+  reward_delay_days: 0
+  lab_delay_days: 2
+  clinical_specificity: [0.5, 0.95]
+  dengue_center: [100, 100]
+  chik_center: [300, 300]
+  dengue_radius: 90
+  chik_radius: 90
+
+  # --- casos que não são arbovirose ---
+  other_prevalence: 0.25
+  # Chance de o médico reconhecer na triagem que não é arbovirose. Baixa por
+  # construção: se fosse alta, esses casos nem entrariam na fila de suspeitos.
+  other_recognition_prob: 0.15
+
+  # --- exame (RT-PCR) ---
+  lab_sensitivity: 0.95
+  lab_specificity: 0.98
+  lab_inconclusive_prob: 0.02
+
+  # --- retorno do caso após o laudo ---
+  max_case_revisits: 2
+  # Depois dos DOIS exames a investigação acabou; o caso precisa ser encerrado
+  # na hora. O wrapper restringe o espaço de ação a confirmar/descartar.
+  force_decision_after_tests: true
+
+  # --- incentivos para engajar ---
+  # Caso que termina o episódio sem conclusão fica em aberto na vigilância.
+  # Sem isto, não decidir era o refúgio seguro (arriscava -3 contra -20/-30) e o
+  # agente convergia para não agir (79,5% de "nada").
+  penalty_unresolved: -10.0
+  # Crédito imediato por concluir um caso investigado: encurta o crédito da
+  # cadeia investigar -> concluir, cujo desfecho real só chega 5 dias depois.
+  shaping_conclude_bonus: 2.0
+
+  # --- economia ---
+  # Recalibrado para o v3 (era 7,0 no v2). Duas coisas mudaram: há 25% mais casos
+  # e agora são precisos DOIS exames para resolver um caso, então o custo efetivo
+  # por caso dobrou. Varredura empírica do panorama:
+  #
+  #   custo | nada  | confirmar | 1 exame | 2 exames | melhor
+  #     2,0 |  -305 |    -1338  |   +261  |   +1830  | 2 exames
+  #     4,0 |  -305 |    -1338  |   -485  |    +338  | 2 exames  <- escolhido
+  #     5,0 |  -305 |    -1338  |   -858  |    -409  | nada
+  #     7,0 |  -305 |    -1338  |  -1605  |   -1902  | nada (ambiente degenera)
+  #
+  # Acima de 4 o ambiente degenera: a melhor política passa a ser não agir.
+  # Em 4,0 investigar compensa, mas com margem estreita — que é onde discriminar
+  # QUAIS casos investigar rende mais.
+  test_cost: 4.0
+
+wrappers:
+  - map_tensor
+  - case_by_case
+
+context_features: true
+
+# Entrega a recompensa de cada decisao no passo daquele caso (ver secao 5/6 de
+# REFATORACAO_AMBIENTE.md).
+per_case_reward: true

@@ -1,0 +1,10 @@
+# PLACEHOLDER (Fase 4): distribuição a partir de dados reais de 2016.
+# O gerador Rio2016 ainda não está implementado (ver dengue_envs/data/rio2016.py).
+# Mantido aqui para documentar o ponto de extensão: quando o gerador existir,
+# bastará selecioná-lo por `generator: rio2016`.
+include:
+  - synthetic_default.yaml
+
+env:
+  generator: rio2016
+  # Parâmetros específicos da fonte real serão adicionados na Fase 4.

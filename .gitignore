@@ -127,6 +127,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+# `env/` acima (e `ENV/`, no Windows sem distinção de caixa) pegava as configs
+# de ambiente dos experimentos, que precisam ser versionadas.
+!experiments/configs/env/
 
 # Spyder project settings
 .spyderproject
@@ -167,3 +170,7 @@ cython_debug/
 # Experiment outputs (resultados de benchmark e logs de treino)
 /results/
 /logs/
+
+# Auxiliares do latexmk
+Artigo/*.fdb_latexmk
+Artigo/*.fls

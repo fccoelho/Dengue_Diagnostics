@@ -1,0 +1,53 @@
+# Ambiente v2 — exame realista (RT-PCR), retorno do caso após o laudo e
+# exame CARO (escassez).
+#
+# Diferenças em relação a `synthetic_default.yaml`:
+#
+# 1. Laudo com desempenho de RT-PCR (antes: 0,9/0,9 com 10% de inconclusivos,
+#    pessimista para um teste molecular). Elevou o teto de acurácia do ambiente
+#    de 0,873 para ~0,957 — é o que torna a meta de 90% alcançável.
+#
+# 2. `max_case_revisits: 2` — quando o laudo chega, o caso VOLTA ao agente para
+#    decisão. Antes cada caso era visto uma única vez, então pedir exame
+#    significava abrir mão de decidir sobre ele.
+#
+# 3. `test_cost: 7.0` (era 1,0) — cria ESCASSEZ. Com o exame barato, testar todo
+#    mundo era quase sempre ótimo e o problema de alocação desaparecia, o que
+#    contradizia a premissa do trabalho. O valor 7,0 foi calibrado por varredura
+#    empírica (1 / 3 / 5 / 7 / 9): é onde "testar" e "confirmar" se dividem
+#    meio a meio entre os episódios (5/10 seeds cada), ou seja, o ponto em que
+#    acertar a escolha rende o máximo. Com custo 1 ou 5, testar vencia em 9-10
+#    de 10 seeds e a decisão era quase sempre a mesma.
+env:
+  generator: synthetic
+  size: 400
+  episize: 150
+  epilength: 60
+  start_day: 1
+  reward_delay_days: 5
+  clinical_specificity: [0.5, 0.95]
+  dengue_center: [100, 100]
+  chik_center: [300, 300]
+  dengue_radius: 90
+  chik_radius: 90
+
+  # --- exame (RT-PCR) ---
+  lab_sensitivity: 0.95
+  lab_specificity: 0.98
+  lab_inconclusive_prob: 0.02
+
+  # --- retorno do caso após o laudo ---
+  max_case_revisits: 2
+
+  # --- economia: exame caro ---
+  test_cost: 7.0
+
+wrappers:
+  - map_tensor
+  - case_by_case
+
+# Acrescenta à observação a evidência sobre a competência do médico
+# (concordância laudo × palpite clínico + força da evidência). Não altera a
+# dinâmica do ambiente — é só informação a mais. Agentes que não a usam
+# (q-learning tabular, baselines) simplesmente ignoram a chave.
+context_features: true

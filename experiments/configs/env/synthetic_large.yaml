@@ -1,0 +1,11 @@
+# Ambiente sintético "grande" (grid e epidemia maiores).
+# Reaproveita a config padrão e sobrescreve apenas o que muda.
+include:
+  - synthetic_default.yaml
+
+env:
+  size: 600
+  episize: 300
+  epilength: 90
+  dengue_center: [150, 150]
+  chik_center: [450, 450]

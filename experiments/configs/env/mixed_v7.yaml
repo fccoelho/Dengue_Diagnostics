@@ -1,0 +1,188 @@
+# Ambiente MISTO — sintetico e kriging sorteados a cada episodio.
+#
+# POR QUE: hoje o mapa e decorativo. Medido por ablacao: zerar o tensor inteiro
+# muda 0-2% das decisoes do agente. Faz sentido — dentro de UMA distribuicao o
+# mapa nao acrescenta nada as features do caso.
+#
+# Misturando duas, o mapa vira a UNICA forma de saber em que regime se esta, e
+# os regimes pedem politicas OPOSTAS (medido):
+#
+#   distribuicao | posicao acerta a doenca | melhor politica fixa
+#     sintetico  |         93,7%           | testtwice (+955)
+#     kriging    |         47,1%           | testonce  (+2093)
+#
+# No sintetico a geografia entrega a resposta e o exame e redundante; no
+# kriging a posicao e cara-ou-coroa e o exame e tudo. Um agente que aprenda a
+# alternar precisa LER o mapa — seria a primeira vez que o canal espacial tem
+# funcao.
+#
+# RESULTADO INFORMATIVO NOS DOIS SENTIDOS: se ele alternar, e achado forte. Se
+# convergir para um compromisso pior que os especialistas, mede um limite
+# concreto da arquitetura (que hoje ignora o mapa).
+#
+# A escolha usa `env.np_random`, entao e reprodutivel por seed. O indice
+# sorteado fica em `env.mixture_component` para diagnostico.
+#
+# Ambiente v7 = v6 + OBSERVACAO DE MAPA EM RESOLUCAO REDUZIDA.
+#
+# Nao muda a TAREFA: o mundo continua 400x400, os casos continuam nas mesmas
+# posicoes, a recompensa e identica. Muda so a resolucao com que o mapa e
+# entregue a rede -- e por isso as politicas fixas (clinical, testtwice, ...)
+# tem exatamente os mesmos numeros do v6: elas nem olham o tensor.
+#
+# Por que: o encoder termina em AdaptiveAvgPool2d((6,6)), entao 400x400 vira
+# 6x6 dentro da propria rede. A resolucao extra e descartada pela arquitetura,
+# mas paga o preco inteiro no caminho dos dados. Medido (batch 64, CUDA):
+#
+#   resolucao   KB/obs   GPU fwd+bwd   gather+H2D   replay buffer 6k
+#   400x400      937,5   1,7s/100upd   7,6s/100upd   5,36 GB
+#   100x100       58,6   1,0s/100upd   0,7s/100upd   0,34 GB
+#
+# E o gargalo e esse caminho, nao o ambiente: coletar 1000 passos custa ~0,8s
+# contra ~30s das 100 atualizacoes de gradiente que vem junto. Medicao do
+# ambiente isolado: 1263 passos/s (dummy, 2 envs), contra ~25 passos/s do laco
+# de treino completo.
+#
+# NOTA sobre paralelizar envs: nao ajuda. `dummy` nao escala com o numero de
+# envs (1263 -> 1291 passos/s de 2 para 12) porque roda sequencial no mesmo
+# processo, e `subproc` fica 35% MAIS LENTO (819 passos/s) porque serializa a
+# observacao inteira por passo. Reduzir a observacao e o que destrava tambem
+# essa opcao, se um dia for necessaria.
+#
+# map_size deve dividir env.size (400 / 100 = 4).
+#
+# --- herdado do v6 ---
+# Ambiente v6 = v4 + CONFIRMACAO EPIDEMIOLOGICA SEM VAZAMENTO.
+#
+# Duas mudancas, que so funcionam juntas:
+#
+# 1. `epi_confirm` deixa de consultar a verdade-terreno. Antes ela lia
+#    `world.get_maps_up_to_t()` -- histogramas indexados pela coluna `disease`
+#    REAL, incluindo casos jamais notificados. Agora le o mapa que o AGENTE
+#    construiu, contando apenas casos confirmados por laudo positivo.
+#
+#    Efeito colateral pretendido: o exame vira INVESTIMENTO. Antes, testar
+#    resolvia um caso e acabava; agora cada laudo positivo melhora toda
+#    `epi_confirm` futura naquela regiao.
+#
+# 2. `epi_confirm_cost` sobe de 0,5 para 4,0 (= `test_cost`). A acao simula ir
+#    a campo investigar, o que e caro. A 0,5 ela era um refugio barato: o DQN
+#    v13 gastava 66% das acoes nela.
+#
+# NOTA SOBRE A VERSAO ANTERIOR: com `threshold=1` numa UNICA celula de um grid
+# 400x400, e densidade maxima medida de 1 caso por celula, a condicao
+# `densidade > 1` nunca era satisfeita. Medido: 5598 chamadas em 5 episodios,
+# TODAS devolvendo 0. A acao existia, custava e nao informava nada -- por isso
+# `epi_radius` e obrigatorio para ela sequer funcionar.
+#
+# Calibracao de `epi_radius`/`epi_threshold` (medido, politica que testa tudo):
+#
+#   raio | limiar | confirma | acerto quando confirma
+#     10 |      1 |     4,5% |  83,0%
+#     20 |      1 |    19,3% |  80,1%   <- escolhido
+#     30 |      2 |    21,6% |  79,7%
+#
+# Referencia: sem evidencia epidemiologica, o palpite clinico acerta 57,1%
+# (`clinical`/`confirmall`). Raio 20 da +23 pontos sobre isso.
+#
+# ATENCAO: a observacao mudou (mapa 4->6 canais, contexto 14->16). Todos os
+# checkpoints anteriores (dqn_v1..v15) sao INCOMPATIVEIS com este ambiente.
+#
+# --- herdado do v4 ---
+# Ambiente v4 = v3 + ATRIBUICAO DE RECOMPENSA POR CASO.
+#
+# Motivacao (medido no v3): o CaseByCaseWrapper acumulava as acoes do dia e so
+# as aplicava no ultimo caso; ate la cada passo devolvia 0.0 e o dia inteiro
+# caia num unico passo. ~90% da variancia da recompensa de um passo vinha de
+# decisoes tomadas dias antes, sobre OUTROS casos -- ruido que inviabilizava o
+# aprendizado da funcao Q. Ver REFATORACAO_AMBIENTE.md secao 5.
+#
+# `per_case_reward: true` faz cada passo devolver a recompensa daquela decisao.
+# A soma sobre o episodio e IDENTICA a do modo agregado (coberto por teste de
+# invariancia); muda apenas quando o credito e entregue.
+#
+env:
+  generator: mixed
+  mix:
+    - {generator: synthetic, weight: 0.5}
+    - {generator: kriging,   weight: 0.5, augment_surfaces: true}
+  size: 400
+  episize: 150
+  epilength: 60
+  start_day: 1
+  # ZERO por decisão de projeto: o atraso da RECOMPENSA só embaralhava o
+  # crédito entre casos (o desfecho de hoje maturava dias depois, num passo
+  # que pertencia a outro caso). O atraso do LAUDO (`lab_delay_days`) continua
+  # existindo — é ele que cria a investigação sequencial "testar hoje, decidir
+  # quando o resultado voltar".
+  reward_delay_days: 0
+  lab_delay_days: 5
+  clinical_specificity: [0.5, 0.95]
+  dengue_center: [100, 100]
+  chik_center: [300, 300]
+  dengue_radius: 90
+  chik_radius: 90
+
+  # --- casos que não são arbovirose ---
+  other_prevalence: 0.25
+  # Chance de o médico reconhecer na triagem que não é arbovirose. Baixa por
+  # construção: se fosse alta, esses casos nem entrariam na fila de suspeitos.
+  other_recognition_prob: 0.15
+
+  # --- exame (RT-PCR) ---
+  lab_sensitivity: 0.95
+  lab_specificity: 0.98
+  lab_inconclusive_prob: 0.02
+
+  # --- retorno do caso após o laudo ---
+  max_case_revisits: 2
+  # Depois dos DOIS exames a investigação acabou; o caso precisa ser encerrado
+  # na hora. O wrapper restringe o espaço de ação a confirmar/descartar.
+  force_decision_after_tests: true
+
+  # --- incentivos para engajar ---
+  # Caso que termina o episódio sem conclusão fica em aberto na vigilância.
+  # Sem isto, não decidir era o refúgio seguro (arriscava -3 contra -20/-30) e o
+  # agente convergia para não agir (79,5% de "nada").
+  penalty_unresolved: -10.0
+  # Crédito imediato por concluir um caso investigado: encurta o crédito da
+  # cadeia investigar -> concluir, cujo desfecho real só chega 5 dias depois.
+  shaping_conclude_bonus: 2.0
+
+  # --- economia ---
+  # Recalibrado para o v3 (era 7,0 no v2). Duas coisas mudaram: há 25% mais casos
+  # e agora são precisos DOIS exames para resolver um caso, então o custo efetivo
+  # por caso dobrou. Varredura empírica do panorama:
+  #
+  #   custo | nada  | confirmar | 1 exame | 2 exames | melhor
+  #     2,0 |  -305 |    -1338  |   +261  |   +1830  | 2 exames
+  #     4,0 |  -305 |    -1338  |   -485  |    +338  | 2 exames  <- escolhido
+  #     5,0 |  -305 |    -1338  |   -858  |    -409  | nada
+  #     7,0 |  -305 |    -1338  |  -1605  |   -1902  | nada (ambiente degenera)
+  #
+  # Acima de 4 o ambiente degenera: a melhor política passa a ser não agir.
+  # Em 4,0 investigar compensa, mas com margem estreita — que é onde discriminar
+  # QUAIS casos investigar rende mais.
+  test_cost: 4.0
+
+  # --- confirmacao epidemiologica (ver cabecalho) ---
+  # Custo de ir a campo: mesmo preco do exame de laboratorio.
+  epi_confirm_cost: 4.0
+  # Raio da vizinhanca consultada no mapa de confirmados do agente.
+  epi_radius: 20
+  # Confirma se ha MAIS DE `epi_threshold` casos confirmados na vizinhanca
+  # (excluindo o proprio caso).
+  epi_threshold: 1
+
+wrappers:
+  - map_tensor
+  - case_by_case
+
+context_features: true
+
+# Entrega a recompensa de cada decisao no passo daquele caso (ver secao 5/6 de
+# REFATORACAO_AMBIENTE.md).
+per_case_reward: true
+
+# Resolucao do tensor de mapa entregue a rede (ver cabecalho).
+map_size: 100
