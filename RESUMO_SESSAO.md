@@ -27,19 +27,23 @@ resposta correta a um ambiente que dava a resposta de graça.
 
 ---
 
+
+
 ## 2. Onde estão os agentes
 
 Os baselines **se reordenam** entre as distribuições — nenhuma conclusão de
 economia transfere de uma para a outra.
 
-| agente | sintético | **kriging (real)** |
-|---|---:|---:|
-| `testonce` | +247,4 | **+2093** |
-| `testtwice` | **+955,0** | +640 |
-| `confirmall` | −1365,2 | +542 |
-| `clinical` (não agir) | −267,2 | −15 |
-| **`ppo`** (3 seeds) | **+645,6 ± 76,0** | **+723,4 ± 72,6** |
-| `dqn` (controle) | −4164 ± 9 | — |
+
+| agente                | sintético         | **kriging (real)** |
+| --------------------- | ----------------- | ------------------ |
+| `testonce`            | +247,4            | **+2093**          |
+| `testtwice`           | **+955,0**        | +640               |
+| `confirmall`          | −1365,2           | +542               |
+| `clinical` (não agir) | −267,2            | −15                |
+| `ppo` (3 seeds)       | **+645,6 ± 76,0** | **+723,4 ± 72,6**  |
+| `dqn` (controle)      | −4164 ± 9         | —                  |
+
 
 No sintético o PPO é **2º**; no kriging cai para **3º**, e a distância até o
 topo vai de 204 para 1.370 pontos. A distribuição real premia muito mais quem
@@ -47,6 +51,8 @@ investiga — e é exatamente onde o agente ainda subinveste (7 a 37 exames,
 contra os 373 do `testonce`).
 
 ---
+
+
 
 ## 3. Ponto de partida: as três propostas
 
@@ -58,6 +64,8 @@ A investigação começou por (2) e (3), que eram acopladas. A (1) foi adiada �
 a própria investigação justificou o adiamento (§8).
 
 ---
+
+
 
 ## 4. O `epi_confirm` vazava a verdade e nunca funcionou
 
@@ -81,6 +89,8 @@ investimento.
 
 ---
 
+
+
 ## 5. A penalidade punia a inação
 
 `penalty_unresolved` (−10) caía sobre **todo** caso não concluído, inclusive
@@ -100,6 +110,8 @@ Efeito: `clinical` foi de −4036,5 para **−267,2**, passando a bater o
 
 ---
 
+
+
 ## 6. Custo computacional: 5× mais rápido
 
 **Paralelizar o ambiente era o alvo errado** — o env faz 1263 passos/s contra
@@ -109,10 +121,12 @@ por passo.
 **O gargalo era o tamanho da observação**, que a rede descarta de qualquer
 forma (`AdaptiveAvgPool2d((6,6))`):
 
-| resolução | KB/obs | gather+H2D | replay buffer |
-|---|---:|---:|---:|
-| 400×400 | 937,5 | 7,6 s/100upd | 5,36 GB |
-| **100×100** | **58,6** | **0,7 s** | **0,34 GB** |
+
+| resolução   | KB/obs   | gather+H2D   | replay buffer |
+| ----------- | -------- | ------------ | ------------- |
+| 400×400     | 937,5    | 7,6 s/100upd | 5,36 GB       |
+| **100×100** | **58,6** | **0,7 s**    | **0,34 GB**   |
+
 
 Época: **6min20 → 1min14**. Verificado que não custa fidelidade: no mapa real
 só 1,7% dos casos colidem a 100×100. E confirmado por ablação — **zerar o mapa
@@ -124,14 +138,18 @@ locais viravam 0 sem erro). Corrigido, com dois testes de regressão.
 
 ---
 
+
+
 ## 7. DQN: instabilidade real, mas não era a causa
 
 Diagnóstico: a recompensa oscilava até 6.300 pontos entre avaliações vizinhas.
 
-| braço | oscilação | Recompensa |
-|---|---:|---:|
-| `lr` 2.5e-5, MSE | 1732 (inalterada) | −1592 ± 1340 |
-| `lr` 2.5e-5 + **Huber** | **578 (−64%)** | **−4164 ± 9** |
+
+| braço                   | oscilação         | Recompensa    |
+| ----------------------- | ----------------- | ------------- |
+| `lr` 2.5e-5, MSE        | 1732 (inalterada) | −1592 ± 1340  |
+| `lr` 2.5e-5 + **Huber** | **578 (−64%)**    | **−4164 ± 9** |
+
 
 O Huber estabilizou de forma inequívoca (±1340 → **±9**), e o resultado
 **piorou**. (Double DQN, ao contrário do que supus, já estava ligado por
@@ -143,13 +161,17 @@ padrão o tempo todo.)
 
 ---
 
+
+
 ## 8. Três ataques que falharam pela mesma razão
 
-| tentativa | por que falhou |
-|---|---|
+
+| tentativa                 | por que falhou                                                                                                                                                                                                          |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Shaping por potencial** | `s'` já é outro paciente → Φ telescopa no mesmo passo. Medido: F **negativo** em 4 desenhos de Φ. Com γ=0,99 e ~248 investigações abertas, a deriva `(1−γ)Φ ≈ 2,5W` supera o incremento `≈0,99W` — para **qualquer** W. |
-| **Crédito retroativo** | Exigiria reescrever recompensa já entregue. Não implementável num MDP online. |
-| **Calibrar a economia** | `test_cost` 4,0 → 2,0 dobrou a margem de investigar (1.276 → 2.768). Resultado: **zero exames nos 3 seeds**. |
+| **Crédito retroativo**    | Exigiria reescrever recompensa já entregue. Não implementável num MDP online.                                                                                                                                           |
+| **Calibrar a economia**   | `test_cost` 4,0 → 2,0 dobrou a margem de investigar (1.276 → 2.768). Resultado: **zero exames nos 3 seeds**.                                                                                                            |
+
 
 Os três esbarram na **intercalação de casos**: o valor de investigar o caso X
 precisa atravessar ~30 transições que pertencem a outros pacientes.
@@ -159,14 +181,18 @@ sintético, o exame também era genuinamente pouco útil.
 
 ---
 
+
+
 ## 9. PPO: o algoritmo era o gargalo
 
 Mesmo ambiente, **mesmo tronco de rede**, mesma máscara de ação:
 
-| | Recompensa | acurácia | estabilidade |
-|---|---:|---:|---|
-| DQN | −4164 ± 9 | 0,55 | converge para o lugar errado |
-| **PPO** | **+632 ± 43** | 0,73 | curva monotônica, `best` = `final` |
+
+|         | Recompensa    | acurácia | estabilidade                       |
+| ------- | ------------- | -------- | ---------------------------------- |
+| DQN     | −4164 ± 9     | 0,55     | converge para o lugar errado       |
+| **PPO** | **+632 ± 43** | 0,73     | curva monotônica, `best` = `final` |
+
 
 ~4.800 pontos de diferença. Primeiro agente aprendido a bater "não fazer nada".
 
@@ -174,25 +200,29 @@ Mesmo ambiente, **mesmo tronco de rede**, mesma máscara de ação:
 300 mil passos).
 
 Detalhe de implementação que quase passou: a `ProbabilisticActorPolicy` do
-Tianshou **não aplica `obs.mask`** (o `DiscreteQLearningPolicy` aplica). Sem
+Tianshou **não aplica** `obs.mask` (o `DiscreteQLearningPolicy` aplica). Sem
 tratar isso, o PPO ignoraria o `force_decision_after_tests` e estaria
 resolvendo um problema mais fácil — **sem erro nenhum aparecer**. A máscara é
 aplicada nos logits dentro do ator, e há teste para isso.
 
 ---
 
+
+
 ## 10. Duas lições de método
 
 **Execução única não é evidência.** Mesma config, seeds diferentes: −81,90 e
 −3272,25. Três conclusões minhas sobre `n_step` foram retiradas.
 
-**`policy_best` seleciona ruído** — mede **1.000 a 1.460 pontos** acima do
+`policy_best` **seleciona ruído** — mede **1.000 a 1.460 pontos** acima do
 `final` no DQN. No PPO o viés é zero, porque a curva só sobe.
 
 E o que mais rendeu: **medir antes de treinar.** A inviabilidade do shaping
 saiu em 10 minutos de medição, em vez de 43 de treino.
 
 ---
+
+
 
 ## 11. O modelo epidêmico estava errado (e como apareceu)
 
@@ -203,10 +233,10 @@ início do projeto.
 
 O SIR em `data/generator.py` tinha dois erros que se mascaravam:
 
-- **Transmissão sem `/N`.** A força de infecção usava `beta * s * i` em vez de
-  `beta * s * i / n`. Com população 150, um R0 declarado de 1,5 valia **225**.
+- **Transmissão sem** `/N`**.** A força de infecção usava `beta * s * i` em vez de
+`beta * s * i / n`. Com população 150, um R0 declarado de 1,5 valia **225**.
 - **Período infeccioso de 250 dias** (`gamma = 0,004`), contra os ~5 dias da
-  literatura.
+literatura.
 
 Resultado: a epidemia inteira cabia em **9 dias**, com pico no dia 3, apesar de
 `epilength: 60`. Toda a estrutura temporal do ambiente — sobreposição de casos,
@@ -216,10 +246,12 @@ espera pelo laudo, fase da epidemia — estava calibrada a esse pico artificial.
 período latente absorve a incubação extrínseca no mosquito, para que o tempo de
 geração do modelo corresponda ao intervalo serial observado em campo:
 
-| doença | latente | infeccioso | tempo de geração | R0 |
-|---|---:|---:|---:|---|
-| dengue | 11 d | 5 d | 16 d | 1,25–1,70 |
-| chikungunya | 8 d | 6 d | 14 d | 1,46–1,67 |
+
+| doença      | latente | infeccioso | tempo de geração | R0        |
+| ----------- | ------- | ---------- | ---------------- | --------- |
+| dengue      | 11 d    | 5 d        | 16 d             | 1,25–1,70 |
+| chikungunya | 8 d     | 6 d        | 14 d             | 1,46–1,67 |
+
 
 Fontes verificadas uma a uma: Chan & Johansson 2012 (incubação); Carrington &
 Simmons 2014 (viremia); Aldstadt et al. 2012 (intervalo serial 15–17 d);
@@ -229,12 +261,14 @@ assumido).
 
 **Efeito medido no kriging:**
 
-| | antes (bug) | **agora (SEIR)** |
-|---|---:|---:|
-| dias com notificação | 9 | **184** |
-| pico | 60 casos/dia | **4 casos/dia** |
-| passos entre decisões do mesmo caso | 278 | **30** |
-| desconto acumulado nesse intervalo (γ=0,99) | 0,061 | **0,74** |
+
+|                                             | antes (bug)  | **agora (SEIR)** |
+| ------------------------------------------- | ------------ | ---------------- |
+| dias com notificação                        | 9            | **184**          |
+| pico                                        | 60 casos/dia | **4 casos/dia**  |
+| passos entre decisões do mesmo caso         | 278          | **30**           |
+| desconto acumulado nesse intervalo (γ=0,99) | 0,061        | **0,74**         |
+
 
 O modelo antigo permanece sob `epi_model: legacy`, que continua sendo o
 **padrão** — trocá-lo mudaria em silêncio todos os resultados já produzidos.
@@ -243,12 +277,14 @@ explicitamente.
 
 **Os baselines se mantiveram na mesma ordem** (10 seeds):
 
-| agente | kriging v7 | **kriging v8** | sintético v7 | **sintético v8** |
-|---|---:|---:|---:|---:|
-| `testonce` | +2093 | **+2782** | +247 | +473 |
-| `testtwice` | +640 | +1051 | **+955** | **+1249** |
-| `confirmall` | +542 | +346 | −1365 | −1821 |
-| `clinical` | −15 | −64 | −267 | −355 |
+
+| agente       | kriging v7 | **kriging v8** | sintético v7 | **sintético v8** |
+| ------------ | ---------- | -------------- | ------------ | ---------------- |
+| `testonce`   | +2093      | **+2782**      | +247         | +473             |
+| `testtwice`  | +640       | +1051          | **+955**     | **+1249**        |
+| `confirmall` | +542       | +346           | −1365        | −1821            |
+| `clinical`   | −15        | −64            | −267         | −355             |
+
 
 Nenhuma conclusão de economia se inverteu: `testonce` segue ótimo no kriging e
 `testtwice` no sintético.
@@ -263,19 +299,22 @@ que diz.
 
 ---
 
+
+
 ## 12. Crédito por caso: o que finalmente destravou
 
-Restrição de projeto (definida com o orientador): **a dinâmica temporal da
-epidemia precisa ser preservada** — é ela que dá sentido à publicação, e as
+Restrição de projeto: **a dinâmica temporal da epidemia precisa ser preservada** — é ela que dá sentido à publicação, e as
 decisões têm de acontecer nesse tempo. Isso descarta "um episódio = um caso",
 que resolveria a intercalação destruindo justamente o que interessa.
 
 **A medição que apontou a saída** (kriging v8, política que investiga):
 
-| sinal | correlação com a decisão individual |
-|---|---:|
-| retorno global do episódio | **−0,019** |
-| retorno por caso, descontado em dias | **0,994** |
+
+| sinal                                | correlação com a decisão individual |
+| ------------------------------------ | ----------------------------------- |
+| retorno global do episódio           | **−0,019**                          |
+| retorno por caso, descontado em dias | **0,994**                           |
+
 
 A informação existe — o que a apagava era **onde** o algoritmo a procurava.
 
@@ -289,11 +328,11 @@ crédito usada em sistemas multiagente.
 Duas invariâncias travadas por teste:
 
 - **A recompensa do ambiente não muda.** A soma das parcelas por caso
-  reconstrói o total do episódio, incluindo a cauda dos casos que ficam abertos
-  (verificado em 4 seeds e sob SEIR). A métrica de comparação segue canônica.
+reconstrói o total do episódio, incluindo a cauda dos casos que ficam abertos
+(verificado em 4 seeds e sob SEIR). A métrica de comparação segue canônica.
 - **A vantagem de um caso não depende da intercalação.** Inserir 30 decisões
-  ruidosas sobre outros pacientes entre dois passos do caso X não altera a
-  vantagem de X.
+ruidosas sobre outros pacientes entre dois passos do caso X não altera a
+vantagem de X.
 
 Junto, 4 **features temporais** opcionais na observação: dia/horizonte, casos
 notificados hoje, tendência de 7 dias contra os 7 anteriores, idade do caso.
@@ -302,32 +341,36 @@ a curva verdadeira do gerador.
 
 **Resultado** (kriging v8, 3 seeds, checkpoint final, benchmark de 10 seeds):
 
-| braço | recompensa | acurácia | exames/episódio |
-|---|---:|---:|---:|
-| `testonce` (melhor política fixa) | +2782 | 96,0% | 369 |
-| **B: crédito por caso + tempo** | **+2649 ± 50** | **93,1%** | **266** |
-| A: SEIR + GAE padrão | +729 ± 119 | 74,3% | 30 |
-| `clinical` | −64 | 71,0% | 0 |
+
+| braço                             | recompensa     | acurácia  | exames/episódio |
+| --------------------------------- | -------------- | --------- | --------------- |
+| `testonce` (melhor política fixa) | +2782          | 96,0%     | 369             |
+| **B: crédito por caso + tempo**   | **+2649 ± 50** | **93,1%** | **266**         |
+| A: SEIR + GAE padrão              | +729 ± 119     | 74,3%     | 30              |
+| `clinical`                        | −64            | 71,0%     | 0               |
+
 
 Por seed — B: +2706, +2615, +2627. A: +844, +607, +737.
 
 - **95% do melhor baseline**, com **28% menos exames**: o agente discrimina
-  quais casos investigar, que é exatamente a competência que o ambiente foi
-  desenhado para cobrar.
+quais casos investigar, que é exatamente a competência que o ambiente foi
+desenhado para cobrar.
 - De 30 para 266 exames. É o primeiro agente do projeto que investiga.
 - **Corrigir a epidemia, sozinho, não resolveu.** O braço A treinou no mesmo
-  ambiente corrigido e manteve o padrão antigo de subinvestimento.
+ambiente corrigido e manteve o padrão antigo de subinvestimento.
 - O desvio entre seeds (50) é pequeno diante da diferença entre braços (~1900).
 
 **A ablação separou as duas mudanças.** O braço B mudou crédito e observação ao
 mesmo tempo; o braço C repete o crédito com a observação **idêntica à do braço
 A**:
 
-| braço | crédito | observação | recompensa |
-|---|---|---|---:|
-| **C** | por caso | 16 dims (= A) | **+2678 ± 48** |
-| B | por caso | 16 + 4 temporais | +2649 ± 50 |
-| A | GAE padrão | 16 dims | +729 ± 119 |
+
+| braço | crédito    | observação       | recompensa     |
+| ----- | ---------- | ---------------- | -------------- |
+| **C** | por caso   | 16 dims (= A)    | **+2678 ± 48** |
+| B     | por caso   | 16 + 4 temporais | +2649 ± 50     |
+| A     | GAE padrão | 16 dims          | +729 ± 119     |
+
 
 **B e C são indistinguíveis** (29 pontos de diferença, contra ~49 de desvio em
 cada um). **A e C diferem por ~1950 com observação idêntica.** Logo: o ganho é
@@ -340,7 +383,11 @@ esse ganho não volta para o caso que pagou o exame.
 
 ---
 
+
+
 ## 13. Próximos passos
+
+
 
 ### Imediatos e baratos
 
@@ -396,23 +443,25 @@ algoritmo, não de girar botões.
 
 ---
 
+
+
 ## 14. Estado do código
 
 - **259 testes passando** (154 no início desta investigação).
 - Modelo epidêmico em `dengue_envs/core/epi_model.py`, com as fontes citadas no
-  cabeçalho. `epi_model: legacy` continua o padrão; os ambientes v8 pedem
-  `seir`.
+cabeçalho. `epi_model: legacy` continua o padrão; os ambientes v8 pedem
+`seir`.
 - Ambientes: `kriging_v8.yaml` (referência), `kriging_v8_temporal.yaml`
-  (idêntico, com as features temporais), `synthetic_v8.yaml`. Os v7
-  correspondentes seguem no lugar, para reprodução.
+(idêntico, com as features temporais), `synthetic_v8.yaml`. Os v7
+correspondentes seguem no lugar, para reprodução.
 - Crédito por caso: decomposição no ambiente
-  (`dengue_diagnostics.py`/`case_by_case.py`), GAE por caso em
-  `agents/ppo/credit.py`. Ligado por `train.per_case_credit: true`, que exige
-  `per_case_reward` no ambiente.
+(`dengue_diagnostics.py`/`case_by_case.py`), GAE por caso em
+`agents/ppo/credit.py`. Ligado por `train.per_case_credit: true`, que exige
+`per_case_reward` no ambiente.
 - PPO em `agents/ppo/`, registrado no `AGENT_REGISTRY` — entra no benchmark com
-  as mesmas seeds dos demais.
+as mesmas seeds dos demais.
 - Existe um `agents/ppo/ppo.py` (script standalone do CleanRL, anterior à
-  sessão) que não conflita, mas convive confusamente com o pacote novo.
+sessão) que não conflita, mas convive confusamente com o pacote novo.
 
 ```bash
 .venv/Scripts/python.exe -m pytest -q
@@ -420,7 +469,7 @@ algoritmo, não de girar botões.
 .venv/Scripts/python.exe -m experiments.evaluate --config experiments/configs/benchmark_ppo_v4b_credito_s45.yaml
 ```
 
-**Resultados brutos:** `results/bm_ppo_v4a_seir_s4*` (GAE padrão),
+**Resultados brutos:** `results/bm_ppo_v4a_seir_s4`* (GAE padrão),
 `results/bm_ppo_v4b_credito_s4*` (crédito + tempo),
 `results/bm_ppo_v4c_credito_sem_tempo_s4*` (ablação),
 `results/baseline_v8seir_{kriging,synthetic}`.
