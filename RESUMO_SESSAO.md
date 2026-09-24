@@ -467,11 +467,14 @@ em **53–54% nas três superfícies** (acurácia de Bayes com prior igual,
 2016. É consistência entre anos, não generalização: a referência já contém
 2015. Não vale treinar nesse eixo.
 
-**Dificuldade espacial ("desvios de uniforme").** A superfície do kriging é
-quase plana — razão de 8× entre a célula mais e a menos provável, nenhuma
-zerada. `transform_surfaces` ganhou três botões (YAML: `surface_temperature`,
-`surface_clamp`, `surface_mix_uniform`); a temperatura sozinha (p ∝ p^τ) cobre
-de "a posição não diz nada" até o nível do sintético:
+**Dificuldade espacial ("desvios de uniforme").** Cada superfície tem focos
+nítidos; o que faz a posição informar pouco é que **dengue e chik têm focos
+nos mesmos lugares** — correlação 0,85 entre as superfícies, e em 90% das
+células a razão dengue/chik fica entre 0,68 e 1,42 (extremo: 2×). Figura em
+`Artigo/img/superficies_razao.png`. `transform_surfaces` ganhou três botões
+(YAML: `surface_temperature`, `surface_clamp`, `surface_mix_uniform`); a
+temperatura sozinha (p ∝ p^τ) cobre de "a posição não diz nada" até o nível de
+separação do sintético:
 
 
 | τ   | posição acerta | C     | A    | C × A            | C × `testonce`      |
@@ -483,6 +486,10 @@ de "a posição não diz nada" até o nível do sintético:
 | 32  | 0,94           | +2686 | +541 | +2145, P = 0,95  | −96 [−740, +227]    |
 
 
+- **O τ = 32 é um extremo artificial:** metade dos casos de dengue cai em 8
+células de 13.195 (contra 34% das células em τ = 1 e 1% em τ = 8). τ de 2 a 8
+preserva o desenho dos focos. Para alta separação realista, falta um botão que
+amplifique a razão entre as doenças mantendo o formato de cada mapa.
 - A vantagem do crédito vale **em toda a faixa** (C × A ≈ +2000, P ≥ 0,89).
 - O C **não explora** a geografia mais informativa — curva plana, esperado de
 quem treinou em τ = 1. Só treinando nos pontos da curva se sabe se aprenderia.

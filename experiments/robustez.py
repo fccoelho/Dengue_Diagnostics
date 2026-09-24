@@ -424,7 +424,8 @@ def temperatura_espacial(tau: float, seeds_treino: Sequence[int] = (45, 46, 47, 
     """Os agentes do v4, sem retreino, com a geografia mais ou menos informativa.
 
     τ = 1 é o ambiente de treino; τ = 0 apaga a geografia; τ = 32 separa as
-    doenças tanto quanto o sintético (0,94). Diferente da `transferencia_espacial`,
+    doenças tanto quanto o sintético (0,94), mas concentrando cada uma em
+    poucas células — é um limite, não uma epidemia plausível. Diferente da `transferencia_espacial`,
     que troca de gerador inteiro, aqui só a concentração das MESMAS superfícies
     muda: os focos continuam onde estão.
     """

@@ -102,10 +102,28 @@ não vale gastar treino nesse eixo.
 
 ## 4. Clamping e desvios de uniforme: dificuldade espacial
 
-A superfície do kriging é **quase plana**: a razão entre a célula mais e a
-menos provável é só 8×. Por isso a posição informa tão pouco. Criamos três
-botões (`surface_temperature`, `surface_clamp`, `surface_mix_uniform`) e uma
-métrica sem ruído, a acurácia do melhor classificador que só vê a posição.
+**Cada doença, sozinha, tem focos nítidos no mapa. O que torna o problema
+difícil é que dengue e chik têm focos nos mesmos lugares.** O agente não
+precisa saber onde há muita dengue, e sim, *num ponto dado*, se é mais provável
+dengue ou chik. Isso depende da **razão** entre as duas superfícies:
+
+- as duas superfícies têm correlação de 0,85, porque ambas seguem onde as
+  pessoas moram e onde está o mosquito;
+- em 90% das células, uma doença é no máximo ~1,4× mais provável que a outra
+  (a razão dengue/chik vai de 0,68 a 1,42; o extremo em todo o mapa é 2×);
+- por isso, saber só a posição acerta a doença em **54%**.
+
+![Superfícies de dengue e chik e a razão entre elas](Artigo/img/superficies_razao.png)
+
+*Linha de cima: o kriging real. Os focos de cada doença são nítidos (colunas
+1 e 2), mas a razão entre elas (coluna 3) fica entre 0,5× e 2×. Linha de
+baixo: temperatura τ = 32. A razão fica enorme, mas cada doença colapsa em
+poucas células.*
+
+Criamos três botões (`surface_temperature`, `surface_clamp`,
+`surface_mix_uniform`) e uma métrica sem ruído, a acurácia do melhor
+classificador que só vê a posição. A temperatura (p ∝ p^τ) concentra a massa
+de cada doença nos seus focos, e com isso separa as doenças.
 
 
 | τ (temperatura) | posição acerta | C | A | C × A |
@@ -113,8 +131,16 @@ métrica sem ruído, a acurácia do melhor classificador que só vê a posição
 | 0 (uniforme) | 0,50 | +2718 | +670 | +2047, P = 0,97 |
 | 1 (treino) | 0,54 | +2692 | +691 | +2001, P = 1,00 |
 | 8 | 0,74 | +2396 | +277 | +2119, P = 0,89 |
-| 32 (nível do sintético) | 0,94 | +2686 | +541 | +2145, P = 0,95 |
+| 32 (extremo artificial) | 0,94 | +2686 | +541 | +2145, P = 0,95 |
 
+
+**Quanto cada temperatura concentra os casos:** metade dos casos de dengue cai
+em 34% das células no kriging real (τ = 1), em 1% em τ = 8 e em **8 células de
+13.195** em τ = 32. Os pontos intermediários (τ de 2 a 8) preservam o desenho
+dos focos e são defensáveis. **O τ = 32 alcança o nível de separação do
+sintético, mas não é uma epidemia plausível.** Para treinar em cenários de alta
+separação, vale discutir um botão que amplifique a *razão* entre as doenças
+mantendo o formato de cada mapa.
 
 - **A vantagem do crédito vale em toda a faixa.**
 - Sem retreino, o C não aproveita a geografia mais informativa. Isso é
@@ -209,6 +235,8 @@ passos) e **1 seed cada**, por falta de tempo.
 
 **Para discutir com o orientador:**
 - Se "desvios de uniforme" era a leitura espacial adotada no §4.
+- Como gerar cenários de alta separação entre as doenças sem colapsar os focos
+  (o τ = 32 é artificial; ver §4).
 - Sazonalidade no SEIR (hoje não há forçamento sazonal).
 - A premissa de R0 da chikungunya: as faixas de literatura se sobrepõem às da
   dengue.

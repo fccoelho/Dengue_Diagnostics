@@ -316,13 +316,16 @@ def transform_surfaces(
 ) -> "KrigingSurfaces":
     """Muda QUANTO a posição informa a doença, preservando onde estão os focos.
 
-    A superfície do kriging é quase plana (razão de 8x entre a célula mais e a
-    menos provável, nenhuma célula zerada), e é isso que faz a posição acertar
-    a doença em só ~54% (`position_bayes_accuracy`). Os três botões, aplicados
-    nesta ordem e igualmente às duas doenças:
+    Cada superfície do kriging tem focos nítidos, mas os de dengue e chik
+    coincidem (correlação 0,85; em 90% das células a razão entre elas fica
+    entre 0,68 e 1,42), e é isso que faz a posição acertar a doença em só ~54%
+    (`position_bayes_accuracy`). Os três botões, aplicados nesta ordem e
+    igualmente às duas doenças:
 
     - `temperature` (τ): p ∝ p^τ. τ > 1 concentra a massa nos focos e separa
-      as doenças (medido: τ=8 -> 0,74; τ=32 -> 0,94, o nível do sintético);
+      as doenças (medido: τ=8 -> 0,74; τ=32 -> 0,94, a separação do
+      sintético, mas com metade dos casos em 8 de 13.195 células: extremo
+      artificial);
       τ < 1 achata; τ = 0 é a uniforme.
     - `clamp_quantiles` (q_lo, q_hi): corta cada superfície nos próprios
       quantis. Cortar o topo achata os focos; o piso tira a cauda.
