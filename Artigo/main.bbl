@@ -1,219 +1,252 @@
-\providecommand{\abntreprintinfo}[1]{%
- \citeonline{#1}}
-\begin{thebibliography}{}
-\providecommand{\abntrefinfo}[3]{}
-\providecommand{\abntbstabout}[1]{}
-\abntbstabout{v-1.9.7 }
+\begin{thebibliography}{30}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
 
-\bibitem{govbr_arboviroses}
-\abntrefinfo{{Ministério da Saúde do Brasil}}{{Ministério da Saúde do
-  Brasil}}{}
-{{Ministério da Saúde do Brasil}. \emph{{Arboviroses}}. Website.
-Acessado em 2 de setembro de 2025.
-Dispon{\'\i}vel em:
-  \url{https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/a/arboviroses}.}
+\bibitem[{Ministério da Saúde do Brasil}({\natexlab{a}})]{govbr_arboviroses}
+{Ministério da Saúde do Brasil}.
+\newblock {Arboviroses}.
+\newblock Website, {\natexlab{a}}.
+\newblock URL
+  \url{https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/a/arboviroses}.
+\newblock Acessado em 2 de setembro de 2025.
 
-\bibitem{donateli_visualizacao_2023}
-\abntrefinfo{Donateli e Campos}{DONATELI; CAMPOS}{2023}
-{DONATELI, C.~P.; CAMPOS, F. C.~d. {VISUALIZAÇÃO} {DE} {DADOS} {DE}
-  {VIGILÂNCIA} {DAS} {ARBOVIROSES} {URBANAS} {TRANSMITIDAS} {PELO} {AEDES}
-  {AEGYPTI} {EM} {MINAS} {GERAIS}, {BRASIL}.
-\emph{JISTEM - Journal of Information Systems and Technology Management},
-  v.~20, p. e202320003, 2023.
-ISSN 1807-1775.
-Publisher: TECSI Laboratório de Tecnologia e Sistemas de Informação -
-  FEA/USP.
-Dispon{\'\i}vel em:
-  \url{https://www.scielo.br/j/jistm/a/VjDXD9bcKGsxXXVdSwNZ4kF/?lang=pt}.}
+\bibitem[Donateli and Campos(2023)]{donateli_visualizacao_2023}
+Cíntia~Pereira Donateli and Fernando Celso~de Campos.
+\newblock {VISUALIZAÇÃO} {DE} {DADOS} {DE} {VIGILÂNCIA} {DAS} {ARBOVIROSES}
+  {URBANAS} {TRANSMITIDAS} {PELO} {AEDES} {AEGYPTI} {EM} {MINAS} {GERAIS},
+  {BRASIL}.
+\newblock \emph{JISTEM - Journal of Information Systems and Technology
+  Management}, 20:\penalty0 e202320003, 2023.
+\newblock ISSN 1807-1775.
+\newblock \doi{https://doi.org/10.4301/S1807-1775202320003}.
+\newblock URL
+  \url{https://www.scielo.br/j/jistm/a/VjDXD9bcKGsxXXVdSwNZ4kF/?lang=pt}.
+\newblock Publisher: TECSI Laboratório de Tecnologia e Sistemas de
+  Informação - FEA/USP.
 
-\bibitem{ministério2024boletim}
-\abntrefinfo{{Ministério da Saúde do Brasil}}{{Ministério da Saúde do
-  Brasil}}{2024}
-{{Ministério da Saúde do Brasil}. \emph{Boletim Epidemiológico:
-  Monitoramento dos casos de arboviroses urbanas}.
-[S.l.], 2024. Os números de volume e edição podem ser atualizados conforme a
-  publicação mais recente consultada.}
+\bibitem[{Ministério da Saúde do Brasil}(2024)]{ministério2024boletim}
+{Ministério da Saúde do Brasil}.
+\newblock Boletim epidemiológico: Monitoramento dos casos de arboviroses
+  urbanas.
+\newblock Technical report, Secretaria de Vigilância em Saúde e Ambiente,
+  2024.
+\newblock Os números de volume e edição podem ser atualizados conforme a
+  publicação mais recente consultada.
 
-\bibitem{junior_epidemiology_2022}
-\abntrefinfo{Junior et al.}{JUNIOR et al.}{2022}
-{JUNIOR, J. B.~S. et al. Epidemiology and costs of dengue in {Brazil}: a
-  systematic literature review.
-\emph{International Journal of Infectious Diseases}, v.~122, p. 521--528, set.
-  2022.
-ISSN 1201-9712.
-Dispon{\'\i}vel em:
-  \url{https://www.sciencedirect.com/science/article/pii/S1201971222003836}.}
+\bibitem[Junior et~al.(2022)Junior, Massad, Lobao-Neto, Kastner, Oliver, and
+  Gallagher]{junior_epidemiology_2022}
+João Bosco~Siqueira Junior, Eduardo Massad, Abner Lobao-Neto, Randee Kastner,
+  Louisa Oliver, and Elaine Gallagher.
+\newblock Epidemiology and costs of dengue in {Brazil}: a systematic literature
+  review.
+\newblock \emph{International Journal of Infectious Diseases}, 122:\penalty0
+  521--528, September 2022.
+\newblock ISSN 1201-9712.
+\newblock \doi{10.1016/j.ijid.2022.06.050}.
+\newblock URL
+  \url{https://www.sciencedirect.com/science/article/pii/S1201971222003836}.
 
-\bibitem{govbr_chick}
-\abntrefinfo{{Ministério da Saúde do Brasil}}{{Ministério da Saúde do
-  Brasil}}{}
-{{Ministério da Saúde do Brasil}. \emph{{Chikungunya}}. Website.
-Acessado em 2 de setembro de 2025.
-Dispon{\'\i}vel em:
-  \url{https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/c/chikungunya}.}
+\bibitem[{Ministério da Saúde do Brasil}({\natexlab{b}})]{govbr_chick}
+{Ministério da Saúde do Brasil}.
+\newblock {Chikungunya}.
+\newblock Website, {\natexlab{b}}.
+\newblock URL
+  \url{https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/c/chikungunya}.
+\newblock Acessado em 2 de setembro de 2025.
 
-\bibitem{arrubla-hoyos_methodology_2024}
-\abntrefinfo{Arrubla-Hoyos, Gómez e De-La-Hoz-Franco}{ARRUBLA-HOYOS; GóMEZ;
-  DE-LA-HOZ-FRANCO}{2024}
-{ARRUBLA-HOYOS, W.; GóMEZ, J.~G.; DE-LA-HOZ-FRANCO, E. Methodology for the
-  {Differential} {Classification} of {Dengue} and {Chikungunya} {According} to
-  the {PAHO} 2022 {Diagnostic} {Guide}.
-\emph{Viruses}, v.~16, n.~7, p.~1088, jul. 2024.
-ISSN 1999-4915.}
+\bibitem[Arrubla-Hoyos et~al.(2024)Arrubla-Hoyos, Gómez, and
+  De-La-Hoz-Franco]{arrubla-hoyos_methodology_2024}
+Wilson Arrubla-Hoyos, Jorge~Gómez Gómez, and Emiro De-La-Hoz-Franco.
+\newblock Methodology for the {Differential} {Classification} of {Dengue} and
+  {Chikungunya} {According} to the {PAHO} 2022 {Diagnostic} {Guide}.
+\newblock \emph{Viruses}, 16\penalty0 (7):\penalty0 1088, July 2024.
+\newblock ISSN 1999-4915.
+\newblock \doi{10.3390/v16071088}.
 
-\bibitem{yu_deep_2023}
-\abntrefinfo{Yu et al.}{YU et al.}{2023}
-{YU, Z. et al. \emph{Deep {Reinforcement} {Learning} for {Cost}-{Effective}
-  {Medical} {Diagnosis}}. arXiv, 2023.
-ArXiv:2302.10261 [cs].
-Dispon{\'\i}vel em: \url{http://arxiv.org/abs/2302.10261}.}
+\bibitem[Yu et~al.(2023)Yu, Li, Kim, Huang, Luo, and Wang]{yu_deep_2023}
+Zheng Yu, Yikuan Li, Joseph Kim, Kaixuan Huang, Yuan Luo, and Mengdi Wang.
+\newblock Deep {Reinforcement} {Learning} for {Cost}-{Effective} {Medical}
+  {Diagnosis}, February 2023.
+\newblock URL \url{http://arxiv.org/abs/2302.10261}.
+\newblock arXiv:2302.10261 [cs].
 
-\bibitem{yaesoubi_generalized_2011}
-\abntrefinfo{Yaesoubi e Cohen}{YAESOUBI; COHEN}{2011}
-{YAESOUBI, R.; COHEN, T. Generalized {Markov} models of infectious disease
-  spread: A novel framework for developing dynamic health policies.
-\emph{European Journal of Operational Research}, v.~215, n.~3, p. 679--687,
-  2011.}
+\bibitem[Yaesoubi and Cohen(2011)]{yaesoubi_generalized_2011}
+Reza Yaesoubi and Ted Cohen.
+\newblock Generalized {Markov} models of infectious disease spread: A novel
+  framework for developing dynamic health policies.
+\newblock \emph{European Journal of Operational Research}, 215\penalty0
+  (3):\penalty0 679--687, 2011.
 
-\bibitem{sutton2018reinforcement}
-\abntrefinfo{Sutton e Barto}{SUTTON; BARTO}{2018}
-{SUTTON, R.~S.; BARTO, A.~G. \emph{Reinforcement learning: An introduction}.
-  [S.l.]: MIT press, 2018.}
+\bibitem[Sutton and Barto(2018)]{sutton2018reinforcement}
+Richard~S Sutton and Andrew~G Barto.
+\newblock \emph{Reinforcement learning: An introduction}.
+\newblock MIT press, 2018.
 
-\bibitem{noauthor_gymnasium_nodate}
-\abntrefinfo{Gymnasium\ldots}{GYMNASIUM\ldots}{}
-{GYMNASIUM {Documentation}.
-Dispon{\'\i}vel em: \url{https://gymnasium.farama.org/index.html}.}
+\bibitem[noa()]{noauthor_gymnasium_nodate}
+Gymnasium {Documentation}.
+\newblock URL \url{https://gymnasium.farama.org/index.html}.
 
-\bibitem{lapan2020deep}
-\abntrefinfo{Lapan}{LAPAN}{2020}
-{LAPAN, M. \emph{Deep Reinforcement Learning Hands-On: Apply Modern RL Methods
+\bibitem[Lapan(2020)]{lapan2020deep}
+Maxim Lapan.
+\newblock \emph{Deep Reinforcement Learning Hands-On: Apply Modern RL Methods
   to Practical Problems of Chatbots, Robotics, Discrete Optimization, Web
-  Automation, and More}. Second. [S.l.]: Packt Publishing, 2020.
-ISBN 978-1-83882-699-4.}
+  Automation, and More}.
+\newblock Packt Publishing, second edition, 2020.
+\newblock ISBN 978-1-83882-699-4.
 
-\bibitem{side2015sir}
-\abntrefinfo{Side e Noorani}{SIDE; NOORANI}{2015}
-{SIDE, S.; NOORANI, M. Sir-network model and its application to dengue fever.
-\emph{World Journal of Modelling and Simulation}, v.~11, n.~2, p. 106--113,
-  2015.}
+\bibitem[Towers et~al.(2023)Towers, Terry, Kwiatkowski, Balis, Cola, Deleu,
+  Goulão, Kallinteris, KG, Krimmel, et~al.]{towers_gymnasium_2023}
+Mark Towers, Jordan~K Terry, Ariel Kwiatkowski, John~U Balis, Gianluca Cola,
+  Tristan Deleu, Manuel Goulão, Andreas Kallinteris, Arjun KG, Markus Krimmel,
+  et~al.
+\newblock Gymnasium: A standard interface for reinforcement learning
+  environments, 2023.
 
-\bibitem{derouich_model_2003}
-\abntrefinfo{Derouich, Boutayeb e Twizell}{DEROUICH; BOUTAYEB; TWIZELL}{2003}
-{DEROUICH, M.; BOUTAYEB, A.; TWIZELL, E. A model of dengue fever.
-\emph{BioMedical Engineering OnLine}, v.~2, p.~4, fev. 2003.
-ISSN 1475-925X.
-Dispon{\'\i}vel em: \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC153427/}.}
+\bibitem[Side and Noorani(2015)]{side2015sir}
+Syafruddin Side and MSM Noorani.
+\newblock Sir-network model and its application to dengue fever.
+\newblock \emph{World Journal of Modelling and Simulation}, 11\penalty0
+  (2):\penalty0 106--113, 2015.
 
-\bibitem{chan2012incubation}
-\abntrefinfo{Chan e Johansson}{CHAN; JOHANSSON}{2012}
-{CHAN, M.; JOHANSSON, M.~A. The incubation periods of dengue viruses.
-\emph{PLoS ONE}, v.~7, n.~11, p. e50972, 2012.}
+\bibitem[Derouich et~al.(2003)Derouich, Boutayeb, and
+  Twizell]{derouich_model_2003}
+M~Derouich, A~Boutayeb, and EH~Twizell.
+\newblock A model of dengue fever.
+\newblock \emph{BioMedical Engineering OnLine}, 2:\penalty0 4, February 2003.
+\newblock ISSN 1475-925X.
+\newblock \doi{10.1186/1475-925X-2-4}.
+\newblock URL \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC153427/}.
 
-\bibitem{carrington2014human}
-\abntrefinfo{Carrington e Simmons}{CARRINGTON; SIMMONS}{2014}
-{CARRINGTON, L.~B.; SIMMONS, C.~P. Human to mosquito transmission of dengue
-  viruses.
-\emph{Frontiers in Immunology}, v.~5, p.~290, 2014.}
+\bibitem[Chan and Johansson(2012)]{chan2012incubation}
+Miranda Chan and Michael~A. Johansson.
+\newblock The incubation periods of dengue viruses.
+\newblock \emph{PLoS ONE}, 7\penalty0 (11):\penalty0 e50972, 2012.
+\newblock \doi{10.1371/journal.pone.0050972}.
 
-\bibitem{aldstadt2012spacetime}
-\abntrefinfo{Aldstadt et al.}{ALDSTADT et al.}{2012}
-{ALDSTADT, J. et al. Space-time analysis of hospitalised dengue patients in
-  rural {Thailand} reveals important temporal intervals in the pattern of
-  dengue virus transmission.
-\emph{Tropical Medicine \& International Health}, v.~17, n.~9, p. 1076--1085,
-  2012.}
+\bibitem[Carrington and Simmons(2014)]{carrington2014human}
+Lauren~B. Carrington and Cameron~P. Simmons.
+\newblock Human to mosquito transmission of dengue viruses.
+\newblock \emph{Frontiers in Immunology}, 5:\penalty0 290, 2014.
+\newblock \doi{10.3389/fimmu.2014.00290}.
 
-\bibitem{villela2017zika}
-\abntrefinfo{Villela et al.}{VILLELA et al.}{2017}
-{VILLELA, D. A.~M. et al. Zika in {Rio de Janeiro}: Assessment of basic
-  reproduction number and comparison with dengue outbreaks.
-\emph{Epidemiology and Infection}, v.~145, n.~8, p. 1649--1657, 2017.}
+\bibitem[Aldstadt et~al.(2012)]{aldstadt2012spacetime}
+Jared Aldstadt et~al.
+\newblock Space-time analysis of hospitalised dengue patients in rural
+  {Thailand} reveals important temporal intervals in the pattern of dengue
+  virus transmission.
+\newblock \emph{Tropical Medicine \& International Health}, 17\penalty0
+  (9):\penalty0 1076--1085, 2012.
+\newblock \doi{10.1111/j.1365-3156.2012.03040.x}.
 
-\bibitem{moreira2023chikungunya}
-\abntrefinfo{Moreira et al.}{MOREIRA et al.}{2023}
-{MOREIRA, F. R.~R. et al.
-\emph{PLoS Neglected Tropical Diseases}, v.~17, n.~9, p. e0011536, 2023.}
+\bibitem[Villela et~al.(2017)Villela, Bastos, de~Carvalho, Cruz, Gomes,
+  Durovni, Lemos, Saraceni, Coelho, and Code{\c{c}}o]{villela2017zika}
+Daniel A.~M. Villela, Leonardo~S. Bastos, Lucas~M. de~Carvalho, Oswaldo~G.
+  Cruz, Marcelo F.~C. Gomes, Betina Durovni, Maria~C. Lemos, Valeria Saraceni,
+  Flavio~C. Coelho, and Claudia~T. Code{\c{c}}o.
+\newblock Zika in {Rio de Janeiro}: Assessment of basic reproduction number and
+  comparison with dengue outbreaks.
+\newblock \emph{Epidemiology and Infection}, 145\penalty0 (8):\penalty0
+  1649--1657, 2017.
+\newblock \doi{10.1017/S0950268817000358}.
 
-\bibitem{towers_gymnasium_2023}
-\abntrefinfo{Towers et al.}{TOWERS et al.}{2023}
-{TOWERS, M. et al. \emph{Gymnasium: A Standard Interface for Reinforcement
-  Learning Environments}. 2023.}
+\bibitem[Moreira et~al.(2023)Moreira, de~Menezes, Salgado-Benvindo,
+  et~al.]{moreira2023chikungunya}
+Filipe R.~R. Moreira, Mariane~T. de~Menezes, Clarisse Salgado-Benvindo, et~al.
+\newblock \emph{PLoS Neglected Tropical Diseases}, 17\penalty0 (9):\penalty0
+  e0011536, 2023.
+\newblock \doi{10.1371/journal.pntd.0011536}.
 
-\bibitem{watkins1992q}
-\abntrefinfo{Watkins e Dayan}{WATKINS; DAYAN}{1992}
-{WATKINS, C.~J.; DAYAN, P. Q-learning.
-\emph{Machine learning}, Springer, v.~8, n.~3, p. 279--292, 1992.}
+\bibitem[{Prefeitura do Recife}(2026{\natexlab{a}})]{recife_dados}
+{Prefeitura do Recife}.
+\newblock Casos de dengue, zika e chikungunya.
+\newblock Portal de Dados Abertos da Cidade do Recife. Open Database License
+  (ODbL), 2026{\natexlab{a}}.
+\newblock URL
+  \url{https://dados.recife.pe.gov.br/dataset/casos-de-dengue-zika-e-chikungunya}.
+\newblock Accessed 24 Sep 2026.
 
-\bibitem{bellman1957dynamic}
-\abntrefinfo{Bellman}{BELLMAN}{1957}
-{BELLMAN, R. \emph{Dynamic Programming}. [S.l.]: Princeton University Press,
-  1957.}
+\bibitem[{Prefeitura do Recife}(2026{\natexlab{b}})]{recife_area_urbana}
+{Prefeitura do Recife}.
+\newblock {\'A}rea urbana: bairros e trechos de logradouros.
+\newblock Portal de Dados Abertos da Cidade do Recife, 2026{\natexlab{b}}.
+\newblock URL \url{https://dados.recife.pe.gov.br/dataset/area-urbana}.
+\newblock Accessed 24 Sep 2026.
 
-\bibitem{mnih2015human}
-\abntrefinfo{Mnih et al.}{MNIH et al.}{2015}
-{MNIH, V. et al. Human-level control through deep reinforcement learning.
-\emph{Nature}, Nature Publishing Group, v.~518, n.~7540, p. 529--533, 2015.}
+\bibitem[Mnih et~al.(2015)Mnih, Kavukcuoglu, Silver, et~al.]{mnih2015human}
+Volodymyr Mnih, Koray Kavukcuoglu, David Silver, et~al.
+\newblock Human-level control through deep reinforcement learning.
+\newblock \emph{Nature}, 518\penalty0 (7540):\penalty0 529--533, 2015.
 
-\bibitem{goodfellow2016deep}
-\abntrefinfo{Goodfellow, Bengio e Courville}{GOODFELLOW; BENGIO;
-  COURVILLE}{2016}
-{GOODFELLOW, I.; BENGIO, Y.; COURVILLE, A. \emph{Deep Learning}. [S.l.]: MIT
-  Press, 2016.}
+\bibitem[Schulman et~al.(2017)Schulman, Wolski, Dhariwal, Radford, and
+  Klimov]{schulman2017ppo}
+John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, and Oleg Klimov.
+\newblock Proximal policy optimization algorithms.
+\newblock arXiv:1707.06347, 2017.
+\newblock URL \url{https://arxiv.org/abs/1707.06347}.
 
-\bibitem{schulman2017ppo}
-\abntrefinfo{Schulman et al.}{SCHULMAN et al.}{2017}
-{SCHULMAN, J. et al. \emph{Proximal Policy Optimization Algorithms}. 2017.
-  ArXiv:1707.06347.
-Dispon{\'\i}vel em: \url{https://arxiv.org/abs/1707.06347}.}
+\bibitem[Schulman et~al.(2016)Schulman, Moritz, Levine, Jordan, and
+  Abbeel]{schulman2016gae}
+John Schulman, Philipp Moritz, Sergey Levine, Michael Jordan, and Pieter
+  Abbeel.
+\newblock High-dimensional continuous control using generalized advantage
+  estimation.
+\newblock In \emph{International Conference on Learning Representations
+  (ICLR)}, 2016.
+\newblock URL \url{https://arxiv.org/abs/1506.02438}.
 
-\bibitem{schulman2016gae}
-\abntrefinfo{Schulman et al.}{SCHULMAN et al.}{2016}
-{SCHULMAN, J. et al. High-dimensional continuous control using generalized
-  advantage estimation. In:  \emph{International Conference on Learning
-  Representations (ICLR)}. [s.n.], 2016. Dispon{\'\i}vel em:
-  \url{https://arxiv.org/abs/1506.02438}.}
+\bibitem[Ng et~al.(1999)Ng, Harada, and Russell]{ng1999policy}
+Andrew~Y. Ng, Daishi Harada, and Stuart Russell.
+\newblock Policy invariance under reward transformations: Theory and
+  application to reward shaping.
+\newblock In \emph{Proceedings of the Sixteenth International Conference on
+  Machine Learning (ICML)}, pages 278--287, 1999.
 
-\bibitem{ng1999policy}
-\abntrefinfo{Ng, Harada e Russell}{NG; HARADA; RUSSELL}{1999}
-{NG, A.~Y.; HARADA, D.; RUSSELL, S. Policy invariance under reward
-  transformations: Theory and application to reward shaping. In:
-  \emph{Proceedings of the Sixteenth International Conference on Machine
-  Learning (ICML)}. [S.l.: s.n.], 1999. p. 278--287.}
+\bibitem[Frommeyer et~al.(2025)Frommeyer, Gilbert, Fursmidt, Park, Khouzam,
+  Brittain, Frommeyer, Bett, and Bihl]{frommeyer_reinforcement_2025}
+Timothy~C. Frommeyer, Michael~M. Gilbert, Reid~M. Fursmidt, Youngjun Park,
+  John~Paul Khouzam, Garrett~V. Brittain, Daniel~P. Frommeyer, Ean~S. Bett, and
+  Trevor~J. Bihl.
+\newblock Reinforcement {Learning} and {Its} {Clinical} {Applications} {Within}
+  {Healthcare}: {A} {Systematic} {Review} of {Precision} {Medicine} and
+  {Dynamic} {Treatment} {Regimes}.
+\newblock \emph{Healthcare}, 13\penalty0 (14):\penalty0 1752, July 2025.
+\newblock ISSN 2227-9032.
+\newblock \doi{10.3390/healthcare13141752}.
+\newblock URL \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC12295150/}.
 
-\bibitem{frommeyer_reinforcement_2025}
-\abntrefinfo{Frommeyer et al.}{FROMMEYER et al.}{2025}
-{FROMMEYER, T.~C. et al. Reinforcement {Learning} and {Its} {Clinical}
-  {Applications} {Within} {Healthcare}: {A} {Systematic} {Review} of
-  {Precision} {Medicine} and {Dynamic} {Treatment} {Regimes}.
-\emph{Healthcare}, v.~13, n.~14, p.~1752, jul. 2025.
-ISSN 2227-9032.
-Dispon{\'\i}vel em: \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC12295150/}.}
+\bibitem[Weng et~al.(2021)Weng, Chen, Yan, You, Duburcq, der Wang, Su, and
+  Zhu]{weng2021tianshou}
+Jiayi Weng, Huoran Chen, Dong Yan, Kaichao You, Alexis Duburcq, Ming der Wang,
+  Hang Su, and Jun Zhu.
+\newblock Tianshou: A highly modularized deep reinforcement learning library.
+\newblock \emph{Journal of Machine Learning Research}, 22\penalty0
+  (255):\penalty0 1--6, 2021.
+\newblock URL \url{http://jmlr.org/papers/v22/21-0883.html}.
 
-\bibitem{weng2021tianshou}
-\abntrefinfo{Weng et al.}{WENG et al.}{2021}
-{WENG, J. et al. Tianshou: A highly modularized deep reinforcement learning
-  library.
-\emph{Journal of Machine Learning Research}, v.~22, n.~255, p.~1--6, 2021.
-Dispon{\'\i}vel em: \url{http://jmlr.org/papers/v22/21-0883.html}.}
+\bibitem[Saravanan et~al.(2020)Saravanan, Berman, and
+  Sober]{saravanan2020hierarchical}
+Varun Saravanan, Gordon~J. Berman, and Samuel~J. Sober.
+\newblock Application of the hierarchical bootstrap to multi-level data in
+  neuroscience.
+\newblock \emph{Neurons, Behavior, Data analysis, and Theory}, 2020.
 
-\bibitem{saravanan2020hierarchical}
-\abntrefinfo{Saravanan, Berman e Sober}{SARAVANAN; BERMAN; SOBER}{2020}
-{SARAVANAN, V.; BERMAN, G.~J.; SOBER, S.~J. Application of the hierarchical
-  bootstrap to multi-level data in neuroscience.
-\emph{Neurons, Behavior, Data analysis, and Theory}, 2020.}
+\bibitem[Agarwal et~al.(2021)Agarwal, Schwarzer, Castro, Courville, and
+  Bellemare]{agarwal2021precipice}
+Rishabh Agarwal, Max Schwarzer, Pablo~Samuel Castro, Aaron Courville, and
+  Marc~G. Bellemare.
+\newblock Deep reinforcement learning at the edge of the statistical precipice.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2021.
+\newblock URL \url{https://arxiv.org/abs/2108.13264}.
 
-\bibitem{agarwal2021precipice}
-\abntrefinfo{Agarwal et al.}{AGARWAL et al.}{2021}
-{AGARWAL, R. et al. Deep reinforcement learning at the edge of the statistical
-  precipice. In:  \emph{Advances in Neural Information Processing Systems}.
-  [s.n.], 2021. Dispon{\'\i}vel em: \url{https://arxiv.org/abs/2108.13264}.}
-
-\bibitem{syntheticpop}
-\abntrefinfo{{Mosqlimate Project}}{{Mosqlimate Project}}{}
-{{Mosqlimate Project}. \emph{synthetic-pop: população sintética a partir do
-  {Censo IBGE} 2022 e do {CNEFE}}. Repositório GitHub.
-Acesso em: set. 2026.
-Dispon{\'\i}vel em: \url{https://github.com/Mosqlimate-project/synthetic-pop}.}
+\bibitem[{Mosqlimate Project}()]{syntheticpop}
+{Mosqlimate Project}.
+\newblock synthetic-pop: população sintética a partir do {Censo IBGE} 2022 e
+  do {CNEFE}.
+\newblock Repositório GitHub.
+\newblock URL \url{https://github.com/Mosqlimate-project/synthetic-pop}.
+\newblock Acesso em: set. 2026.
 
 \end{thebibliography}
