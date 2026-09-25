@@ -140,29 +140,67 @@ def build_kriging_surfaces(
         bbox_lonlat=DEFAULT_RIO_BBOX_LONLAT,
         diseases=diseases,
     )
-    xmin, xmax, ymin, ymax = bbox_lonlat_to_projected(DEFAULT_RIO_BBOX_LONLAT)
-
-    results: Dict[str, Dict[str, Any]] = {}
+    pontos = {}
     for disease in diseases:
         sub = cases[(cases["Doenca"] == disease) & cases["DT_SIN_PRI"].dt.year.isin(anos[disease])]
-        if len(sub) < 3:
-            raise ValueError(f"Poucos casos para Kriging de {disease}: n={len(sub)}")
+        pontos[disease] = (sub["x"].to_numpy(), sub["y"].to_numpy())
+    surfaces, payload = surfaces_from_points(
+        pontos,
+        bbox_lonlat_to_projected(DEFAULT_RIO_BBOX_LONLAT),
+        obs_cell_m=obs_cell_m,
+        pred_cell_m=pred_cell_m,
+        variogram_model=variogram_model,
+        crs="EPSG:31983",
+        bbox_lonlat=DEFAULT_RIO_BBOX_LONLAT,
+    )
+    for disease in diseases:
+        payload[f"years_{disease.lower()}"] = np.asarray(anos[disease], dtype=int)
+    return surfaces, payload
+
+
+def surfaces_from_points(
+    points: Dict[str, Tuple[np.ndarray, np.ndarray]],
+    bbox_xy: Tuple[float, float, float, float],
+    *,
+    obs_cell_m: float = 500.0,
+    pred_cell_m: float = 500.0,
+    variogram_model: str = "spherical",
+    crs: str = "EPSG:31983",
+    bbox_lonlat: Optional[Tuple[float, float, float, float]] = None,
+    mask: Optional[np.ndarray] = None,
+) -> Tuple[KrigingSurfaces, Dict[str, Any]]:
+    """Pontos projetados (metros) por doença -> superfícies de Kriging + payload do `.npz`.
+
+    `points` mapeia "Dengue"/"Chikungunya" (e opcionalmente outras classes) para
+    `(x, y)`. `mask` (booleano, no formato do grid de predição) zera a
+    probabilidade fora da área de estudo — por exemplo, o mar e os municípios
+    vizinhos —, que de outra forma o Kriging preenche por extrapolação.
+    """
+    xmin, xmax, ymin, ymax = bbox_xy
+    results: Dict[str, Dict[str, Any]] = {}
+    for disease, (x, y) in points.items():
+        if len(x) < 3:
+            raise ValueError(f"Poucos casos para Kriging de {disease}: n={len(x)}")
         counts, intensity, sigma, pred_grid = intensity_surface_from_points(
-            sub["x"].to_numpy(),
-            sub["y"].to_numpy(),
+            x,
+            y,
             bbox_xy=(xmin, xmax, ymin, ymax),
             obs_cell_size=obs_cell_m,
             pred_cell_size=pred_cell_m,
             transform="log1p",
             variogram_model=variogram_model,
         )
+        if mask is not None:
+            if mask.shape != intensity.shape:
+                raise ValueError(f"mask {mask.shape} != grid {intensity.shape}")
+            intensity = np.where(mask, intensity, 0.0)
         results[disease] = {
             "counts": counts,
             "intensity": intensity,
             "sigma": sigma,
             "prob": normalize_probability(intensity),
             "pred_grid": pred_grid,
-            "n": len(sub),
+            "n": len(x),
         }
 
     class_probs = stack_disease_probabilities(
@@ -184,8 +222,7 @@ def build_kriging_surfaces(
         meta={"variogram_model": variogram_model, "obs_cell_size": obs_cell_m},
     )
     payload: Dict[str, Any] = {
-        "crs": "EPSG:31983",
-        "bbox_lonlat": np.asarray(DEFAULT_RIO_BBOX_LONLAT, dtype=float),
+        "crs": crs,
         "xmin": pred_grid.xmin,
         "xmax": pred_grid.xmax,
         "ymin": pred_grid.ymin,
@@ -194,10 +231,13 @@ def build_kriging_surfaces(
         "variogram_model": variogram_model,
         "obs_cell_size": obs_cell_m,
     }
+    if bbox_lonlat is not None:
+        payload["bbox_lonlat"] = np.asarray(bbox_lonlat, dtype=float)
+    if mask is not None:
+        payload["mask"] = mask.astype(bool)
     for disease, r in results.items():
-        payload[f"years_{disease.lower()}"] = np.asarray(anos[disease], dtype=int)
-        payload[f"n_{disease.lower()}"] = r["n"]
         key = disease.lower()
+        payload[f"n_{key}"] = r["n"]
         payload[f"intensity_{key}"] = r["intensity"]
         payload[f"prob_{key}"] = r["prob"]
         payload[f"sigma_{key}"] = r["sigma"]

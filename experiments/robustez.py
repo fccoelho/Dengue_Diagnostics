@@ -44,6 +44,9 @@ CHECKPOINTS = {
     "ppo A": "results/ppo_v4a_seir_s{seed}/policy_final.pth",
     "ppo B": "results/ppo_v4b_credito_s{seed}/policy_final.pth",
     "ppo C": "results/ppo_v4c_credito_sem_tempo_s{seed}/policy_final.pth",
+    # Braços retreinados no kriging_v9 (com casos "outro").
+    "ppo A v9": "results/ppo_v5a_gae_s{seed}/policy_final.pth",
+    "ppo C v9": "results/ppo_v5c_credito_s{seed}/policy_final.pth",
 }
 
 # Blocos da observação, para as ablações de entrada. O contexto tem 16 posições:
@@ -440,6 +443,28 @@ def temperatura_espacial(tau: float, seeds_treino: Sequence[int] = (45, 46, 47, 
     return pd.concat(partes, ignore_index=True)
 
 
+def recife(ano: int, seeds_treino: Sequence[int] = (45,),
+           seeds: Sequence[int] = SEEDS_BENCHMARK) -> pd.DataFrame:
+    """Os agentes do v9, sem retreino, na superfície de Kriging do Recife de `ano`.
+
+    Segunda cidade real: tudo igual ao `kriging_v9` (SEIR, casos "outro",
+    economia), só a geografia muda. Superfícies de `build_recife_surfaces`.
+    Atenção à escala: o grid do ambiente é 400x400 para qualquer cidade, então
+    o raio da confirmação epidemiológica (20 células) vale ~1 km no Recife e
+    ~3,5 km no Rio.
+    """
+    cfg = config_ambiente("kriging_v9",
+                          surfaces_path=str(_RAIZ / f"results/kriging/recife_{ano}_kriging_surfaces.npz"))
+    extras = {"cidade": "Recife", "ano": ano}
+    partes = []
+    for agente in ("ppo C v9", "ppo A v9"):
+        for st in seeds_treino:
+            partes.append(avalia(agente, cfg, seeds, seed_treino=st, extras=extras))
+    for fixa in ("sequencial_clinico", "sequencial", "testtwice", "testonce", "clinical"):
+        partes.append(avalia(fixa, cfg, seeds, extras=extras))
+    return pd.concat(partes, ignore_index=True)
+
+
 EXPERIMENTOS = {
     "seeds_ineditas": seeds_ineditas,
     "qualidade_do_medico": qualidade_do_medico,
@@ -451,6 +476,8 @@ EXPERIMENTOS = {
     "dengue_2015": dengue_2015,
     "rio_2016": rio_2016,
     **{f"temperatura_{t:g}": (lambda t=t: temperatura_espacial(t)) for t in TEMPERATURAS},
+    "recife_2016": lambda: recife(2016),
+    "recife_2021": lambda: recife(2021),
 }
 
 
