@@ -216,6 +216,33 @@ def politicas_v9() -> None:
     _salva(fig, "fig_policies_full.png")
 
 
+def politicas_v6() -> None:
+    """Recompensa × exames no Rio de Janeiro (v6: 3 seeds × 30 surtos inéditos), agentes treinados no Rio."""
+    b = pd.read_csv(RES / "v6_avaliacao" / "bracos_teste_rio.csv")
+    t = b[b.metrica == "recompensa"].set_index("braco").join(
+        b[b.metrica == "exames"].set_index("braco"), rsuffix="_ex")
+    nomes = {"C|rio": ("C: per-case credit (learned)", AZUL), "A|rio": ("A: standard GAE (learned)", LARANJA),
+             "sequencial_clinico": ("sequential, clinician-guided", CINZA_ESCURO),
+             "sequencial": ("sequential, dengue first", CINZA_ESCURO), "testtwice": ("test-twice", CINZA_ESCURO),
+             "testonce": ("test-once", CINZA_ESCURO), "clinical": ("clinical only", CINZA_ESCURO)}
+    desloc = {"C|rio": (-12, -16, "right"), "sequencial_clinico": (10, 10, "left"),
+              "testtwice": (-12, 8, "right"), "A|rio": (14, -4, "left")}
+    fig, ax = plt.subplots(figsize=(8.5, 5), constrained_layout=True)
+    for braco, (nome, cor) in nomes.items():
+        r = t.loc[braco]
+        aprendido = braco in ("C|rio", "A|rio")
+        ax.errorbar(r.media_ex, r.media, yerr=[[r.media - r.media_lo], [r.media_hi - r.media]],
+                    xerr=[[r.media_ex - r.media_lo_ex], [r.media_hi_ex - r.media_ex]],
+                    fmt="o" if aprendido else "s", ms=9 if aprendido else 6, color=cor, ecolor=cor,
+                    elinewidth=1, capsize=0, zorder=3)
+        dx, dy, ha = desloc.get(braco, (14, 6, "left"))
+        ax.annotate(nome, (r.media_ex, r.media), xytext=(dx, dy), textcoords="offset points", ha=ha,
+                    fontsize=9, color=TEXTO, fontweight="bold" if aprendido else "normal")
+    ax.set_xlabel("laboratory tests per episode"); ax.set_ylabel("episode reward")
+    ax.set_title("Rio de Janeiro, full environment (3 training seeds × 30 paired outbreaks, 95% CI)")
+    _salva(fig, "fig_policies_full.png")
+
+
 def temperatura() -> None:
     c = pd.read_csv(RES / "bootstrap" / "curva_temperatura.csv").sort_values("acerto_posicao")
     fig, ax = plt.subplots(figsize=(8.5, 4.4), constrained_layout=True)
@@ -278,7 +305,7 @@ def transferencia() -> None:
 FIGURAS = {
     "transferencia": transferencia,
     "seir": seir, "espacial_rio": espacial_rio, "recife_anos": recife_anos, "recife_resumo": recife_resumo,
-    "bracos_v8": bracos_v8, "politicas_v9": politicas_v9, "temperatura": temperatura,
+    "bracos_v8": bracos_v8, "politicas_v9": politicas_v9, "politicas_v6": politicas_v6, "temperatura": temperatura,
 }
 
 

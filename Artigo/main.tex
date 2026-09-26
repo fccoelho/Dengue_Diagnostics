@@ -29,10 +29,10 @@
 \maketitle
 
 \begin{abstract}
-\noindent When dengue and chikungunya co-circulate, clinical triage cannot reliably tell them apart, and laboratory confirmation is too scarce to be applied to every suspected case. Deciding \emph{which} suspects to test is a sequential decision made in epidemic time: tests take days to return, results change what should be done next, and hundreds of patients are open at once. We cast this problem as a Markov decision process in a simulator grounded in surveillance data---SEIR dynamics with literature parameters, spatial case distributions estimated by kriging from notifications in Rio de Janeiro and Recife, noisy clinicians, delayed laboratory results, and suspects that have neither disease. Two findings frame the problem. First, in real data the location of a case barely reveals its disease (a Bayes classifier using location alone is right 52--61\% of the time across two cities and eleven epidemic years), so tests are the main source of information. Second, standard deep reinforcement learning fails to learn to test: because decisions about many patients interleave, the value of a test is diluted across dozens of unrelated steps (the correlation between the standard return and the test's outcome is $-0.02$, against $0.99$ for a return computed along the patient's own timeline). We propose a per-case variant of proximal policy optimization that computes advantages along each patient's timeline, discounted in epidemic days, without changing the environment or the reward. With identical observations, per-case credit raises the mean episode reward from $+684$ to $+2692$ in a two-disease variant of the simulator (four training seeds; $P(\text{better}) = 1.00$ in every paired outbreak). With non-arboviral suspects, where a negative test no longer settles a case, the learned policy matches the best expert rule we could write---sequential testing guided by the clinician's suspicion---in reward ($+2387$ vs.\ $+2330$; difference $+57$, 95\% CI $[-128, +221]$) and accuracy ($0.938$ vs.\ $0.943$), while ordering 7\% fewer tests in every evaluated outbreak; the standard agent collapses to inaction. Transferred without retraining to a second city (Recife, 2016 and 2021 epidemics), the agent stays tied with the rule in reward with 10--11\% fewer tests, at a cost of 1--2 accuracy points. Results in the full environment are preliminary (one training seed per arm).
+\noindent When dengue and chikungunya co-circulate, clinical triage cannot reliably tell them apart, and laboratory confirmation is too scarce to be applied to every suspected case. Deciding \emph{which} suspects to test is a sequential decision made in epidemic time: tests take days to return, results change what should be done next, and hundreds of patients are open at once. We cast this problem as a Markov decision process in a simulator grounded in surveillance data---SEIR dynamics with literature parameters, spatial case distributions estimated by kriging from notifications in Rio de Janeiro and Recife, noisy clinicians, delayed laboratory results, and suspects that have neither disease. In real data, the location of a case barely reveals its disease: a Bayes classifier using location alone is right 52--57\% of the time in every sizeable epidemic year of two cities (95\% bootstrap intervals within $\pm0.01$), so tests are the main source of information. Standard deep reinforcement learning fails to learn to use them, because the value of a test is diluted across interleaved decisions about other patients (correlation between the standard return and the test's outcome: $-0.02$; along the patient's own timeline: $0.99$). We propose a per-case variant of proximal policy optimization that computes advantages along each patient's timeline, discounted in epidemic days, without changing the environment or the reward. Across four training geographies and four test geographies (three training seeds, 30 paired outbreaks per test), per-case credit outperforms standard advantage estimation in every one of the 16 combinations. Trained on Rio de Janeiro, the agent matches the best expert rule we could write---sequential testing guided by the clinician's suspicion---in reward ($+27$, 95\% CI $[-119, +157]$) and accuracy, with 8\% fewer tests, and keeps matching it on two held-out epidemic years of another city. When location is informative (an idealized geography), the agent surpasses the rule ($+570$ $[+436, +694]$) with 63\% fewer tests, but that policy does not transfer to real cities. An agent trained on a small, fixed urban footprint develops a spatial shortcut that does not transfer, a failure mode that input ablations expose.
 
 \medskip
-\noindent\textbf{Keywords:} reinforcement learning; credit assignment; arboviruses; diagnostic testing; resource allocation; epidemiological surveillance.
+\noindent\textbf{Keywords:} reinforcement learning; credit assignment; arboviruses; diagnostic testing; resource allocation; transfer; epidemiological surveillance.
 \end{abstract}
 
 % =====================================================================
@@ -50,9 +50,9 @@ We deliberately keep the decisions inside \emph{epidemic time}: suspects arrive 
 \paragraph{Contributions.}
 \begin{enumerate}
     \item \textbf{A data-grounded simulator of test allocation in epidemic time.} Dengue and chikungunya outbreaks follow SEIR dynamics with literature parameters; case locations are drawn from kriging surfaces estimated from notifications in Rio de Janeiro and Recife; suspects include non-arboviral febrile illness; clinicians are noisy; laboratory results return after five days and send the case back to the agent (Section~\ref{sec:env}).
-    \item \textbf{Evidence that location is weakly informative in real data.} Across two cities and eleven epidemic years, the best classifier that sees only the location of a case is right 52--61\% of the time (52--57\% in every year with more than a few hundred cases of each disease), far from the 94\% of idealized spatial generators. The test, not the map, is the main source of information (Section~\ref{sec:res_spatial}).
-    \item \textbf{A diagnosis of why standard deep RL fails, and a fix.} We measure that the standard return is uncorrelated with the outcome of a test ($-0.02$), while a return computed along the patient's own timeline is almost perfectly correlated ($0.99$). A per-case variant of PPO that estimates advantages along each patient's timeline, discounted in epidemic days, makes the agent investigate without changing the environment or the reward (Sections~\ref{sec:credit} and~\ref{sec:res_credit}).
-    \item \textbf{An honest evaluation.} We compare learned policies against strong fixed rules---including sequential testing guided by the clinician---with paired outbreaks and a hierarchical, paired bootstrap. The learned policy matches the best rule with fewer tests; we show that which rule is best depends on the case mix (Sections~\ref{sec:protocol} and~\ref{sec:res_full}).
+    \item \textbf{Evidence, with uncertainty, that location is weakly informative in real data.} A spatial bootstrap of the notifications shows that location predicts the disease 52--57\% of the time in every sizeable epidemic year of both cities, far from the 94\% of idealized generators (Section~\ref{sec:res_spatial}).
+    \item \textbf{A diagnosis of why standard deep RL fails, and a fix.} The standard return is uncorrelated with the outcome of a test; a return along the patient's own timeline is almost perfectly correlated. Per-case PPO, which estimates advantages along each patient's timeline in epidemic days, makes the agent investigate without changing the environment or the reward (Sections~\ref{sec:credit} and~\ref{sec:res_credit}).
+    \item \textbf{A cross-geography evaluation.} Agents trained in four geographies are tested in four, with paired outbreaks and a hierarchical bootstrap over training seeds and outbreaks. Per-case credit wins everywhere; the learned policy matches the best expert rule in real cities with fewer tests, surpasses it where geography is informative, and transfers from Rio de Janeiro to held-out years of Recife---but not from idealized to real geography, nor from a small fixed urban footprint to a larger one (Sections~\ref{sec:res_full} and~\ref{sec:res_transfer}).
 \end{enumerate}
 
 % =====================================================================
@@ -103,7 +103,9 @@ Cases are placed on a $400 \times 400$ grid by an interchangeable spatial genera
 
 \paragraph{Rio de Janeiro.} The reference surfaces use dengue and chikungunya notifications of Rio de Janeiro in 2015--2016 with residence coordinates. Chikungunya barely circulated in Rio in 2015 (70 notifications, against about 14 thousand in 2016), so alternative Rio scenarios combine dengue from 2015 or 2016 with chikungunya from 2016.
 
-\paragraph{Recife.} As a second city we use the open notification microdata of Recife \cite{recife_dados}, which cover dengue (2013--2025) and chikungunya (2015--2025). Each record carries the final classification (including discarded cases), the confirmation criterion, laboratory results and the residence street and neighborhood, but no coordinates. We geocode each record against the city's official neighborhood polygons and street segments \cite{recife_area_urbana}: the street name is matched (after normalizing abbreviations) to the streets that cross the reported neighborhood, or a neighboring one, and a point is drawn along the matched street; when the street is not found, a point is drawn uniformly within the neighborhood. Of 144{,}175 confirmed or discarded notifications of Recife residents, 72\% were placed on the reported street within the reported neighborhood, 6\% on the same street in an adjacent neighborhood, 22\% at neighborhood level, and fewer than 1\% could not be placed. We build one surface per year (2015--2025) from cases confirmed by any criterion, and set the probability to zero outside the municipality, which also removes the sea. Chikungunya notifications of 2015--2016 coded with the legacy dengue classification scale (4{,}888 records without any chikungunya-specific result) are excluded as ambiguous.
+\paragraph{Recife.} As a second city we use the open notification microdata of Recife \cite{recife_dados}, which cover dengue (2013--2025) and chikungunya (2015--2025). Each record carries the final classification (including discarded cases), the confirmation criterion, laboratory results and the residence street and neighborhood, but no coordinates. We geocode each record against the city's official neighborhood polygons and street segments \cite{recife_area_urbana}: the street name is matched (after normalizing abbreviations) to the streets that cross the reported neighborhood, or a neighboring one, and a point is drawn along the matched street; when the street is not found, a point is drawn uniformly within the neighborhood. Of 144{,}175 confirmed or discarded notifications of Recife residents, 72\% were placed on the reported street within the reported neighborhood, 6\% on the same street in an adjacent neighborhood, 22\% at neighborhood level, and fewer than 1\% could not be placed. We build one surface per year (2015--2025) from cases confirmed by any criterion, and set the probability to zero outside the municipality, which also removes the sea.
+
+\paragraph{Spatial bootstrap.} To quantify the uncertainty of the surfaces and to give training more spatial variety, we build 20 bootstrap replicates for each city and year: the notifications of each disease are resampled with replacement and the kriging is recomputed; in Recife, each replicate is also re-geocoded with a different seed, so the uncertainty of street- and neighborhood-level placement is included. Chikungunya notifications of 2015--2016 coded with the legacy dengue classification scale (4{,}888 records without any chikungunya-specific result) are excluded as ambiguous.
 
 \paragraph{How informative is location?} What matters for the decision problem is not whether each disease has sharp foci, but whether the two diseases occupy \emph{different} places. We summarize this with the accuracy of the Bayes classifier that sees only the location of a case, with equal priors: $\tfrac12 \sum_{\text{cells}} \max\{P(\text{cell}\mid\text{dengue}), P(\text{cell}\mid\text{chik})\}$. It equals 0.5 when location carries no information and 1 when it determines the disease. In Rio 2015--2016 it is 0.544: each surface has clear foci, but the foci coincide (correlation 0.85 between the two surfaces; in 90\% of the cells one disease is at most 1.4 times more likely than the other), because both follow where people live and where the vector is (Figure~\ref{fig:spatial}, top). The idealized generator used in earlier work---two truncated Gaussian foci---reaches 0.937.
 
@@ -248,9 +250,9 @@ To separate the effect of credit assignment from that of temporal information, w
 \begin{tabular}{llll}
 \toprule
 \textbf{Arm} & \textbf{Advantage} & \textbf{Context} & \textbf{Training seeds} \\ \midrule
-A & standard GAE (Eq.~\ref{eq:gae}) & 16 & 4 (two-disease); 1 (full) \\
+A & standard GAE (Eq.~\ref{eq:gae}) & 16 & 4 (two-disease); 3 per geography (full) \\
 B & per case, in days (Eq.~\ref{eq:gae_case}) & 16 + 4 temporal & 3 (two-disease) \\
-C & per case, in days (Eq.~\ref{eq:gae_case}) & 16 (as A) & 4 (two-disease); 1 (full) \\ \bottomrule
+C & per case, in days (Eq.~\ref{eq:gae_case}) & 16 (as A) & 4 (two-disease); 3 per geography (full) \\ \bottomrule
 \end{tabular}
 \caption{PPO arms.}
 \label{tab:arms}
@@ -263,9 +265,18 @@ C & per case, in days (Eq.~\ref{eq:gae_case}) & 16 (as A) & 4 (two-disease); 1 (
 
 \paragraph{Paired outbreaks.} Agents are evaluated on 10 test outbreaks, each identified by a fixed seed that reproduces the same epidemic, the same clinician and the same clinical noise for every agent, so comparisons are \emph{paired}. This matters: the clinician drawn in an episode explains most of the variance---its accuracy correlates at $0.97$ with the episode reward of both the clinical policy and a trained agent. A second set of 12 never-used seeds tests generalization. We always evaluate the \emph{final} checkpoint; selecting the best checkpoint during training selects noise (it scored 1{,}000--1{,}460 points above the final checkpoint for DQN).
 
-\paragraph{Hierarchical, paired bootstrap.} There are two sources of variance: the seed that trained the agent and the outbreak it is evaluated on. Confidence intervals come from a hierarchical bootstrap \cite{saravanan2020hierarchical} that resamples training seeds and then outbreaks; outbreak resampling is \emph{shared} across arms within each replicate, preserving the pairing, while training seeds---independent runs---are resampled separately per arm. Following \citet{agarwal2021precipice}, we report the mean, the interquartile mean, the paired difference between arms and the probability of improvement $P(X>Y)$, the chance that an episode of $X$ beats the same episode of $Y$ over all pairs of training seeds (ties count 1/2), with 95\% percentile intervals from 10{,}000 replicates. With three or four training seeds the upper level has little resolution, so intervals are honest about outbreaks and optimistic about training seeds; with one seed (full environment) they cover outbreaks only.
+\paragraph{Hierarchical, paired bootstrap.} There are two sources of variance: the seed that trained the agent and the outbreak it is evaluated on. Confidence intervals come from a hierarchical bootstrap \cite{saravanan2020hierarchical} that resamples training seeds and then outbreaks; outbreak resampling is \emph{shared} across arms within each replicate, preserving the pairing, while training seeds---independent runs---are resampled separately per arm. Following \citet{agarwal2021precipice}, we report the mean, the interquartile mean, the paired difference between arms and the probability of improvement $P(X>Y)$, the chance that an episode of $X$ beats the same episode of $Y$ over all pairs of training seeds (ties count 1/2), with 95\% percentile intervals from 10{,}000 replicates. With three or four training seeds the upper level has little resolution, so intervals are honest about outbreaks and optimistic about training seeds.
 
 \paragraph{Metrics.} The primary metric is the episode reward; secondary metrics are three-class diagnostic accuracy (dengue, chikungunya, other) and the number of laboratory tests per episode. In the two-disease variant no case is ``other'', so accuracy is effectively binary.
+
+\paragraph{Training geographies and cross-geography evaluation.} All cross-geography experiments use the full environment (with non-arboviral suspects) and differ only in where cases occur. Arms A and C are trained with three seeds each (45--47) in four geographies:
+\begin{itemize}
+    \item \textbf{Rio de Janeiro:} each episode draws one of the 20 bootstrap replicates of the 2015--2016 surface.
+    \item \textbf{Recife:} each episode draws one replicate of one training year (2017--2020 and 2022--2025; 160 surfaces). The two largest epidemics with both diseases, 2016 and 2021, are held out for testing; 2015 is excluded (only 201 confirmed chikungunya cases, and the epicenter of the Zika epidemic).
+    \item \textbf{Idealized:} two well-separated Gaussian foci (location predicts the disease 94\% of the time).
+    \item \textbf{Mixture:} one third of the episodes from each of the three above.
+\end{itemize}
+Every trained agent and every fixed policy is then evaluated in four test geographies, always on the \emph{original} surfaces and never on training replicates: Rio de Janeiro 2015--2016, Recife 2016 and Recife 2021 (held out from Recife training), and the idealized generator. Each test uses 30 paired outbreaks with seeds never used before (3001--3030). Two further groups of per-case agents (three seeds each) test specific remedies: the mixture with twice the training budget (600 thousand steps), and Recife with the city randomly rotated, rescaled (35--100\% of the grid) and repositioned at every episode.
 
 % =====================================================================
 \section{Results}
@@ -277,7 +288,7 @@ C & per case, in days (Eq.~\ref{eq:gae_case}) & 16 (as A) & 4 (two-disease); 1 (
 
 Recife offers eleven years of both diseases in one city, with epidemics of very different composition---dengue-dominated in 2015--2016 and 2019, chikungunya-dominated in 2021 (Figure~\ref{fig:recife}, left). In every year, the Bayes accuracy of location alone stays close to Rio's 0.544: between 0.520 and 0.573 from 2016 to 2025 (Figure~\ref{fig:recife}, right). The highest value, 0.605 in 2015, comes from only 201 confirmed chikungunya cases, which makes that surface artificially concentrated. The places where one disease dominates change from year to year (Figure~\ref{fig:recife_years}), but the magnitude of the difference stays small. Recife 2016, the largest epidemic with both diseases, is strikingly similar to Rio 2015--2016 (Bayes accuracy 0.557 vs.\ 0.544; correlation between the two diseases' surfaces 0.81 vs.\ 0.85).
 
-These estimates are stable to the random placement of geocoded points: across five geocoding seeds, the Bayes accuracy of each year varies by at most $\pm 0.01$. The correlation between the two surfaces is noisier in years with few cases (standard deviation up to 0.16) and is not interpreted there.
+The spatial bootstrap confirms that these values are precise: the 95\% intervals are $0.541$ $[0.539, 0.545]$ for Rio de Janeiro 2015--2016, $0.556$ $[0.552, 0.559]$ for Recife 2016 and $0.530$ $[0.528, 0.535]$ for Recife 2021, and, apart from 2015 (0.60, driven by only 201 chikungunya cases), no Recife year exceeds 0.57 (all intervals within $\pm 0.01$). The correlation between the two surfaces, by contrast, is unstable in years with few cases (e.g., $[-0.06, 0.23]$ in 2024) and is only interpreted for the large epidemics (Rio 2015--2016: 0.80 $[0.77, 0.82]$; Recife 2016: 0.80 $[0.79, 0.82]$; Recife 2021: 0.95 $[0.93, 0.96]$).
 
 The implication for the decision problem is direct. The idealized generator, with location 94\% informative, lets an agent diagnose from the map; real surveillance data do not. In earlier work with that generator, a PPO agent reached a positive reward without ordering a single test, by disagreeing with the clinician based on location. In real geography, the laboratory test is the main source of information, and the allocation problem is real.
 
@@ -337,7 +348,7 @@ Clinical only & -- & $-64$ [$-184$, $+54$] & 0.710 [0.633, 0.789] & 0 \\ \bottom
 \subsection{With non-arboviral suspects: the case mix decides the best rule}
 \label{sec:res_full}
 
-Adding non-arboviral suspects changes the problem, not just the numbers (Table~\ref{tab:baselines}). With only two diseases, a negative dengue test implies chikungunya and test-once is optimal. With a quarter of the suspects being neither, a negative test is ambiguous: test-once drops from $+2782$ to $+322$ and 0.756 accuracy, and investigation must go deeper. The idealized generator, which always had non-arboviral suspects, shows the same ordering as the full environment---the reordering is caused by the case mix, not by geography. The best fixed rule is now sequential testing guided by the clinician ($+2330$): testing first for the suspected disease settles most cases with one test when the clinician is right, and saves 249 tests per episode over test-twice ($+1105$ [$+1010$, $+1190$] in reward).
+Adding non-arboviral suspects changes the problem, not just the numbers (Table~\ref{tab:baselines}). With only two diseases, a negative dengue test implies chikungunya and test-once is optimal. With a quarter of the suspects being neither, a negative test is ambiguous: test-once drops from $+2782$ to $+322$ and 0.756 accuracy, and investigation must go deeper. The idealized generator, which always had non-arboviral suspects, shows the same ordering as the full environment---the reordering is caused by the case mix, not by geography. The best fixed rule is now sequential testing guided by the clinician: testing first for the suspected disease settles most cases with one test when the clinician is right.
 
 \begin{table}[htbp]
 \centering
@@ -346,19 +357,17 @@ Adding non-arboviral suspects changes the problem, not just the numbers (Table~\
 \textbf{Fixed policy} & \textbf{Kriging, two-disease} & \textbf{Kriging, full} & \textbf{Idealized generator} \\ \midrule
 Test-once & $\mathbf{+2782}$ & $+322$ & $+473$ \\
 Test-twice & $+1051$ & $+1225$ & $+1249$ \\
-Sequential, clinician-guided & -- & $\mathbf{+2330}$ & \todo{run} \\
+Sequential, clinician-guided & -- & $\mathbf{+2330}$ & -- \\
 Confirm-all & $+346$ & $-1734$ & $-1821$ \\
 Clinical only & $-64$ & $-344$ & $-355$ \\ \bottomrule
 \end{tabular}
-\caption{Fixed policies with SEIR dynamics, 10 paired outbreaks. Removing non-arboviral suspects (two-disease variant) is what makes a single test sufficient; the idealized generator, which has them, orders the policies as the full environment does.}
+\caption{Fixed policies with SEIR dynamics on the 10 benchmark outbreaks. Removing non-arboviral suspects (two-disease variant) is what makes a single test sufficient; the idealized generator, which has them, orders the policies as the full environment does.}
 \label{tab:baselines}
 \end{table}
 
-Arms A and C were retrained in the full environment with the same procedure, one training seed each (Table~\ref{tab:full}, Figure~\ref{fig:policies}).
+\paragraph{The per-case agent matches the best expert rule with fewer tests.} Table~\ref{tab:full} and Figure~\ref{fig:policies} show agents trained on Rio de Janeiro, evaluated on the original Rio surface over 30 new paired outbreaks with three training seeds. C reaches $+2175$ against $+2149$ for the clinician-guided sequential rule: the difference, $+27$ [$-119$, $+157$], is not distinguishable from zero ($P(C>\text{rule}) = 0.54$), and neither is the difference in accuracy ($-0.007$ [$-0.018$, $+0.002$]). C orders 53 fewer tests per episode [$-71$, $-39$], an 8\% saving. Against the other fixed rules C is clearly better: $+376$ over sequential dengue-first and $+1031$ over test-twice, with fewer tests than both. The agent was never told about test order or the clinician's reliability; it learned a policy as good as the best rule we could design, and a more frugal one.
 
-\paragraph{The per-case agent matches the best expert rule with fewer tests.} C reaches $+2387$ against $+2330$ for the clinician-guided sequential rule: the difference, $+57$ [$-128$, $+221]$, is not distinguishable from zero ($P(C>\text{rule}) = 0.70$), and neither is the difference in accuracy ($-0.005$ [$-0.016$, $+0.004$]). C orders 54 fewer tests per episode [$-62$, $-46$], and fewer in every one of the 10 outbreaks. Against the other fixed rules C is clearly better: $+413$ [$+189$, $+635$] over sequential dengue-first, $+1163$ [$+980$, $+1330$] over test-twice with 303 fewer tests, and $+2065$ over test-once with 18 more accuracy points. The agent was never told about test order or about the clinician's reliability; it learned a policy as good as the best rule we could design, and a slightly more frugal one.
-
-\paragraph{The standard agent collapses.} With standard GAE, A orders about six tests per episode, its accuracy falls below the clinician's, and its reward falls below doing nothing ($-1627$ [$-2436$, $-800$] against clinical only). The gap between the arms grows from $+2009$ in the two-disease variant to $+4359$ [$+3434$, $+5276$]. A plausible explanation, not yet tested, is that the value of investigating now depends on a longer chain---test, result, second test, result, conclusion---which is exactly the kind of chain that interleaving erases from the standard estimator.
+\paragraph{The standard agent collapses.} With standard GAE, A orders about 77 tests per episode, its accuracy stays near the clinician's, and its reward falls well below doing nothing ($-1604$ against $-368$). The gap between the arms is $+3780$ [$+3217$, $+4386$], with $P(C > A) = 1.00$.
 
 \begin{table}[htbp]
 \centering
@@ -366,31 +375,52 @@ Arms A and C were retrained in the full environment with the same procedure, one
 \begin{tabular}{lcrrr}
 \toprule
 \textbf{Policy} & \textbf{Seeds} & \textbf{Reward [95\% CI]} & \textbf{Accuracy [95\% CI]} & \textbf{Tests [95\% CI]} \\ \midrule
-\textbf{C: per-case credit} & 1 & $\mathbf{+2387}$ [$+2186$, $+2564$] & 0.938 [0.929, 0.947] & 675 [633, 716] \\
-Sequential, clinician-guided & -- & $+2330$ [$+2231$, $+2414$] & 0.943 [0.936, 0.950] & 729 [683, 774] \\
-Sequential, dengue first & -- & $+1974$ [$+1768$, $+2182$] & 0.940 [0.932, 0.948] & 804 [779, 828] \\
-Test-twice & -- & $+1225$ [$+1131$, $+1315$] & 0.938 [0.933, 0.943] & 978 [938, 1014] \\
-Test-once & -- & $+322$ [$+219$, $+431$] & 0.756 [0.750, 0.763] & 489 [469, 507] \\
-Clinical only & -- & $-344$ [$-459$, $-225$] & 0.576 [0.521, 0.635] & 0 \\
-Confirm-all & -- & $-1734$ [$-2694$, $-730$] & 0.576 [0.521, 0.635] & 0 \\
-A: standard GAE & 1 & $-1972$ [$-2897$, $-1028$] & 0.563 [0.511, 0.619] & 6 [2, 11] \\ \bottomrule
+\textbf{C: per-case credit} & 3 & $\mathbf{+2175}$ [$+2010$, $+2323$] & 0.934 [0.923, 0.942] & 647 [615, 677] \\
+Sequential, clinician-guided & -- & $+2149$ [$+2043$, $+2254$] & 0.941 [0.938, 0.945] & 699 [669, 728] \\
+Sequential, dengue first & -- & $+1799$ [$+1700$, $+1897$] & 0.937 [0.933, 0.941] & 772 [749, 794] \\
+Test-twice & -- & $+1144$ [$+1064$, $+1228$] & 0.937 [0.933, 0.941] & 931 [899, 963] \\
+Test-once & -- & $+407$ [$+323$, $+488$] & 0.763 [0.757, 0.768] & 466 [449, 481] \\
+Clinical only & -- & $-368$ [$-436$, $-299$] & 0.551 [0.515, 0.588] & 0 \\
+A: standard GAE & 3 & $-1604$ [$-2221$, $-1010$] & 0.590 [0.548, 0.631] & 77 [20, 129] \\ \bottomrule
 \end{tabular}%
 }
-\caption{Full environment (Rio de Janeiro surfaces, with non-arboviral suspects), 10 paired outbreaks. With one training seed per arm, intervals cover outbreak variation only. Paired contrasts: C $\times$ clinician-guided sequential $= +57$ [$-128$, $+221$], $P = 0.70$, tests $-54$ [$-62$, $-46$]; C $\times$ A $= +4359$ [$+3434$, $+5276$], $P = 1.00$.}
+\caption{Full environment, agents trained and evaluated on Rio de Janeiro: 30 paired outbreaks never seen before, three training seeds per arm, hierarchical and paired bootstrap. Paired contrasts: C $\times$ clinician-guided sequential $= +27$ [$-119$, $+157$], $P = 0.54$, tests $-53$ [$-71$, $-39$]; C $\times$ A $= +3780$ [$+3217$, $+4386$], $P = 1.00$.}
 \label{tab:full}
 \end{table}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.85\textwidth]{img/fig_policies_full.png}
-\caption{Reward against tests per episode in the full environment (means with 95\% intervals over 10 paired outbreaks). The per-case agent sits next to the best expert rule, with fewer tests; the standard agent collapses near inaction.}
+\caption{Reward against tests per episode in the full environment on Rio de Janeiro (means with 95\% intervals over three training seeds and 30 paired outbreaks). The per-case agent sits next to the best expert rule, with fewer tests; the standard agent collapses near inaction.}
 \label{fig:policies}
 \end{figure}
 
-\subsection{Robustness}
+\subsection{Transfer across geographies}
+\label{sec:res_transfer}
+
+Figure~\ref{fig:transfer} summarizes the cross-geography evaluation: for each training geography and each test geography, the paired difference between the per-case agent and the clinician-guided sequential rule. Four findings emerge.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{img/fig_transfer.png}
+\caption{Per-case agent minus the clinician-guided sequential rule, by training geography (rows) and test geography (columns). Cells show the paired difference in episode reward with its 95\% interval (three training seeds $\times$ 30 paired outbreaks); bold marks intervals that exclude zero. Recife 2016 and 2021 are held out from Recife training. The rule does not use location, so it is the same yardstick in every column (about $+2150$).}
+\label{fig:transfer}
+\end{figure}
+
+\paragraph{Per-case credit wins everywhere.} In all 16 combinations of training and test geography, C outperforms A trained in the same geography, by $+1051$ to $+4307$ in reward, with $P(C > A)$ between 0.94 and 1.00 (1.00 in 13 of the 16). The failure of standard advantage estimation is not specific to one city or geography.
+
+\paragraph{A policy learned in Rio de Janeiro transfers to another city.} The Rio-trained agent stays statistically tied with the rule on the two held-out Recife years ($-99$ [$-288$, $+39$] and $-94$ [$-276$, $+60$]), ordering 68--70 fewer tests with 1.7--1.8 fewer accuracy points, and on the idealized geography ($-9$ [$-109$, $+82$]). It is the most robust learned policy in the study.
+
+\paragraph{When location is informative, learning beats the rule---but does not transfer.} Trained on the idealized geography, the agent surpasses the rule on that geography by $+570$ [$+436$, $+694$] while ordering 442 fewer tests (63\% fewer), at a cost of 4.6 accuracy points: it learns to read the disease from the map and saves tests where the map is decisive. The same agent collapses in real cities ($-2814$ to $-4232$ below the rule), where location carries almost no information.
+
+\paragraph{A small, fixed urban footprint induces a spatial shortcut.} The Recife-trained agent falls below the rule even on its own held-out years ($-168$ [$-304$, $-44$] and $-220$ [$-366$, $-73$]) and fails in Rio de Janeiro ($-1643$ [$-2339$, $-945$], with large variation between seeds). Input ablations without retraining (10 outbreaks per condition) explain why. The Rio-trained agent is insensitive to its spatial inputs: zeroing the map, the case coordinates or the local density of confirmed cases leaves its reward between $+2075$ and $+2295$ in both cities. The Recife-trained agent depends on them: without the case coordinates it collapses even in Recife ($+2135 \to -4631$), and without the map it transfers much \emph{better} to Rio ($+464 \to +1514$). Rescaling the density features to the training range does not help ($+291$), so the dependence is not on their scale. The Recife surfaces occupy about half of the grid inside the municipal boundary, always at the same place up to mirroring, whereas the Rio surface covers the whole grid; the network appears to use the footprint as a cue that does not exist elsewhere. Our attempted remedy---randomly rotating, rescaling and repositioning the city at every episode---made matters worse (Recife 2016: $-430$ below the rule; Rio: $-3491$), plausibly because shrinking the city concentrates the cases and shifts every spatial input further from what other cities produce. We report this as an open problem.
+
+\paragraph{Mixing geographies needs more training.} With the standard budget of 300 thousand steps, the agent trained on the mixture falls below the rule in every real test ($-296$ to $-376$) and varies strongly between seeds (standard deviation 324--545). Doubling the budget stabilizes it (standard deviation 64--232) and brings it to a statistical tie with the rule on both Recife years ($-68$ [$-175$, $+36$] and $-99$ [$-245$, $+29$]) and on the idealized geography ($-122$ [$-388$, $+83$]), though still slightly below in Rio ($-231$ [$-338$, $-125$]). The mixture does not recover the idealized specialist's advantage ($+2020$ against $+2713$ there).
+
+\subsection{Robustness in the two-disease variant}
 \label{sec:res_robust}
 
-\paragraph{Other years and spatial informativeness.} Without retraining, agents trained on the Rio 2015--2016 surfaces were evaluated on surfaces from other years (dengue 2015 with chikungunya 2016, and Rio 2016 alone) and on sharpened surfaces. These analyses were run in the two-disease variant. Across years the results are practically unchanged (C: $+2692$, $+2710$, $+2721$; C $\times$ A between $+2009$ and $+2077$, $P \ge 0.98$), as expected from surfaces that are all about 54\% informative. Across the whole range of spatial informativeness, from 0.50 to 0.94, the advantage of per-case credit holds (C $\times$ A between $+2000$ and $+2350$, $P$ between 0.89 and 1.00; Figure~\ref{fig:temperature}). C's reward stays flat: an agent trained where location is uninformative does not exploit it when it becomes informative. At $\tau = 8$, two of C's four seeds degrade, a sign of fragility outside the training distribution.
+Two earlier analyses, run without retraining in the two-disease variant on the Rio surfaces, complement the cross-geography study. Across epidemic years (dengue 2015 with chikungunya 2016, and Rio 2016 alone), results are practically unchanged (C: $+2692$, $+2710$, $+2721$; C $\times$ A between $+2009$ and $+2077$, $P \ge 0.98$), as expected from surfaces that are all about 54\% informative. Across the whole range of spatial informativeness obtained by sharpening, from 0.50 to 0.94, the advantage of per-case credit holds (C $\times$ A between $+2000$ and $+2350$, $P$ between 0.89 and 1.00; Figure~\ref{fig:temperature}). C's reward stays flat: an agent trained where location is uninformative does not exploit it when it becomes informative---consistent with the idealized-geography result, where only an agent \emph{trained} there learns to use the map.
 
 \begin{figure}[htbp]
 \centering
@@ -399,54 +429,37 @@ A: standard GAE & 1 & $-1972$ [$-2897$, $-1028$] & 0.563 [0.511, 0.619] & 6 [2, 
 \label{fig:temperature}
 \end{figure}
 
-\paragraph{A second city.} The full-environment agents, trained on Rio de Janeiro surfaces, were evaluated without retraining on the Recife surfaces of 2016 (the largest dengue-dominated epidemic with both diseases) and 2021 (chikungunya-dominated), on the same 10 paired outbreaks (Table~\ref{tab:recife}). Fixed policies do not use location, so their results are identical across cities. The pattern of the training city holds in both years: the per-case agent is statistically tied with the clinician-guided sequential rule in reward, orders 10--11\% fewer tests in every outbreak, and outperforms the standard agent by about $+4000$ with $P = 1.00$. The cost of transfer shows up in accuracy: C falls 1.2--1.7 points below the rule, a small but significant gap that was not significant in the training city ($-0.5$ points). One caveat applies to any comparison between cities: the environment grid is $400 \times 400$ for every city, so the 20-cell radius of epidemiological confirmation corresponds to about 1\,km in Recife and 3.5\,km in Rio de Janeiro.
-
-\begin{table}[htbp]
-\centering
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lrrrrr}
-\toprule
-\textbf{Surface} & \textbf{C reward} & \textbf{C $\times$ rule [95\% CI]} & \textbf{$\Delta$ tests [95\% CI]} & \textbf{$\Delta$ accuracy [95\% CI]} & \textbf{C $\times$ A} \\ \midrule
-Rio 2015--16 (training) & $+2387$ & $+57$ [$-128$, $+221$] & $-54$ [$-62$, $-46$] & $-0.005$ [$-0.016$, $+0.004$] & $+4359$ \\
-Recife 2016 & $+2235$ & $-95$ [$-278$, $+88$] & $-76$ [$-88$, $-63$] & $-0.017$ [$-0.027$, $-0.006$] & $+3778$ \\
-Recife 2021 & $+2345$ & $+15$ [$-185$, $+205$] & $-81$ [$-95$, $-67$] & $-0.012$ [$-0.022$, $-0.001$] & $+4223$ \\ \bottomrule
-\end{tabular}%
-}
-\caption{Zero-shot transfer to a second city (full environment, one training seed per arm, 10 paired outbreaks). ``Rule'' is the clinician-guided sequential policy ($+2330$, 729 tests, 0.943 accuracy in every city, since fixed policies ignore location). $P(C > A) = 1.00$ in all rows.}
-\label{tab:recife}
-\end{table}
-
 % =====================================================================
 \section{Discussion}
 \label{sec:discussion}
 % =====================================================================
 
-The obstacle to learning a testing policy was not where it first seemed. For much of this project, ``the agent does not test'' was treated as a problem of exploration, reward scale or algorithm. Part of it was: a stabilized DQN reliably learns inaction, and PPO was the first learned agent to beat doing nothing. But the decisive bottleneck was credit assignment. When decisions about many patients interleave in epidemic time, the standard return carries almost no information about whether a test was useful; the return along the patient's own timeline carries almost all of it. Estimating advantages per case, in days, recovers that signal without touching the environment or the reward.
+The obstacle to learning a testing policy was not where it first seemed. For much of this project, ``the agent does not test'' was treated as a problem of exploration, reward scale or algorithm. Part of it was: a stabilized DQN reliably learns inaction, and PPO was the first learned agent to beat doing nothing. But the decisive bottleneck was credit assignment. When decisions about many patients interleave in epidemic time, the standard return carries almost no information about whether a test was useful; the return along the patient's own timeline carries almost all of it. Estimating advantages per case, in days, recovers that signal without touching the environment or the reward, and the result holds in every geography we tested.
 
-What the agent learns depends on the problem it faces. In the two-disease variant, where one test always suffices, it learns \emph{whether} to investigate and matches test-once with 23\% fewer tests. With non-arboviral suspects, investigation has depth, and the agent learns a policy as good as sequential testing guided by the clinician---the best rule we could write---while ordering 7\% fewer tests. Matching an expert rule is a meaningful result for a policy learned from reward alone, but it is not a claim of superiority; the headroom that remains is large (in an earlier configuration, an oracle that knew the true disease reached 0.977 accuracy with about a third of the tests). A useful by-product of the analysis is itself practical: among fixed rules, testing first for the disease the clinician suspects is substantially better than always testing dengue first ($+356$ in reward and 75 fewer tests per episode).
+What the agent learns depends on the problem it faces. With only two diseases, one test suffices and the agent learns \emph{whether} to investigate. With non-arboviral suspects, investigation has depth, and the agent learns a policy as good as sequential testing guided by the clinician---the best rule we could write---while ordering 8\% fewer tests. Where location is informative, it learns to use the map and surpasses every rule with far fewer tests. Matching an expert rule where the rule is near-optimal, and beating it where there is exploitable structure, is the pattern one would hope for from a policy learned from reward alone. A useful by-product is itself practical: among fixed rules, testing first for the disease the clinician suspects is substantially better than always testing dengue first ($+350$ in reward and 73 fewer tests per episode).
 
-The weak spatial signal in real surveillance data explains why the agents ignore the map (zeroing it changes 0--2\% of decisions) and cautions against conclusions drawn from idealized geographies. It also points to where geography might matter: in the \emph{changing} location of dominance from year to year (Figure~\ref{fig:recife_years}) and in epidemiological confirmation from confirmed neighbors, which the agents currently barely use.
+The transfer study turns the weak spatial signal of real data into a design lesson. Because location carries little information in real cities, the best policies there are spatially invariant: the Rio-trained agent ignores its spatial inputs and, for that reason, transfers to another city. Policies that do rely on space are brittle---the idealized-geography agent because the signal disappears in real cities, the Recife agent because it learned a cue tied to one urban footprint. Training on real geography that fills the observation, or on several geographies with enough training, avoids the worst of this; a principled way to make spatial inputs comparable across cities of different size and shape remains open.
 
 \subsection{Limitations}
 
 \begin{itemize}
-    \item \textbf{Training seeds.} Results in the full environment have one training seed per arm; their intervals do not capture variation between training runs. In the two-disease variant, the standard deviation between seeds was about 50 points for C and 130 for A, small relative to the differences reported, but more seeds are needed.
-    \item \textbf{Robustness in the full environment.} The analyses across years, spatial informativeness and unseen outbreaks were run in the two-disease variant and must be repeated in the full environment.
-    \item \textbf{Simulated clinicians and tests.} Clinician accuracy is symmetric between diseases and drawn per episode; test parameters are fixed; non-arboviral suspects are uniform in space. Recife's discarded notifications could replace the uniform assumption with an empirical surface, but a notification discarded for dengue may be chikungunya, so they are not a pure ``other'' class.
-    \item \textbf{Data.} Rio surfaces are built from notified cases and Recife surfaces from confirmed cases; Recife points are geocoded to street or neighborhood level. In 2015--2016 Recife was the epicenter of the Zika epidemic, and part of the dengue confirmed by clinical--epidemiological criteria in those years is likely Zika.
-    \item \textbf{Externality of tests.} Per-case credit does not credit a test for its effect on future epidemiological confirmations nearby.
+    \item \textbf{Training seeds.} Three training seeds per arm and geography give the upper level of the hierarchical bootstrap little resolution; intervals are honest about outbreaks and optimistic about training runs.
+    \item \textbf{Spatial scale.} The environment grid is $400 \times 400$ for every city, so its physical scale differs between cities (the 20-cell radius of epidemiological confirmation is about 1\,km in Recife and 3.5\,km in Rio), and the Rio surface extends over the sea while the Recife surface is masked to the municipality. The Recife transfer failure is tied to these differences and is not resolved.
+    \item \textbf{Simulated clinicians and tests.} Clinician accuracy is symmetric between diseases and drawn per episode; test parameters are fixed; non-arboviral suspects are uniform in space. Recife's discarded notifications could provide an empirical surface, but a notification discarded for dengue may be chikungunya.
+    \item \textbf{Data.} Rio surfaces are built from notified cases and Recife surfaces from confirmed cases geocoded to street or neighborhood level. In 2015--2016 Recife was the epicenter of the Zika epidemic, and part of the dengue confirmed by clinical--epidemiological criteria in those years is likely Zika.
+    \item \textbf{Externality of tests.} Per-case credit does not credit a test for its effect on future epidemiological confirmations nearby; the agents barely use epidemiological confirmation.
     \item \textbf{Capacity and seasonality.} Scarcity is modeled through test cost, not a daily laboratory capacity; the SEIR model has no seasonal forcing.
 \end{itemize}
 
 \subsection{Future work}
 
-The immediate steps are more training seeds in the full environment, the robustness analyses repeated there, and a per-case analysis of which cases the agent tests twice---which would turn ``the agent chooses which cases need a second test'' into a measured statement. Beyond that: training on sharpened or multi-city surfaces to test whether per-case credit also wins when geography is informative and whether the agent learns to use it; additional years of Rio de Janeiro notifications; synthetic populations from the 2022 Brazilian census \cite{syntheticpop} to build scenarios for other cities with realistic population density; a daily laboratory capacity, which would turn scarcity into explicit prioritization; and a credit assignment that accounts for the externality of positive tests.
+The most immediate steps are a per-case analysis of which cases the agent tests twice, which would turn ``the agent chooses which cases need a second test'' into a measured statement; a physically consistent spatial scale across cities, which would let the Recife transfer failure be tested properly; and additional years of Rio de Janeiro notifications as held-out tests. Beyond that: synthetic populations from the 2022 Brazilian census \cite{syntheticpop} to build scenarios for other cities with realistic population density; a daily laboratory capacity, which would turn scarcity into explicit prioritization; and a credit assignment that accounts for the externality of positive tests.
 
 % =====================================================================
 \section{Conclusion}
 % =====================================================================
 
-We framed the allocation of laboratory tests in arbovirus surveillance as a sequential decision in epidemic time, in a simulator grounded in surveillance data from two Brazilian cities. In real data, the location of a case barely reveals whether it is dengue or chikungunya, so tests are the main source of information---and standard deep RL fails to learn to use them, because the value of a test is lost among interleaved decisions about other patients. Estimating advantages along each patient's timeline, in epidemic days, makes the agent investigate: it matches the best fixed rule in each setting with fewer tests, where the standard agent collapses toward inaction. Which rule is best, in turn, depends on the case mix: when a quarter of suspects have neither disease, a single test no longer suffices, and testing first for the disease the clinician suspects becomes the policy to beat.
+We framed the allocation of laboratory tests in arbovirus surveillance as a sequential decision in epidemic time, in a simulator grounded in surveillance data from two Brazilian cities. In real data, the location of a case barely reveals whether it is dengue or chikungunya, so tests are the main source of information---and standard deep RL fails to learn to use them, because the value of a test is lost among interleaved decisions about other patients. Estimating advantages along each patient's timeline, in epidemic days, makes the agent investigate in every geography we tested. In real cities it matches the best expert rule with fewer tests and carries that policy to held-out epidemics of another city; where location is informative, it beats the rule outright. Which rule is best depends on the case mix, and whether a learned policy transfers depends on whether it leans on spatial cues that the next city does not share.
 
 \bibliographystyle{unsrtnat}
 \bibliography{refs}
@@ -458,15 +471,14 @@ We framed the allocation of laboratory tests in arbovirus surveillance as a sequ
 % =====================================================================
 
 \begin{itemize}
-    \item \todo{Train $\geq$ 4 seeds per arm in the full environment and redo the hierarchical bootstrap.}
-    \item \todo{Repeat in the full environment: unseen outbreaks, other years, spatial-informativeness sweep, clinician quality, test cost, laboratory delay.}
-    \item \todo{Per-case analysis of which cases C tests twice (as a function of the first result, the clinical label and the evidence about the clinician).}
-    \item \todo{Fixed sequential rule on the idealized generator (Table~\ref{tab:baselines}); Recife evaluation with more training seeds and more years; training on Recife surfaces.}
-    \item \todo{Train A and C on sharpened surfaces ($\tau = 4, 8$) or on a mixture of cities; design a sharpening that amplifies the ratio between diseases while preserving each map's shape.}
-    \item \todo{Related work: RL for testing and epidemic control; multi-agent credit assignment; test allocation in surveillance.}
-    \item \todo{Anchor RT-PCR parameters in references; redo the test-cost sweep in the full environment; derive the information ceiling with three classes and two tests.}
+    \item \todo{Per-case analysis of which cases C tests twice (first result, clinical label, evidence about the clinician).}
+    \item \todo{Physically consistent spatial scale across cities (radius and grid in km; mask Rio to the municipality), then retrain Recife and re-test the transfer.}
+    \item \todo{Held-out years of Rio de Janeiro (data requested from Fiocruz) as additional test geographies.}
+    \item \todo{More training seeds (at least 5) for the headline comparisons.}
+    \item \todo{Related work: RL for testing and epidemic control; multi-agent credit assignment; shortcut learning and domain randomization; test allocation in surveillance.}
+    \item \todo{Anchor RT-PCR parameters in references; redo the test-cost sweep in the full environment.}
     \item \todo{Check flagged bibliography entries (marked in \texttt{refs.bib}).}
-    \item \todo{Compare the proposed flow with the municipal health department's decision flow.}
 \end{itemize}
 
 \end{document}
+
