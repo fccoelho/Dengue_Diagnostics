@@ -20,6 +20,7 @@ Saídas em ``output_dir``: policy_best.pth, policy_final.pth, logs/.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Any, Callable
@@ -93,13 +94,26 @@ def train(config_path: str) -> Path:
     log_dir = output_dir / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    np.random.seed(seed)
-    torch.manual_seed(seed)
+    # Retomada: se há checkpoint de época e o treino não terminou, continua de
+    # onde parou (quedas da máquina custaram seeds inteiras). O estado do
+    # otimizador vai junto no `state_dict` do algoritmo; a época e os passos
+    # são restaurados dos logs do TensorBoard (`resume_from_log`). Os
+    # ambientes são ressemeados com a época, para não repetir os mesmos surtos.
+    epoch_path = output_dir / "policy_epoch.pth"
+    estado_path = output_dir / "checkpoint.json"
+    retoma = bool(tcfg.get("resume", True)) and epoch_path.exists() and not final_path.exists()
+    epoca_feita = 0
+    if retoma and estado_path.exists():
+        epoca_feita = int(json.loads(estado_path.read_text()).get("epoch", 0))
+
+    np.random.seed(seed + epoca_feita)
+    torch.manual_seed(seed + epoca_feita)
 
     factory = EnvFactory(env_config)
     train_envs = _make_vector_env(factory, num_train_envs, kind=vector_env)
     test_envs = _make_vector_env(factory, num_test_envs, kind=vector_env)
-    train_envs.seed(seed)
+    train_envs.seed(seed + 1000 * epoca_feita)
+    # Os ambientes de TESTE mantêm a semente: a curva de avaliação continua comparável.
     test_envs.seed(seed)
 
     dummy_env = factory()
@@ -160,11 +174,18 @@ def train(config_path: str) -> Path:
     # (reinício do Windows, GPU perdida) custaram 8 seeds inteiras nesta série
     # de treinos — a época 9 de 10 morreu sem deixar checkpoint utilizável,
     # porque `policy_final` só é escrito no fim e `policy_best` seleciona ruído.
-    epoch_path = output_dir / "policy_epoch.pth"
-
-    def save_checkpoint_fn(epoch: int, _env_step: int, _grad_step: int) -> str:
-        torch.save(algorithm.state_dict(), epoch_path)
+    # A gravação é atômica (arquivo temporário + rename): uma queda no meio da
+    # escrita não corrompe o último checkpoint bom.
+    def save_checkpoint_fn(epoch: int, env_step: int, _grad_step: int) -> str:
+        tmp = epoch_path.with_suffix(".tmp")
+        torch.save(algorithm.state_dict(), tmp)
+        tmp.replace(epoch_path)
+        estado_path.write_text(json.dumps({"epoch": int(epoch), "env_step": int(env_step)}))
         return str(epoch_path)
+
+    if retoma:
+        algorithm.load_state_dict(torch.load(epoch_path, map_location=device))
+        print(f"[ppo] RETOMANDO de {epoch_path} (época {epoca_feita} concluída)")
 
     params = OnPolicyTrainerParams(
         train_collector=train_collector,
@@ -179,6 +200,7 @@ def train(config_path: str) -> Path:
         save_checkpoint_fn=save_checkpoint_fn,
         logger=logger,
         test_in_train=False,
+        resume_from_log=retoma,
     )
     result = OnPolicyTrainer(algorithm, params).run()
     torch.save(algorithm.state_dict(), final_path)

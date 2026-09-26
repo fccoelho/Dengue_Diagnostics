@@ -1,0 +1,44 @@
+# Gerado por experiments/cenarios.py — não editar à mão.
+# Base: kriging_v9 (SEIR, casos "outro"); só a geografia muda.
+# Treino e teste: gerador sintético (dois focos gaussianos).
+env:
+  generator: synthetic
+  size: 400
+  episize: 300
+  epilength: 300
+  start_day: 1
+  epi_model: seir
+  initial_infected_fraction: 0.01
+  reward_delay_days: 0
+  lab_delay_days: 5
+  clinical_specificity:
+  - 0.5
+  - 0.95
+  dengue_center:
+  - 100
+  - 100
+  chik_center:
+  - 300
+  - 300
+  dengue_radius: 90
+  chik_radius: 90
+  other_prevalence: 0.25
+  kriging_other_cases: true
+  other_recognition_prob: 0.15
+  lab_sensitivity: 0.95
+  lab_specificity: 0.98
+  lab_inconclusive_prob: 0.02
+  max_case_revisits: 2
+  force_decision_after_tests: true
+  penalty_unresolved: -10.0
+  shaping_conclude_bonus: 2.0
+  test_cost: 4.0
+  epi_confirm_cost: 4.0
+  epi_radius: 20
+  epi_threshold: 1
+wrappers:
+- map_tensor
+- case_by_case
+context_features: true
+per_case_reward: true
+map_size: 100
