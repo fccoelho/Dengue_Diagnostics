@@ -342,3 +342,35 @@ class TestKrigingOtherCases(unittest.TestCase):
         com, _ = self._env(kriging_other_cases=True)
         por_dia = lambda d: d[d.disease < 2].groupby(["t", "disease"]).size()
         self.assertTrue(por_dia(sem).equals(por_dia(com)))
+
+
+class TestPlaceRandomly(unittest.TestCase):
+    """Escala e posição sorteadas da cidade: preserva as duas superfícies e só muda onde estão."""
+
+    def _cidade(self):
+        d = np.zeros((40, 40)); c = np.zeros((40, 40))
+        d[5:15, 5:25] = 1.0; c[10:20, 5:25] = 2.0
+        return d / d.sum(), c / c.sum()
+
+    def test_probabilidades_e_mesma_transformacao(self):
+        from dengue_envs.data.kriging_generator import place_randomly
+
+        d, c = self._cidade()
+        rng = np.random.default_rng(0)
+        d2, c2 = place_randomly(d, c, rng, (0.4, 0.9))
+        self.assertAlmostEqual(d2.sum(), 1.0); self.assertAlmostEqual(c2.sum(), 1.0)
+        # As duas doenças caem na mesma área (a união do contorno recolocado).
+        area = (d2 + c2) > 0
+        self.assertTrue(((d2 > 0) <= area).all() and ((c2 > 0) <= area).all())
+        self.assertLess(area.mean(), 1.0)
+
+    def test_sementes_diferentes_mudam_o_lugar(self):
+        from dengue_envs.data.kriging_generator import place_randomly
+
+        d, c = self._cidade()
+        lugares = set()
+        for s in range(6):
+            d2, _ = place_randomly(d, c, np.random.default_rng(s), (0.3, 1.0))
+            xs, ys = np.nonzero(d2)
+            lugares.add((xs.min(), ys.min(), xs.max(), ys.max()))
+        self.assertGreater(len(lugares), 3)

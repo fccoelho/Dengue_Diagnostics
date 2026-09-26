@@ -65,6 +65,12 @@ def _misto(base: dict, entradas: list) -> dict:
     return cfg
 
 
+def _com_posicao(cfg: dict, escala=(0.35, 1.0)) -> dict:
+    cfg = copy.deepcopy(cfg)
+    cfg["env"]["surface_random_placement"] = list(escala)
+    return cfg
+
+
 def cenarios() -> dict:
     base = _base()
     sint = copy.deepcopy(base)
@@ -81,6 +87,9 @@ def cenarios() -> dict:
         "cenario_rio": ("Treino: 20 réplicas do bootstrap espacial do Rio 2015-16.", _misto(base, _rio())),
         "cenario_recife": (f"Treino: réplicas do Recife, anos {list(ANOS_TREINO_RECIFE)}.",
                            _misto(base, _recife())),
+        "cenario_recifepos": ("Treino: como cenario_recife, com escala, rotação e posição da cidade sorteadas "
+                              "por episódio (tira o atalho de memorizar o contorno).",
+                              _com_posicao(_misto(base, _recife()))),
         "cenario_misto": ("Treino: 1/3 sintético, 1/3 Rio (réplicas), 1/3 Recife (réplicas).",
                           _misto(base, [{"generator": "synthetic", "weight": 1 / 3}] + _rio(1 / 3) + _recife(1 / 3))),
         "teste_sintetico": ("Teste: gerador sintético.", sint),

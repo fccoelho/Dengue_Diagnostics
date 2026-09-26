@@ -280,6 +280,56 @@ def probability_to_env_grid(prob: np.ndarray, size: int) -> np.ndarray:
     return canvas
 
 
+def place_randomly(
+    prob_dengue: np.ndarray,
+    prob_chik: np.ndarray,
+    rng: np.random.Generator,
+    scale_range: Tuple[float, float],
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Recoloca a área ocupada pela cidade numa escala e posição sorteadas do grid.
+
+    Motivo medido (experimento v6): um agente treinado no Recife, cujo contorno
+    ocupa metade do grid e fica sempre no mesmo lugar (a menos de 4 espelhos),
+    aprendeu a se orientar pela forma da cidade — zerar a posição do caso o
+    derruba de +2135 para −4631, e zerar o mapa MELHORA sua transferência para
+    o Rio (+464 para +1514). O agente do Rio, cuja superfície ocupa o grid
+    inteiro, ignora o espaço. Sortear escala, rotação e posição tira o atalho.
+
+    A mesma transformação vale para as duas doenças (preserva a geometria
+    relativa e, portanto, a dificuldade). `scale_range` é o lado maior da área
+    ocupada como fração do grid.
+    """
+    size = prob_dengue.shape[0]
+    ocupado = (prob_dengue + prob_chik) > 0
+    xs, ys = np.nonzero(ocupado)
+    if len(xs) == 0:
+        return prob_dengue, prob_chik
+    x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+    k = int(rng.integers(0, 4))
+    espelho = bool(rng.integers(0, 2))
+
+    def _gira(a):
+        a = np.rot90(a[x0:x1, y0:y1], k)
+        return np.flipud(a) if espelho else a
+
+    d, c = _gira(prob_dengue), _gira(prob_chik)
+    lado = float(rng.uniform(*scale_range)) * size
+    fator = lado / max(d.shape)
+    alvo = (max(1, int(round(d.shape[0] * fator))), max(1, int(round(d.shape[1] * fator))))
+    alvo = (min(alvo[0], size), min(alvo[1], size))
+    d = zoom(d, (alvo[0] / d.shape[0], alvo[1] / d.shape[1]), order=1)[: alvo[0], : alvo[1]]
+    c = zoom(c, (alvo[0] / c.shape[0], alvo[1] / c.shape[1]), order=1)[: alvo[0], : alvo[1]]
+    ox = int(rng.integers(0, size - d.shape[0] + 1))
+    oy = int(rng.integers(0, size - d.shape[1] + 1))
+    saida = []
+    for a in (d, c):
+        tela = np.zeros((size, size), dtype=float)
+        tela[ox: ox + a.shape[0], oy: oy + a.shape[1]] = np.clip(a, 0.0, None)
+        tela /= tela.sum()
+        saida.append(tela)
+    return saida[0], saida[1]
+
+
 def augment_surfaces(
     surfaces: "KrigingSurfaces", rng: np.random.Generator
 ) -> "KrigingSurfaces":
@@ -485,6 +535,7 @@ class KrigingWorld:
         epi_model: str = "legacy",
         initial_infected_fraction: float = 0.01,
         other_prevalence: float = 0.0,
+        random_placement: Optional[Tuple[float, float]] = None,
     ):
         self.size = int(size)
         self.epi_model = epi_model
@@ -501,6 +552,9 @@ class KrigingWorld:
 
         self.prob_dengue = probability_to_env_grid(surfaces.prob_dengue, self.size)
         self.prob_chik = probability_to_env_grid(surfaces.prob_chik, self.size)
+        if random_placement is not None:
+            self.prob_dengue, self.prob_chik = place_randomly(
+                self.prob_dengue, self.prob_chik, self._rng, tuple(random_placement))
         self.dengue_center, self.dengue_radius = _focus_from_prob(self.prob_dengue)
         self.chik_center, self.chik_radius = _focus_from_prob(self.prob_chik)
 
@@ -678,6 +732,7 @@ class KrigingDensityGenerator:
         epi_model: str = "legacy",
         initial_infected_fraction: float = 0.01,
         other_prevalence: float = 0.0,
+        random_placement: Optional[Tuple[float, float]] = None,
     ) -> KrigingWorld:
         return KrigingWorld(
             self.size,
@@ -690,6 +745,7 @@ class KrigingDensityGenerator:
             epi_model=epi_model,
             initial_infected_fraction=initial_infected_fraction,
             other_prevalence=other_prevalence,
+            random_placement=random_placement,
         )
 
     def generate(self, seed: Optional[int] = None) -> pd.DataFrame:

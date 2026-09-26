@@ -50,6 +50,33 @@ def nome(cenario: str, braco: str, seed: int) -> str:
     return f"{cenario}_{braco}_s{seed}"
 
 
+# Grupos extras, só braço C: nome -> (cenário de ambiente, épocas, descrição).
+EXTRAS = {
+    "mistolongo": ("misto", 20, "misto com 20 épocas (600 mil passos): a mistura falhou por falta de treino?"),
+    "recifepos": ("recifepos", 10, "Recife com escala e posição da cidade sorteadas: tira o atalho do contorno?"),
+}
+
+
+def gera_configs_extra(grupo: str) -> List[Path]:
+    cenario, epocas, descricao = EXTRAS[grupo]
+    TREINO.mkdir(parents=True, exist_ok=True)
+    caminhos = []
+    for seed in SEEDS:
+        cfg = {"env_config": f"../../env/cenario_{cenario}.yaml", **MODELO}
+        cfg["train"] = {**MODELO["train"], "seed": seed, "epochs": epocas, "per_case_credit": True}
+        cfg["output_dir"] = f"results/ppo_v6/{nome(grupo, 'C', seed)}"
+        p = TREINO / f"{nome(grupo, 'C', seed)}.yaml"
+        p.write_text(f"# v6 — {descricao} Braço C, seed {seed}. Gerado por experiments/fila.py.\n"
+                     + yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        caminhos.append(p)
+    return caminhos
+
+
+def gera_configs_longo() -> List[Path]:
+    """Mantido para a fila do misto longo que já está rodando."""
+    return gera_configs_extra("mistolongo")
+
+
 def gera_configs() -> List[Path]:
     """Uma config por (cenário, braço, seed), em ordem de seed: a 1ª leva cobre tudo."""
     TREINO.mkdir(parents=True, exist_ok=True)
@@ -95,9 +122,12 @@ def main(argv=None) -> None:
     ap.add_argument("--paralelo", type=int, default=4)
     ap.add_argument("--ram-livre", type=float, default=5.0, help="GB livres exigidos para lançar um treino")
     ap.add_argument("--tentativas", type=int, default=3)
+    ap.add_argument("--longo", action="store_true", help="atalho para --grupo mistolongo")
+    ap.add_argument("--grupo", choices=tuple(EXTRAS), default=None, help="roda só um grupo extra (braço C)")
     args = ap.parse_args(argv)
 
-    fila = gera_configs()
+    grupo = "mistolongo" if args.longo else args.grupo
+    fila = gera_configs_extra(grupo) if grupo else gera_configs()
     LOGS.mkdir(parents=True, exist_ok=True)
     rodando: Dict[Path, subprocess.Popen] = {}
     falhas: Dict[Path, int] = {}

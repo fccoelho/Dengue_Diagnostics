@@ -30,7 +30,8 @@ SAIDA = _RAIZ / "results" / "v6_avaliacao"
 TREINOS = _RAIZ / "results" / "ppo_v6"
 SEEDS = tuple(range(3001, 3031))
 TESTES = ("teste_sintetico", "teste_rio", "teste_recife_2016", "teste_recife_2021")
-CENARIOS = ("sintetico", "rio", "recife", "misto")
+CENARIOS = ("sintetico", "rio", "recife", "misto", "mistolongo", "recifepos")
+EXTRAS = ("mistolongo", "recifepos")  # grupos extras: só o braço C
 BRACOS = ("C", "A")
 SEEDS_TREINO = (45, 46, 47)
 FIXAS = ("sequencial_clinico", "sequencial", "testtwice", "testonce", "clinical")
@@ -39,7 +40,8 @@ RAM_LIVRE = 4.0  # GB: acima da margem da fila de treinos, que tem prioridade
 
 def unidades() -> List[Tuple[str, str]]:
     """(agente, teste). Agente: nome de política fixa ou '<cenario>_<braco>_s<seed>'."""
-    agentes = list(FIXAS) + [f"{c}_{b}_s{s}" for s in SEEDS_TREINO for c in CENARIOS for b in BRACOS]
+    agentes = list(FIXAS) + [f"{c}_{b}_s{s}" for s in SEEDS_TREINO for c in CENARIOS for b in BRACOS
+                             if not (c in EXTRAS and b == "A")]
     return [(a, t) for a in agentes for t in TESTES]
 
 
@@ -113,7 +115,7 @@ def roda(workers: int) -> None:
 def carrega() -> pd.DataFrame:
     partes = [pd.read_csv(f) for f in SAIDA.glob("*/*.csv")]
     df = pd.concat(partes, ignore_index=True)
-    treinado = df["agente"].str.match(r"^(sintetico|rio|recife|misto)_[AC]_s\d+$")
+    treinado = df["agente"].str.match(r"^(sintetico|rio|recife|misto|mistolongo|recifepos)_[AC]_s\d+$")
     partes = df.loc[treinado, "agente"].str.extract(r"^(?P<cenario>\w+?)_(?P<braco>[AC])_s(?P<seed_treino>\d+)$")
     df.loc[treinado, ["cenario", "braco", "seed_treino"]] = partes.values
     df.loc[~treinado, "cenario"] = "fixa"
@@ -137,7 +139,10 @@ def analisa(n_replicas: int = 10_000) -> pd.DataFrame:
             columns={"braco_": "braco"})
         comps = []
         for c in CENARIOS:
-            comps += [(f"C|{c}", f"A|{c}"), (f"C|{c}", "sequencial_clinico")]
+            if c not in EXTRAS:
+                comps.append((f"C|{c}", f"A|{c}"))
+            comps.append((f"C|{c}", "sequencial_clinico"))
+        comps += [("C|mistolongo", "C|misto"), ("C|recifepos", "C|recife")]
         bracos, cmp_ = B.analisa(tab, comparacoes=comps, n_replicas=n_replicas)
         bracos["teste"], cmp_["teste"] = teste, teste
         bracos.to_csv(SAIDA / f"bracos_{teste}.csv", index=False)

@@ -72,7 +72,7 @@ _ENV_KEYS = {
 _GENERATOR_KEYS = {
     "generator", "surfaces_path", "mix", "augment_surfaces",
     "surface_temperature", "surface_clamp", "surface_mix_uniform",
-    "kriging_other_cases",
+    "kriging_other_cases", "surface_random_placement",
 }
 
 _WRAPPER_BUILDERS = {
@@ -198,6 +198,10 @@ def _make_world_builder(env_cfg: dict) -> Optional[Callable]:
                 stacklevel=2,
             )
 
+        # Escala e posição da cidade sorteadas por episódio (ver `place_randomly`).
+        colocacao = env_cfg.get("surface_random_placement")
+        colocacao = tuple(float(v) for v in colocacao) if colocacao is not None else None
+
         def builder(env: DengueDiagnosticsEnv):
             sup = augment_surfaces(surfaces, env.np_random) if augment else surfaces
             gen = KrigingDensityGenerator(
@@ -213,6 +217,7 @@ def _make_world_builder(env_cfg: dict) -> Optional[Callable]:
                 epi_model=env.epi_model,
                 initial_infected_fraction=env.initial_infected_fraction,
                 other_prevalence=env.other_prevalence if other_cases else 0.0,
+                random_placement=colocacao,
             )
 
         return builder

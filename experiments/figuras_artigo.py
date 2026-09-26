@@ -237,7 +237,46 @@ def temperatura() -> None:
     _salva(fig, "fig_temperature.png")
 
 
+def transferencia() -> None:
+    """Matriz treino × teste: diferença pareada do agente C para a melhor regra fixa, com IC."""
+    base = RES / "v6_avaliacao"
+    testes = [("teste_rio", "Rio de Janeiro"), ("teste_recife_2016", "Recife 2016*"),
+              ("teste_recife_2021", "Recife 2021*"), ("teste_sintetico", "Idealized")]
+    treinos = [("rio", "Rio de Janeiro"), ("recife", "Recife"), ("sintetico", "Idealized"),
+               ("misto", "Mixture"), ("mistolongo", "Mixture, 2× training")]
+    dif, lo, hi = {}, {}, {}
+    for t, _ in testes:
+        c = pd.read_csv(base / f"comparacoes_{t}.csv")
+        c = c[(c.metrica == "recompensa") & (c.y == "sequencial_clinico")]
+        for _, r in c.iterrows():
+            k = (r.x.split("|")[1], t)
+            dif[k], lo[k], hi[k] = r.diferenca, r.dif_lo, r.dif_hi
+    treinos = [(k, n) for k, n in treinos if any((k, t) in dif for t, _ in testes)]
+    m = np.array([[dif.get((k, t), np.nan) for t, _ in testes] for k, _ in treinos])
+    cmap = LinearSegmentedColormap.from_list("dif", ["#e34948", "#f2f1ee", AZUL])
+    fig, ax = plt.subplots(figsize=(9.5, 1.1 + 0.85 * len(treinos)), constrained_layout=True)
+    im = ax.imshow(m, cmap=cmap, norm=TwoSlopeNorm(0, -1500, 1500), aspect="auto")
+    for i, (k, _) in enumerate(treinos):
+        for j, (t, _) in enumerate(testes):
+            if (k, t) not in dif:
+                continue
+            sig = lo[(k, t)] > 0 or hi[(k, t)] < 0
+            ax.text(j, i, f"{dif[(k, t)]:+.0f}\n[{lo[(k, t)]:+.0f}, {hi[(k, t)]:+.0f}]", ha="center",
+                    va="center", fontsize=8.5, color=TEXTO, fontweight="bold" if sig else "normal")
+    ax.set_xticks(range(len(testes)), [n for _, n in testes])
+    ax.set_yticks(range(len(treinos)), [n for _, n in treinos])
+    ax.set_xlabel("evaluated on"); ax.set_ylabel("trained on"); ax.grid(False)
+    ax.tick_params(length=0)
+    for s in ax.spines.values():
+        s.set_visible(False)
+    cb = fig.colorbar(im, ax=ax, shrink=0.9)
+    cb.set_label("reward of C minus clinician-guided\nsequential rule (paired, 95% CI)"); cb.outline.set_visible(False)
+    ax.set_title("Per-case agent vs. the best fixed rule, across training and test geographies")
+    _salva(fig, "fig_transfer.png")
+
+
 FIGURAS = {
+    "transferencia": transferencia,
     "seir": seir, "espacial_rio": espacial_rio, "recife_anos": recife_anos, "recife_resumo": recife_resumo,
     "bracos_v8": bracos_v8, "politicas_v9": politicas_v9, "temperatura": temperatura,
 }
