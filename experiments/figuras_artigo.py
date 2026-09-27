@@ -274,7 +274,7 @@ def transferencia() -> None:
     dif, lo, hi = {}, {}, {}
     for t, _ in testes:
         c = pd.read_csv(base / f"comparacoes_{t}.csv")
-        c = c[(c.metrica == "recompensa") & (c.y == "sequencial_clinico")]
+        c = c[(c.metrica == "recompensa") & (c.y == "sequencial_clinico") & c.x.str.startswith("C|")]
         for _, r in c.iterrows():
             k = (r.x.split("|")[1], t)
             dif[k], lo[k], hi[k] = r.diferenca, r.dif_lo, r.dif_hi
@@ -302,7 +302,81 @@ def transferencia() -> None:
     _salva(fig, "fig_transfer.png")
 
 
+def casos() -> None:
+    """O que o agente aprendeu, caso a caso: exames, acerto e 2º exame por rótulo do médico."""
+    c = pd.read_csv(RES / "analise_casos" / "casos.csv.gz", low_memory=False)
+    grupos = [("regra", "teste_rio", "sequential, clinician-guided", CINZA_ESCURO),
+              ("rio_C", "teste_rio", "C trained on Rio (Rio test)", AZUL),
+              ("sintetico_C", "teste_sintetico", "C trained on idealized (idealized test)", VERDE)]
+    rotulos = [("dengue", "dengue"), ("chik", "chikungunya"), ("outro", "not arboviral")]
+    fig, axs = plt.subplots(1, 3, figsize=(11, 3.6), constrained_layout=True)
+    larg = 0.26
+    for i, (pol, teste, nome, cor) in enumerate(grupos):
+        g = c[(c.politica == pol) & (c.teste == teste)]
+        por = g.groupby("suspeita_n")
+        x = np.arange(len(rotulos)) + (i - 1) * larg
+        axs[0].bar(x, [por.n_exames.mean()[r] for r, _ in rotulos], larg, color=cor, label=nome)
+        axs[1].bar(x, [por.acertou.mean()[r] for r, _ in rotulos], larg, color=cor)
+        neg = g[(g.laudo1 == "neg") & (g.suspeita_n != "outro")]
+        axs[2].bar(i, (neg.n_exames >= 2).mean(), 0.6, color=cor)
+    for ax in axs[:2]:
+        ax.set_xticks(range(len(rotulos)), [n for _, n in rotulos])
+        ax.set_xlabel("clinician's label")
+    axs[0].set_ylabel("tests per case"); axs[0].set_title("Tests per case")
+    axs[1].set_ylabel("accuracy"); axs[1].set_ylim(0.8, 1.0); axs[1].set_title("Accuracy")
+    axs[2].set_xticks(range(len(grupos)), ["rule", "C (Rio)", "C (ideal.)"])
+    axs[2].set_ylabel("P(second test | first negative)"); axs[2].set_ylim(0, 1.05)
+    axs[2].set_title("Second test after a negative")
+    fig.legend(*axs[0].get_legend_handles_labels(), loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.1),
+               fontsize=9)
+    _salva(fig, "fig_cases.png")
+
+
+def transferencia_corrigida() -> None:
+    """Rio <-> Recife depois de corrigir o artefato dos casos "outro", e em escala física."""
+    base = RES / "v6_avaliacao"
+    paineis = [
+        ("Non-arboviral suspects only where people live",
+         [("teste_rio", "Rio de Janeiro"), ("teste_recife_2016_sup", "Recife 2016*"),
+          ("teste_recife_2021_sup", "Recife 2021*")],
+         [("rio", "Rio de Janeiro"), ("recifesup", "Recife")]),
+        ("... and both cities at 200 m per cell",
+         [("teste_rio_fis", "Rio de Janeiro"), ("teste_recife_2016_fis", "Recife 2016*"),
+          ("teste_recife_2021_fis", "Recife 2021*")],
+         [("riofis", "Rio de Janeiro"), ("recifefis", "Recife")]),
+    ]
+    cmap = LinearSegmentedColormap.from_list("dif", ["#e34948", "#f2f1ee", AZUL])
+    norm = TwoSlopeNorm(0, -1500, 1500)
+    fig, axs = plt.subplots(1, 2, figsize=(11, 2.6), constrained_layout=True)
+    for ax, (titulo, testes, treinos) in zip(axs, paineis):
+        dif = {}
+        for t, _ in testes:
+            c = pd.read_csv(base / f"comparacoes_{t}.csv")
+            c = c[(c.metrica == "recompensa") & (c.y == "sequencial_clinico") & c.x.str.startswith("C|")]
+            for _, r in c.iterrows():
+                dif[(r.x.split("|")[1], t)] = (r.diferenca, r.dif_lo, r.dif_hi)
+        m = np.array([[dif.get((k, t), (np.nan,))[0] for t, _ in testes] for k, _ in treinos])
+        im = ax.imshow(m, cmap=cmap, norm=norm, aspect="auto")
+        for i, (k, _) in enumerate(treinos):
+            for j, (t, _) in enumerate(testes):
+                d, lo, hi = dif[(k, t)]
+                ax.text(j, i, f"{d:+.0f}\n[{lo:+.0f}, {hi:+.0f}]", ha="center", va="center", fontsize=8.5,
+                        color=TEXTO, fontweight="bold" if (lo > 0 or hi < 0) else "normal")
+        ax.set_xticks(range(len(testes)), [n for _, n in testes])
+        ax.set_yticks(range(len(treinos)), [n for _, n in treinos])
+        ax.set_xlabel("evaluated on"); ax.grid(False); ax.tick_params(length=0)
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+        ax.set_title(titulo, fontsize=10)
+    axs[0].set_ylabel("trained on")
+    cb = fig.colorbar(im, ax=axs, shrink=0.9)
+    cb.set_label("C minus clinician-guided rule"); cb.outline.set_visible(False)
+    _salva(fig, "fig_transfer_corrected.png")
+
+
 FIGURAS = {
+    "transferencia_corrigida": transferencia_corrigida,
+    "casos": casos,
     "transferencia": transferencia,
     "seir": seir, "espacial_rio": espacial_rio, "recife_anos": recife_anos, "recife_resumo": recife_resumo,
     "bracos_v8": bracos_v8, "politicas_v9": politicas_v9, "politicas_v6": politicas_v6, "temperatura": temperatura,

@@ -63,3 +63,32 @@ class ClinicalSequentialAgentRunner(SequentialAgentRunner):
     def _primeiro_exame(self, row) -> int:
         # Sem laudos, `agent_diagnosis` ainda é o palpite do médico.
         return TEST_CHIK if int(row["agent_diagnosis"]) == CHIK else TEST_DENGUE
+
+
+CONCLUDE_OTHER = 6
+OTHER = 2
+
+
+class TrustOtherSequentialAgentRunner(ClinicalSequentialAgentRunner):
+    """`sequencial_clinico`, mas sem exame quando o médico suspeita de outra etiologia.
+
+    É a regra que a análise por caso extraiu do agente C treinado no Rio
+    (`experiments/analise_casos.py`): ele segue o médico no 1º exame, pede o
+    2º sempre que o 1º é negativo — como o `sequencial_clinico` — e a única
+    diferença sistemática é concluir "outro" sem exame em ~94% dos casos que o
+    médico já rotulou como não-arbovirose. Se esta regra empatar com o agente,
+    é isso que ele aprendeu.
+    """
+
+    name = "sequencial_confia_outro"
+
+    def choose_action(self, env) -> int:
+        base = env.unwrapped
+        case_id = env.current_case[0]
+        if case_id in base.obs_cases.index:
+            row = base.obs_cases.loc[case_id]
+            sem_laudo = int(row["testd"]) == NOT_TESTED and int(row["testc"]) == NOT_TESTED
+            # Sem laudos, `agent_diagnosis` ainda é o palpite do médico.
+            if sem_laudo and int(row["agent_diagnosis"]) == OTHER:
+                return CONCLUDE_OTHER
+        return super().choose_action(env)

@@ -40,7 +40,11 @@ from agents.testall.agent import TestAllAgentRunner
 from agents.confirmall.agent import ConfirmAllAgentRunner
 from agents.testonce.agent import TestOnceAgentRunner
 from agents.testtwice.agent import TestTwiceAgentRunner
-from agents.sequential.agent import ClinicalSequentialAgentRunner, SequentialAgentRunner
+from agents.sequential.agent import (
+    ClinicalSequentialAgentRunner,
+    SequentialAgentRunner,
+    TrustOtherSequentialAgentRunner,
+)
 
 # Registro de agentes disponíveis (nome -> classe runner).
 # Novos algoritmos (ppo, ...) entram aqui conforme migrados.
@@ -53,6 +57,7 @@ AGENT_REGISTRY = {
     "testtwice": TestTwiceAgentRunner,
     "sequencial": SequentialAgentRunner,
     "sequencial_clinico": ClinicalSequentialAgentRunner,
+    "sequencial_confia_outro": TrustOtherSequentialAgentRunner,
     "qlearning": QLearningAgentRunner,
     "dqn": DQNAgentRunner,
     "ppo": PPOAgentRunner,
