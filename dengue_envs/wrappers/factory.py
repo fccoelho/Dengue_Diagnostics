@@ -73,6 +73,7 @@ _GENERATOR_KEYS = {
     "generator", "surfaces_path", "mix", "augment_surfaces",
     "surface_temperature", "surface_clamp", "surface_mix_uniform",
     "kriging_other_cases", "surface_random_placement",
+    "surface_cell_m", "surface_translate", "surface_mask_path", "kriging_other_on_support",
 }
 
 _WRAPPER_BUILDERS = {
@@ -166,14 +167,19 @@ def _make_world_builder(env_cfg: dict) -> Optional[Callable]:
             augment_surfaces,
             load_kriging_surfaces,
             transform_surfaces,
+            with_mask,
         )
 
         path = Path(env_cfg.get("surfaces_path", DEFAULT_SURFACES_PATH))
         # Quanto a posição informa a doença (ver `transform_surfaces`). Fixo
         # por ambiente, aplicado uma vez; comuta com o `augment`, que é rígido.
         clamp = env_cfg.get("surface_clamp")
+        # Máscara de área habitada (ver `dengue_envs.data.build_masks`).
+        carregadas = load_kriging_surfaces(path)
+        if env_cfg.get("surface_mask_path"):
+            carregadas = with_mask(carregadas, env_cfg["surface_mask_path"])
         surfaces = transform_surfaces(
-            load_kriging_surfaces(path),
+            carregadas,
             temperature=float(env_cfg.get("surface_temperature", 1.0)),
             clamp_quantiles=tuple(clamp) if clamp is not None else None,
             mix_uniform=float(env_cfg.get("surface_mix_uniform", 0.0)),
@@ -201,6 +207,12 @@ def _make_world_builder(env_cfg: dict) -> Optional[Callable]:
         # Escala e posição da cidade sorteadas por episódio (ver `place_randomly`).
         colocacao = env_cfg.get("surface_random_placement")
         colocacao = tuple(float(v) for v in colocacao) if colocacao is not None else None
+        # Escala física (ver `physical_env_grids`): metros por célula do env,
+        # iguais para todas as cidades; e os casos "outro" só na área habitada.
+        cell_m = env_cfg.get("surface_cell_m")
+        cell_m = float(cell_m) if cell_m is not None else None
+        transladar = bool(env_cfg.get("surface_translate", True))
+        outro_no_suporte = bool(env_cfg.get("kriging_other_on_support", False))
 
         def builder(env: DengueDiagnosticsEnv):
             sup = augment_surfaces(surfaces, env.np_random) if augment else surfaces
@@ -218,6 +230,9 @@ def _make_world_builder(env_cfg: dict) -> Optional[Callable]:
                 initial_infected_fraction=env.initial_infected_fraction,
                 other_prevalence=env.other_prevalence if other_cases else 0.0,
                 random_placement=colocacao,
+                physical_cell_m=cell_m,
+                physical_translate=transladar,
+                other_on_support=outro_no_suporte,
             )
 
         return builder

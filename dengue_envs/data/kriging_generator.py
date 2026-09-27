@@ -53,6 +53,7 @@ class KrigingSurfaces:
     class_prob_dengue: Optional[np.ndarray] = None
     class_prob_chik: Optional[np.ndarray] = None
     meta: Optional[Dict[str, Any]] = None
+    mask: Optional[np.ndarray] = None  # (ny, nx) booleano: área habitada
 
     @property
     def shape(self) -> Tuple[int, int]:
@@ -89,6 +90,7 @@ def load_kriging_surfaces(path: Union[str, Path]) -> KrigingSurfaces:
         intensity_chik=_req("intensity_chikungunya") if "intensity_chikungunya" in files else None,
         class_prob_dengue=_req("class_prob_dengue") if "class_prob_dengue" in files else None,
         class_prob_chik=_req("class_prob_chikungunya") if "class_prob_chikungunya" in files else None,
+        mask=np.asarray(data["mask"], dtype=bool) if "mask" in files else None,
         meta={
             "path": str(path),
             "variogram_model": (
@@ -280,6 +282,62 @@ def probability_to_env_grid(prob: np.ndarray, size: int) -> np.ndarray:
     return canvas
 
 
+def with_mask(surfaces: "KrigingSurfaces", path: Union[str, Path]) -> "KrigingSurfaces":
+    """Troca a máscara de área habitada pela do arquivo (ver `build_masks`)."""
+    import dataclasses
+
+    mask = np.asarray(np.load(path)["mask"], dtype=bool)
+    if mask.shape != surfaces.shape:
+        raise ValueError(f"máscara {path}: {mask.shape} != superfície {surfaces.shape}")
+    return dataclasses.replace(surfaces, mask=mask)
+
+
+def physical_env_grids(
+    surfaces: "KrigingSurfaces",
+    size: int,
+    cell_m: float,
+    rng: Optional[np.random.Generator] = None,
+    translate: bool = True,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Põe a cidade no grid do env em ESCALA FÍSICA: cada célula tem `cell_m` metros.
+
+    Antes (`probability_to_env_grid`), cada cidade era esticada até ocupar o
+    grid inteiro, com escala diferente em x e em y: uma célula do env valia
+    ~181 x 113 m no Rio e ~46 x 65 m no Recife. Assim o raio da confirmação
+    epidemiológica (20 células) valia ~3 km no Rio e ~1 km no Recife, e a
+    densidade de casos por célula mudava de cidade para cidade. Aqui a escala é
+    a mesma para todas (isotrópica), e a cidade ocupa só a sua área real.
+
+    Devolve `(prob_dengue, prob_chik, suporte)` indexados como `[x, y]`. O
+    suporte é a área habitada (`surfaces.mask`, ou o retângulo inteiro sem
+    máscara): as duas arboviroses são zeradas fora dele, e os casos "outro"
+    caem só dentro dele (`KrigingWorld._other_cases`). Com `translate`, a
+    cidade vai para uma posição sorteada do grid, para que a posição absoluta
+    não identifique a cidade; senão, fica centrada.
+    """
+    mask = surfaces.mask if surfaces.mask is not None else np.ones(surfaces.shape, dtype=bool)
+    fator = float(surfaces.cell_size) / float(cell_m)
+    sup = zoom(mask.T.astype(float), fator, order=0) > 0.5
+    w, h = sup.shape
+    if w > size or h > size:
+        raise ValueError(f"cidade de {w}x{h} células de {cell_m} m não cabe no grid {size}x{size}")
+    if translate and rng is not None:
+        ox, oy = int(rng.integers(0, size - w + 1)), int(rng.integers(0, size - h + 1))
+    else:
+        ox, oy = (size - w) // 2, (size - h) // 2
+    suporte = np.zeros((size, size), dtype=bool)
+    suporte[ox: ox + w, oy: oy + h] = sup
+    saida = []
+    for prob in (surfaces.prob_dengue, surfaces.prob_chik):
+        p = zoom(np.where(mask, prob, 0.0).T, fator, order=1)[:w, :h]
+        tela = np.zeros((size, size), dtype=float)
+        tela[ox: ox + p.shape[0], oy: oy + p.shape[1]] = np.clip(p, 0.0, None)
+        tela *= suporte
+        total = tela.sum()
+        saida.append(tela / total if total > 0 else suporte / suporte.sum())
+    return saida[0], saida[1], suporte
+
+
 def place_randomly(
     prob_dengue: np.ndarray,
     prob_chik: np.ndarray,
@@ -394,6 +452,7 @@ def augment_surfaces(
         intensity_chik=_t(surfaces.intensity_chik),
         class_prob_dengue=_t(surfaces.class_prob_dengue),
         class_prob_chik=_t(surfaces.class_prob_chik),
+        mask=_t(surfaces.mask),
     )
 
 
@@ -536,6 +595,9 @@ class KrigingWorld:
         initial_infected_fraction: float = 0.01,
         other_prevalence: float = 0.0,
         random_placement: Optional[Tuple[float, float]] = None,
+        physical_cell_m: Optional[float] = None,
+        physical_translate: bool = True,
+        other_on_support: bool = False,
     ):
         self.size = int(size)
         self.epi_model = epi_model
@@ -550,8 +612,18 @@ class KrigingWorld:
         self._rng = random_state or np.random.default_rng()
         self.surfaces = surfaces
 
-        self.prob_dengue = probability_to_env_grid(surfaces.prob_dengue, self.size)
-        self.prob_chik = probability_to_env_grid(surfaces.prob_chik, self.size)
+        # Onde caem os casos "outro": o grid inteiro (até o v9) ou só a área
+        # habitada. Na escala física é sempre a área habitada.
+        self.support = None
+        if physical_cell_m is not None:
+            self.prob_dengue, self.prob_chik, self.support = physical_env_grids(
+                surfaces, self.size, physical_cell_m, self._rng, physical_translate)
+        else:
+            self.prob_dengue = probability_to_env_grid(surfaces.prob_dengue, self.size)
+            self.prob_chik = probability_to_env_grid(surfaces.prob_chik, self.size)
+            if other_on_support:
+                self.support = (self.prob_dengue + self.prob_chik) > 0
+        self._support_idx = np.flatnonzero(self.support) if self.support is not None else None
         if random_placement is not None:
             self.prob_dengue, self.prob_chik = place_randomly(
                 self.prob_dengue, self.prob_chik, self._rng, tuple(random_placement))
@@ -626,8 +698,12 @@ class KrigingWorld:
         n_other = int(np.round(n_arbo * self.other_prevalence / (1.0 - self.other_prevalence)))
         if n_other <= 0:
             return []
-        xs = self._rng.integers(0, self.size, n_other)
-        ys = self._rng.integers(0, self.size, n_other)
+        if self._support_idx is not None:
+            # Só onde mora gente: fora da cidade não há notificação de nada.
+            xs, ys = np.unravel_index(self._rng.choice(self._support_idx, n_other), (self.size, self.size))
+        else:
+            xs = self._rng.integers(0, self.size, n_other)
+            ys = self._rng.integers(0, self.size, n_other)
         self.other_total += n_other
         return [
             {"t": t, "x": int(x), "y": int(y), "disease": 2, "testd": 0, "testc": 0, "epiconf": 0}
@@ -733,6 +809,9 @@ class KrigingDensityGenerator:
         initial_infected_fraction: float = 0.01,
         other_prevalence: float = 0.0,
         random_placement: Optional[Tuple[float, float]] = None,
+        physical_cell_m: Optional[float] = None,
+        physical_translate: bool = True,
+        other_on_support: bool = False,
     ) -> KrigingWorld:
         return KrigingWorld(
             self.size,
@@ -746,6 +825,9 @@ class KrigingDensityGenerator:
             initial_infected_fraction=initial_infected_fraction,
             other_prevalence=other_prevalence,
             random_placement=random_placement,
+            physical_cell_m=physical_cell_m,
+            physical_translate=physical_translate,
+            other_on_support=other_on_support,
         )
 
     def generate(self, seed: Optional[int] = None) -> pd.DataFrame:

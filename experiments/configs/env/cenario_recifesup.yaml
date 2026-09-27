@@ -1,0 +1,687 @@
+# Gerado por experiments/cenarios.py — não editar à mão.
+# Base: kriging_v9 (SEIR, casos "outro"); só a geografia muda.
+# Treino: como cenario_recife, com os casos 'outro' só dentro do município.
+env:
+  generator: mixed
+  augment_surfaces: true
+  size: 400
+  episize: 300
+  epilength: 300
+  start_day: 1
+  epi_model: seir
+  initial_infected_fraction: 0.01
+  reward_delay_days: 0
+  lab_delay_days: 5
+  clinical_specificity:
+  - 0.5
+  - 0.95
+  dengue_center:
+  - 100
+  - 100
+  chik_center:
+  - 300
+  - 300
+  dengue_radius: 90
+  chik_radius: 90
+  other_prevalence: 0.25
+  kriging_other_cases: true
+  other_recognition_prob: 0.15
+  lab_sensitivity: 0.95
+  lab_specificity: 0.98
+  lab_inconclusive_prob: 0.02
+  max_case_revisits: 2
+  force_decision_after_tests: true
+  penalty_unresolved: -10.0
+  shaping_conclude_bonus: 2.0
+  test_cost: 4.0
+  epi_confirm_cost: 4.0
+  epi_radius: 20
+  epi_threshold: 1
+  mix:
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b00.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b01.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b02.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b03.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b04.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b05.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b06.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b07.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b08.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b09.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b10.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b11.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b12.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b13.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b14.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b15.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b16.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b17.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b18.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2017_b19.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b00.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b01.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b02.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b03.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b04.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b05.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b06.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b07.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b08.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b09.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b10.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b11.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b12.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b13.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b14.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b15.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b16.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b17.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b18.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2018_b19.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b00.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b01.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b02.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b03.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b04.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b05.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b06.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b07.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b08.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b09.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b10.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b11.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b12.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b13.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b14.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b15.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b16.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b17.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b18.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2019_b19.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b00.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b01.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b02.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b03.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b04.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b05.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b06.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b07.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b08.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b09.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b10.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b11.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b12.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b13.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b14.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b15.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b16.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b17.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b18.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2020_b19.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b00.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b01.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b02.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b03.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b04.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b05.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b06.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b07.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b08.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b09.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b10.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b11.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b12.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b13.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b14.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b15.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b16.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b17.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b18.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2022_b19.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b00.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b01.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b02.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b03.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b04.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b05.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b06.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b07.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b08.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b09.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b10.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b11.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b12.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b13.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b14.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b15.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b16.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b17.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b18.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2023_b19.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b00.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b01.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b02.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b03.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b04.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b05.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b06.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b07.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b08.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b09.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b10.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b11.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b12.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b13.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b14.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b15.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b16.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b17.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b18.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2024_b19.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b00.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b01.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b02.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b03.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b04.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b05.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b06.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b07.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b08.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b09.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b10.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b11.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b12.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b13.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b14.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b15.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b16.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b17.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b18.npz
+    augment_surfaces: true
+    weight: 0.00625
+  - generator: kriging
+    surfaces_path: results/kriging/boot/recife_2025_b19.npz
+    augment_surfaces: true
+    weight: 0.00625
+  kriging_other_on_support: true
+wrappers:
+- map_tensor
+- case_by_case
+context_features: true
+per_case_reward: true
+map_size: 100

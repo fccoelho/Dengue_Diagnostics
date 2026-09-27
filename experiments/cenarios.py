@@ -13,6 +13,12 @@ Treino (um agente por cenário, e um na mistura):
   tem só 201 chiks confirmadas e é o ano do epicentro da zika.
 - `cenario_misto`: um terço de cada um dos três acima.
 
+Escala física (`*_fis`, ver `physical_env_grids`): as duas cidades no mesmo
+grid de 200 m por célula, na área real (sem esticar), transladadas para uma
+posição sorteada, com os casos "outro" só na área habitada
+(`results/kriging/<cidade>_mask.npz`). `cenario_recifesup` só corrige os
+casos "outro" (mantém o esticamento): separa as duas causas do atalho.
+
 Teste (superfícies ORIGINAIS, nunca réplicas):
 - `teste_sintetico`, `teste_rio` (Rio 2015-16), `teste_recife_2016`,
   `teste_recife_2021` (anos fora do treino do Recife).
@@ -57,6 +63,28 @@ def _recife(peso_total: float = 1.0) -> list:
             for a in ANOS_TREINO_RECIFE for b in range(REPLICAS)]
 
 
+CELULA_FIS_M = 200.0
+MASCARA = {"rio": "results/kriging/rio_mask.npz", "recife": "results/kriging/recife_mask.npz"}
+
+
+def _fis(cfg: dict, cidade: str = None) -> dict:
+    """Escala física; a máscara vai em cada entrada do `mix` (é por cidade)."""
+    cfg = copy.deepcopy(cfg)
+    cfg["env"]["surface_cell_m"] = CELULA_FIS_M
+    cfg["env"]["surface_translate"] = True
+    for item in cfg["env"].get("mix", []):
+        item["surface_mask_path"] = MASCARA["rio" if "/rio_" in item["surfaces_path"] else "recife"]
+    if cidade is not None:
+        cfg["env"]["surface_mask_path"] = MASCARA[cidade]
+    return cfg
+
+
+def _suporte(cfg: dict) -> dict:
+    cfg = copy.deepcopy(cfg)
+    cfg["env"]["kriging_other_on_support"] = True
+    return cfg
+
+
 def _misto(base: dict, entradas: list) -> dict:
     cfg = copy.deepcopy(base)
     cfg["env"]["generator"] = "mixed"
@@ -92,7 +120,21 @@ def cenarios() -> dict:
                               _com_posicao(_misto(base, _recife()))),
         "cenario_misto": ("Treino: 1/3 sintético, 1/3 Rio (réplicas), 1/3 Recife (réplicas).",
                           _misto(base, [{"generator": "synthetic", "weight": 1 / 3}] + _rio(1 / 3) + _recife(1 / 3))),
+        "cenario_riofis": ("Treino: réplicas do Rio em escala física (200 m/célula), transladadas.",
+                           _fis(_misto(base, _rio()))),
+        "cenario_recifefis": (f"Treino: réplicas do Recife ({list(ANOS_TREINO_RECIFE)}) em escala física.",
+                              _fis(_misto(base, _recife()))),
+        "cenario_recifesup": ("Treino: como cenario_recife, com os casos 'outro' só dentro do município.",
+                              _suporte(_misto(base, _recife()))),
         "teste_sintetico": ("Teste: gerador sintético.", sint),
+        "teste_rio_fis": ("Teste: Rio 2015-16 original, em escala física.",
+                          _fis(original("results/kriging/rio_2015_2016_kriging_surfaces.npz"), "rio")),
+        **{f"teste_recife_{a}_fis": (f"Teste: Recife {a} original, em escala física.",
+                                     _fis(original(f"results/kriging/recife_{a}_kriging_surfaces.npz"), "recife"))
+           for a in ANOS_TESTE_RECIFE},
+        **{f"teste_recife_{a}_sup": (f"Teste: Recife {a} original, casos 'outro' só no município.",
+                                     _suporte(original(f"results/kriging/recife_{a}_kriging_surfaces.npz")))
+           for a in ANOS_TESTE_RECIFE},
         "teste_rio": ("Teste: superfície original do Rio 2015-16.",
                       original("results/kriging/rio_2015_2016_kriging_surfaces.npz")),
         **{f"teste_recife_{a}": (f"Teste: superfície original do Recife {a} (fora do treino).",

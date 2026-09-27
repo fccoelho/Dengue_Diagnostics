@@ -54,6 +54,9 @@ def nome(cenario: str, braco: str, seed: int) -> str:
 EXTRAS = {
     "mistolongo": ("misto", 20, "misto com 20 épocas (600 mil passos): a mistura falhou por falta de treino?"),
     "recifepos": ("recifepos", 10, "Recife com escala e posição da cidade sorteadas: tira o atalho do contorno?"),
+    "riofis": ("riofis", 10, "Rio em escala física (200 m/célula), casos 'outro' na área habitada."),
+    "recifefis": ("recifefis", 10, "Recife em escala física (200 m/célula), casos 'outro' na área habitada."),
+    "recifesup": ("recifesup", 10, "Recife esticado como antes, mas com os casos 'outro' só no município."),
 }
 
 
@@ -123,11 +126,12 @@ def main(argv=None) -> None:
     ap.add_argument("--ram-livre", type=float, default=5.0, help="GB livres exigidos para lançar um treino")
     ap.add_argument("--tentativas", type=int, default=3)
     ap.add_argument("--longo", action="store_true", help="atalho para --grupo mistolongo")
-    ap.add_argument("--grupo", choices=tuple(EXTRAS), default=None, help="roda só um grupo extra (braço C)")
+    ap.add_argument("--grupo", choices=tuple(EXTRAS), nargs="+", default=None,
+                    help="roda só grupos extras (braço C), na ordem dada")
     args = ap.parse_args(argv)
 
-    grupo = "mistolongo" if args.longo else args.grupo
-    fila = gera_configs_extra(grupo) if grupo else gera_configs()
+    grupos = ["mistolongo"] if args.longo else args.grupo
+    fila = [c for g in grupos for c in gera_configs_extra(g)] if grupos else gera_configs()
     LOGS.mkdir(parents=True, exist_ok=True)
     rodando: Dict[Path, subprocess.Popen] = {}
     falhas: Dict[Path, int] = {}
