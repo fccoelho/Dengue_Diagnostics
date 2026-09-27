@@ -1,4 +1,4 @@
-\begin{thebibliography}{30}
+\begin{thebibliography}{47}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -97,6 +97,155 @@ Maxim Lapan.
 \newblock Packt Publishing, second edition, 2020.
 \newblock ISBN 978-1-83882-699-4.
 
+\bibitem[Bastani et~al.(2021)Bastani, Drakopoulos, Gupta, Vlachogiannis,
+  Hadjichristodoulou, Lagiou, Magiorkinis, Paraskevis, and
+  Tsiodras]{bastani2021eva}
+Hamsa Bastani, Kimon Drakopoulos, Vishal Gupta, Ioannis Vlachogiannis, Christos
+  Hadjichristodoulou, Pagona Lagiou, Gkikas Magiorkinis, Dimitrios Paraskevis,
+  and Sotirios Tsiodras.
+\newblock Efficient and targeted {COVID-19} border testing via reinforcement
+  learning.
+\newblock \emph{Nature}, 599:\penalty0 108--113, 2021.
+\newblock \doi{10.1038/s41586-021-04014-z}.
+
+\bibitem[Peng et~al.(2018)Peng, Tang, Lin, and Chang]{peng2018refuel}
+Yu-Shao Peng, Kai-Fu Tang, Hsuan-Tien Lin, and Edward Chang.
+\newblock {REFUEL}: Exploring sparse features in deep reinforcement learning
+  for fast disease diagnosis.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~31, 2018.
+
+\bibitem[Shim et~al.(2018)Shim, Hwang, and Yang]{shim2018afa}
+Hajin Shim, Sung~Ju Hwang, and Eunho Yang.
+\newblock Joint active feature acquisition and classification with
+  variable-size set encoding.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~31, 2018.
+
+\bibitem[Pauker and Kassirer(1980)]{pauker1980threshold}
+Stephen~G. Pauker and Jerome~P. Kassirer.
+\newblock The threshold approach to clinical decision making.
+\newblock \emph{New England Journal of Medicine}, 302\penalty0 (20):\penalty0
+  1109--1117, 1980.
+\newblock \doi{10.1056/NEJM198005153022003}.
+
+\bibitem[Libin et~al.(2021)Libin, Moonens, Verstraeten, Perez-Sanjines, Hens,
+  Lemey, and Now{\'e}]{libin2021epidemic}
+Pieter J.~K. Libin, Arno Moonens, Timothy Verstraeten, Fabian Perez-Sanjines,
+  Niel Hens, Philippe Lemey, and Ann Now{\'e}.
+\newblock Deep reinforcement learning for large-scale epidemic control.
+\newblock In \emph{Machine Learning and Knowledge Discovery in Databases.
+  Applied Data Science and Demo Track (ECML PKDD 2020)}, volume 12461 of
+  \emph{Lecture Notes in Computer Science}, pages 155--170. Springer, 2021.
+\newblock \doi{10.1007/978-3-030-67670-4_10}.
+
+\bibitem[Sunehag et~al.(2018)Sunehag, Lever, Gruslys, Czarnecki, Zambaldi,
+  Jaderberg, Lanctot, Sonnerat, Leibo, Tuyls, and Graepel]{sunehag2018vdn}
+Peter Sunehag, Guy Lever, Audrunas Gruslys, Wojciech~Marian Czarnecki, Vinicius
+  Zambaldi, Max Jaderberg, Marc Lanctot, Nicolas Sonnerat, Joel~Z. Leibo, Karl
+  Tuyls, and Thore Graepel.
+\newblock Value-decomposition networks for cooperative multi-agent learning
+  based on team reward.
+\newblock In \emph{Proceedings of the 17th International Conference on
+  Autonomous Agents and MultiAgent Systems (AAMAS)}, pages 2085--2087, 2018.
+
+\bibitem[Rashid et~al.(2018)Rashid, Samvelyan, Schroeder~de Witt, Farquhar,
+  Foerster, and Whiteson]{rashid2018qmix}
+Tabish Rashid, Mikayel Samvelyan, Christian Schroeder~de Witt, Gregory
+  Farquhar, Jakob Foerster, and Shimon Whiteson.
+\newblock {QMIX}: Monotonic value function factorisation for deep multi-agent
+  reinforcement learning.
+\newblock In \emph{Proceedings of the 35th International Conference on Machine
+  Learning (ICML)}, volume~80 of \emph{PMLR}, pages 4295--4304, 2018.
+
+\bibitem[Foerster et~al.(2018)Foerster, Farquhar, Afouras, Nardelli, and
+  Whiteson]{foerster2018coma}
+Jakob Foerster, Gregory Farquhar, Triantafyllos Afouras, Nantas Nardelli, and
+  Shimon Whiteson.
+\newblock Counterfactual multi-agent policy gradients.
+\newblock In \emph{Proceedings of the AAAI Conference on Artificial
+  Intelligence}, volume~32, 2018.
+
+\bibitem[Wu et~al.(2018)Wu, Rajeswaran, Duan, Kumar, Bayen, Kakade, Mordatch,
+  and Abbeel]{wu2018factorized}
+Cathy Wu, Aravind Rajeswaran, Yan Duan, Vikash Kumar, Alexandre~M. Bayen, Sham
+  Kakade, Igor Mordatch, and Pieter Abbeel.
+\newblock Variance reduction for policy gradient with action-dependent
+  factorized baselines.
+\newblock In \emph{International Conference on Learning Representations
+  (ICLR)}, 2018.
+
+\bibitem[Arjona-Medina et~al.(2019)Arjona-Medina, Gillhofer, Widrich,
+  Unterthiner, Brandstetter, and Hochreiter]{arjona2019rudder}
+Jose~A. Arjona-Medina, Michael Gillhofer, Michael Widrich, Thomas Unterthiner,
+  Johannes Brandstetter, and Sepp Hochreiter.
+\newblock {RUDDER}: Return decomposition for delayed rewards.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~32, 2019.
+
+\bibitem[Harutyunyan et~al.(2019)Harutyunyan, Dabney, Mesnard, Gheshlaghi~Azar,
+  Piot, Heess, van Hasselt, Wayne, Singh, Precup, and
+  Munos]{harutyunyan2019hca}
+Anna Harutyunyan, Will Dabney, Thomas Mesnard, Mohammad Gheshlaghi~Azar, Bilal
+  Piot, Nicolas Heess, Hado van Hasselt, Greg Wayne, Satinder Singh, Doina
+  Precup, and R{\'e}mi Munos.
+\newblock Hindsight credit assignment.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~32, 2019.
+
+\bibitem[Bradtke and Duff(1995)]{bradtke1995smdp}
+Steven~J. Bradtke and Michael~O. Duff.
+\newblock Reinforcement learning methods for continuous-time {Markov} decision
+  problems.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~7, pages 393--400, 1995.
+
+\bibitem[Cobbe et~al.(2019)Cobbe, Klimov, Hesse, Kim, and
+  Schulman]{cobbe2019generalization}
+Karl Cobbe, Oleg Klimov, Chris Hesse, Taehoon Kim, and John Schulman.
+\newblock Quantifying generalization in reinforcement learning.
+\newblock In \emph{Proceedings of the 36th International Conference on Machine
+  Learning (ICML)}, volume~97 of \emph{PMLR}, pages 1282--1289, 2019.
+
+\bibitem[Kirk et~al.(2023)Kirk, Zhang, Grefenstette, and
+  Rockt{\"a}schel]{kirk2023survey}
+Robert Kirk, Amy Zhang, Edward Grefenstette, and Tim Rockt{\"a}schel.
+\newblock A survey of zero-shot generalisation in deep reinforcement learning.
+\newblock \emph{Journal of Artificial Intelligence Research}, 76:\penalty0
+  201--264, 2023.
+
+\bibitem[Geirhos et~al.(2020)Geirhos, Jacobsen, Michaelis, Zemel, Brendel,
+  Bethge, and Wichmann]{geirhos2020shortcut}
+Robert Geirhos, J{\"o}rn-Henrik Jacobsen, Claudio Michaelis, Richard Zemel,
+  Wieland Brendel, Matthias Bethge, and Felix~A. Wichmann.
+\newblock Shortcut learning in deep neural networks.
+\newblock \emph{Nature Machine Intelligence}, 2:\penalty0 665--673, 2020.
+\newblock \doi{10.1038/s42256-020-00257-z}.
+
+\bibitem[Tobin et~al.(2017)Tobin, Fong, Ray, Schneider, Zaremba, and
+  Abbeel]{tobin2017domain}
+Josh Tobin, Rachel Fong, Alex Ray, Jonas Schneider, Wojciech Zaremba, and
+  Pieter Abbeel.
+\newblock Domain randomization for transferring deep neural networks from
+  simulation to the real world.
+\newblock In \emph{IEEE/RSJ International Conference on Intelligent Robots and
+  Systems (IROS)}, pages 23--30, 2017.
+
+\bibitem[Diggle et~al.(1998)Diggle, Tawn, and Moyeed]{diggle1998mbg}
+Peter~J. Diggle, Jonathan~A. Tawn, and R.~A. Moyeed.
+\newblock Model-based geostatistics.
+\newblock \emph{Journal of the Royal Statistical Society: Series C (Applied
+  Statistics)}, 47\penalty0 (3):\penalty0 299--350, 1998.
+
+\bibitem[Aldstadt et~al.(2012)]{aldstadt2012spacetime}
+Jared Aldstadt et~al.
+\newblock Space-time analysis of hospitalised dengue patients in rural
+  {Thailand} reveals important temporal intervals in the pattern of dengue
+  virus transmission.
+\newblock \emph{Tropical Medicine \& International Health}, 17\penalty0
+  (9):\penalty0 1076--1085, 2012.
+\newblock \doi{10.1111/j.1365-3156.2012.03040.x}.
+
 \bibitem[Towers et~al.(2023)Towers, Terry, Kwiatkowski, Balis, Cola, Deleu,
   Goulão, Kallinteris, KG, Krimmel, et~al.]{towers_gymnasium_2023}
 Mark Towers, Jordan~K Terry, Ariel Kwiatkowski, John~U Balis, Gianluca Cola,
@@ -131,15 +280,6 @@ Lauren~B. Carrington and Cameron~P. Simmons.
 \newblock Human to mosquito transmission of dengue viruses.
 \newblock \emph{Frontiers in Immunology}, 5:\penalty0 290, 2014.
 \newblock \doi{10.3389/fimmu.2014.00290}.
-
-\bibitem[Aldstadt et~al.(2012)]{aldstadt2012spacetime}
-Jared Aldstadt et~al.
-\newblock Space-time analysis of hospitalised dengue patients in rural
-  {Thailand} reveals important temporal intervals in the pattern of dengue
-  virus transmission.
-\newblock \emph{Tropical Medicine \& International Health}, 17\penalty0
-  (9):\penalty0 1076--1085, 2012.
-\newblock \doi{10.1111/j.1365-3156.2012.03040.x}.
 
 \bibitem[Villela et~al.(2017)Villela, Bastos, de~Carvalho, Cruz, Gomes,
   Durovni, Lemos, Saraceni, Coelho, and Code{\c{c}}o]{villela2017zika}
