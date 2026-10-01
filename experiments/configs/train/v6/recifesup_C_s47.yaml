@@ -1,4 +1,4 @@
-# v6 — Recife esticado como antes, mas com os casos 'outro' só no município. Braço C, seed 47. Gerado por experiments/fila.py.
+# v7 — grupo recifesup, braço C, semente 47, 10 épocas. Gerado por experiments/fila.py.
 env_config: ../../env/cenario_recifesup.yaml
 context_features: true
 reward_scale: 0.1

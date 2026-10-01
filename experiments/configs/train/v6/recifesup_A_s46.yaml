@@ -1,5 +1,5 @@
-# v7 — grupo sintetico, braço C, semente 47, 10 épocas. Gerado por experiments/fila.py.
-env_config: ../../env/cenario_sintetico.yaml
+# v7 — grupo recifesup, braço A, semente 46, 10 épocas. Gerado por experiments/fila.py.
+env_config: ../../env/cenario_recifesup.yaml
 context_features: true
 reward_scale: 0.1
 train:
@@ -19,6 +19,5 @@ train:
   num_test_envs: 10
   test_episodes: 20
   vector_env: dummy
-  seed: 47
-  per_case_credit: true
-output_dir: results/ppo_v6/sintetico_C_s47
+  seed: 46
+output_dir: results/ppo_v6/recifesup_A_s46

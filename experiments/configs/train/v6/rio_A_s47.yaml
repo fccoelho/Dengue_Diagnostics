@@ -1,4 +1,4 @@
-# v6 — braço A (GAE padrão), cenário rio, seed 47. Gerado por experiments/fila.py.
+# v7 — grupo rio, braço A, semente 47, 10 épocas. Gerado por experiments/fila.py.
 env_config: ../../env/cenario_rio.yaml
 context_features: true
 reward_scale: 0.1

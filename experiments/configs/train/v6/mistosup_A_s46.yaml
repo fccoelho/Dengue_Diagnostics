@@ -1,9 +1,9 @@
-# v7 — grupo sintetico, braço C, semente 47, 10 épocas. Gerado por experiments/fila.py.
-env_config: ../../env/cenario_sintetico.yaml
+# v7 — grupo mistosup, braço A, semente 46, 20 épocas. Gerado por experiments/fila.py.
+env_config: ../../env/cenario_mistosup.yaml
 context_features: true
 reward_scale: 0.1
 train:
-  epochs: 10
+  epochs: 20
   step_per_epoch: 30000
   step_per_collect: 2000
   repeat_per_collect: 10
@@ -19,6 +19,5 @@ train:
   num_test_envs: 10
   test_episodes: 20
   vector_env: dummy
-  seed: 47
-  per_case_credit: true
-output_dir: results/ppo_v6/sintetico_C_s47
+  seed: 46
+output_dir: results/ppo_v6/mistosup_A_s46

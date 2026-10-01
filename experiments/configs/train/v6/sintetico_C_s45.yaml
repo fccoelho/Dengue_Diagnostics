@@ -1,4 +1,4 @@
-# v6 — braço C (crédito por caso), cenário sintetico, seed 45. Gerado por experiments/fila.py.
+# v7 — grupo sintetico, braço C, semente 45, 10 épocas. Gerado por experiments/fila.py.
 env_config: ../../env/cenario_sintetico.yaml
 context_features: true
 reward_scale: 0.1

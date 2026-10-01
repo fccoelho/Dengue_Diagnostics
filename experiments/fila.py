@@ -75,6 +75,52 @@ def gera_configs_extra(grupo: str) -> List[Path]:
     return caminhos
 
 
+# v7: matriz completa no ambiente corrigido, com 5 sementes, e a varredura de custo.
+# Rio e sintético não mudam com a correção (o Rio ocupa o grid todo; o sintético
+# não usa superfícies), então as sementes 45-47 do v6 são reaproveitadas e só
+# 48-49 são novas. O Recife corrigido é o `recifesup`; o misto é retreinado.
+SEEDS_V7 = (45, 46, 47, 48, 49)
+TEST_EPISODES_V7 = 5
+V7 = [  # (nome do grupo, cenário de ambiente, épocas, braços, sementes)
+    ("sintetico", "sintetico", 10, "CA", SEEDS_V7),
+    ("rio", "rio", 10, "CA", SEEDS_V7),
+    ("recifesup", "recifesup", 10, "CA", SEEDS_V7),
+    ("mistosup", "mistosup", 20, "CA", SEEDS_V7),
+    ("riocusto2", "riocusto2", 10, "C", (45, 46, 47)),
+    ("riocusto8", "riocusto8", 10, "C", (45, 46, 47)),
+]
+
+
+def gera_configs_v7() -> List[Path]:
+    """Uma config por treino do v7, na ordem: semente primeiro (a 1ª leva cobre tudo)."""
+    TREINO.mkdir(parents=True, exist_ok=True)
+    caminhos = []
+    for seed in SEEDS_V7:
+        for grupo, cenario, epocas, bracos, seeds in V7:
+            if seed not in seeds:
+                continue
+            for braco in bracos:
+                cfg = {"env_config": f"../../env/cenario_{cenario}.yaml", **MODELO}
+                cfg["train"] = {**MODELO["train"], "seed": seed, "epochs": epocas}
+                if braco == "C":
+                    cfg["train"]["per_case_credit"] = True
+                cfg["output_dir"] = f"results/ppo_v6/{nome(grupo, braco, seed)}"
+                # A validação de cada época só alimenta o log (a avaliação usa a
+                # política final): 5 episódios em vez de 20 cortam ~1/3 do tempo.
+                # Treinos já começados ou concluídos mantêm os 20 com que rodaram.
+                saida = _RAIZ / cfg["output_dir"]
+                if not saida.exists():
+                    cfg["train"]["test_episodes"] = TEST_EPISODES_V7
+                    # Um ambiente de validação por episódio: menos mundos em memória.
+                    cfg["train"]["num_test_envs"] = TEST_EPISODES_V7
+                p = TREINO / f"{nome(grupo, braco, seed)}.yaml"
+                p.write_text(f"# v7 — grupo {grupo}, braço {braco}, semente {seed}, {epocas} épocas. "
+                             "Gerado por experiments/fila.py.\n"
+                             + yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False), encoding="utf-8")
+                caminhos.append(p)
+    return caminhos
+
+
 def gera_configs_longo() -> List[Path]:
     """Mantido para a fila do misto longo que já está rodando."""
     return gera_configs_extra("mistolongo")
@@ -126,12 +172,16 @@ def main(argv=None) -> None:
     ap.add_argument("--ram-livre", type=float, default=5.0, help="GB livres exigidos para lançar um treino")
     ap.add_argument("--tentativas", type=int, default=3)
     ap.add_argument("--longo", action="store_true", help="atalho para --grupo mistolongo")
+    ap.add_argument("--v7", action="store_true", help="matriz v7 (ambiente corrigido, 5 sementes) e varredura de custo")
     ap.add_argument("--grupo", choices=tuple(EXTRAS), nargs="+", default=None,
                     help="roda só grupos extras (braço C), na ordem dada")
     args = ap.parse_args(argv)
 
     grupos = ["mistolongo"] if args.longo else args.grupo
-    fila = [c for g in grupos for c in gera_configs_extra(g)] if grupos else gera_configs()
+    if args.v7:
+        fila = gera_configs_v7()
+    else:
+        fila = [c for g in grupos for c in gera_configs_extra(g)] if grupos else gera_configs()
     LOGS.mkdir(parents=True, exist_ok=True)
     rodando: Dict[Path, subprocess.Popen] = {}
     falhas: Dict[Path, int] = {}

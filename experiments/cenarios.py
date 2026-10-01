@@ -85,6 +85,17 @@ def _suporte(cfg: dict) -> dict:
     return cfg
 
 
+CUSTOS_TREINO = (2, 8)
+
+
+def _custo(cfg: dict, custo: float) -> dict:
+    """Mesmo custo para exame e confirmação epidemiológica, como na calibração do kriging_v9."""
+    cfg = copy.deepcopy(cfg)
+    cfg["env"]["test_cost"] = float(custo)
+    cfg["env"]["epi_confirm_cost"] = float(custo)
+    return cfg
+
+
 def _misto(base: dict, entradas: list) -> dict:
     cfg = copy.deepcopy(base)
     cfg["env"]["generator"] = "mixed"
@@ -126,6 +137,14 @@ def cenarios() -> dict:
                               _fis(_misto(base, _recife()))),
         "cenario_recifesup": ("Treino: como cenario_recife, com os casos 'outro' só dentro do município.",
                               _suporte(_misto(base, _recife()))),
+        # v7: o ambiente corrigido (casos "outro" só na área habitada) em TODOS os cenários.
+        "cenario_mistosup": ("Treino: 1/3 sintético, 1/3 Rio, 1/3 Recife, com casos 'outro' só na área habitada.",
+                             _suporte(_misto(base, [{"generator": "synthetic", "weight": 1 / 3}]
+                                             + _rio(1 / 3) + _recife(1 / 3)))),
+        **{f"cenario_riocusto{c}": (f"Treino: réplicas do Rio com custo de exame {c} (varredura de custo).",
+                                    _custo(_suporte(_misto(base, _rio())), c)) for c in CUSTOS_TREINO},
+        "teste_rio_sup": ("Teste: Rio 2015-16 original, casos 'outro' na área habitada (no Rio, o grid todo).",
+                          _suporte(original("results/kriging/rio_2015_2016_kriging_surfaces.npz"))),
         "teste_sintetico": ("Teste: gerador sintético.", sint),
         "teste_rio_fis": ("Teste: Rio 2015-16 original, em escala física.",
                           _fis(original("results/kriging/rio_2015_2016_kriging_surfaces.npz"), "rio")),
