@@ -73,6 +73,28 @@ class DengueWrapper(gym.ObservationWrapper):
         """Converte uma coordenada do mundo para a célula da observação."""
         return int(v) // self._block
 
+    def _escreve(self, canal: np.ndarray, x, y, valor) -> None:
+        """`canal[cell(x), cell(y)] = valor` para cada caso, na ordem, sem laço.
+
+        Mesma semântica do laço caso a caso: casos fora do mundo são
+        ignorados, a célula é `int(v) // block`, e numa colisão o último caso
+        vence (a atribuição com índices repetidos do NumPy não garante isso,
+        então fica só a última ocorrência de cada célula).
+        """
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+        ok = (x >= 0) & (x < self._world_size) & (y >= 0) & (y < self._world_size)
+        if not ok.any():
+            return
+        cx = x[ok].astype(np.int64) // self._block
+        cy = y[ok].astype(np.int64) // self._block
+        v = np.asarray(valor)[ok]
+        flat = cx * self._map_size + cy
+        # Última ocorrência de cada célula: única no array invertido.
+        _, pos_inv = np.unique(flat[::-1], return_index=True)
+        ultimos = len(flat) - 1 - pos_inv
+        canal.reshape(-1)[flat[ultimos]] = v[ultimos]
+
     def _in_world(self, x, y) -> bool:
         return 0 <= x < self._world_size and 0 <= y < self._world_size
 
@@ -95,23 +117,20 @@ class DengueWrapper(gym.ObservationWrapper):
         n = self._map_size
         tensor = np.zeros((6, n, n), dtype=np.uint8)
 
-        # Canal 0: diagnóstico clínico
-        for case in obs_dict.get("clinical_diagnostic", []):
-            x, y, diag = case
-            if self._in_world(x, y):
-                tensor[0, self._cell(x), self._cell(y)] = diag + 1
-
-        # Canal 1: status teste dengue
-        for case_id, status in obs_dict.get("testd", []):
-            x, y = self.unwrapped.get_case_xy(case_id)
-            if self._in_world(x, y):
-                tensor[1, self._cell(x), self._cell(y)] = status + 1
-
-        # Canal 2: status teste chik
-        for case_id, status in obs_dict.get("testc", []):
-            x, y = self.unwrapped.get_case_xy(case_id)
-            if self._in_world(x, y):
-                tensor[2, self._cell(x), self._cell(y)] = status + 1
+        # Canal 0: diagnóstico clínico; canais 1 e 2: status dos exames.
+        # Vetorizado (antes, um laço Python por caso e por canal: ~4 s por
+        # episódio). Quando dois casos caem na mesma célula vale o ÚLTIMO da
+        # lista, como no laço original — `_escreve` garante isso explicitamente.
+        clin = obs_dict.get("clinical_diagnostic", ())
+        if len(clin):
+            arr = np.asarray(clin)
+            self._escreve(tensor[0], arr[:, 0], arr[:, 1], arr[:, 2] + 1)
+        for canal, chave in ((1, "testd"), (2, "testc")):
+            pares = obs_dict.get(chave, ())
+            if len(pares):
+                arr = np.asarray(pares)
+                xy = self.unwrapped.get_cases_xy(arr[:, 0])
+                self._escreve(tensor[canal], xy[:, 0], xy[:, 1], arr[:, 1] + 1)
 
         # Canal 3: máscara de casos ativos.
         # Filtro vetorizado + scatter NumPy em vez de `iterrows()` (que é O(N)

@@ -6,6 +6,33 @@ from scipy.integrate import odeint
 from itertools import chain
 
 
+def contagens_ate(casedf, t: int, size: int, cache: dict):
+    """Mapas de contagem de dengue e chik até o dia `t`, iguais aos de `np.histogram2d`.
+
+    `histogram2d(x, y, bins=size, range=[[0, size], [0, size]])` põe cada caso
+    na célula `floor(x)`, com a borda direita (x == size) na última célula e
+    o que cai fora de [0, size] descartado. Aqui é a mesma conta com
+    `np.bincount`, sobre arrays preparados uma vez por mundo (`cache`), porque
+    `histogram2d` sobre o DataFrame a cada dia custava ~3 s por episódio.
+    """
+    if not cache:
+        x = casedf["x"].to_numpy(dtype=float)
+        y = casedf["y"].to_numpy(dtype=float)
+        ok = (x >= 0) & (x <= size) & (y >= 0) & (y <= size)
+        xb = np.minimum(np.floor(x), size - 1).astype(np.int64)
+        yb = np.minimum(np.floor(y), size - 1).astype(np.int64)
+        cache["t"] = casedf["t"].to_numpy()
+        cache["d"] = casedf["disease"].to_numpy()
+        cache["ok"] = ok
+        cache["flat"] = np.where(ok, xb * size + yb, 0)
+    sel = cache["ok"] & (cache["t"] <= t)
+    mapas = []
+    for doenca in (0, 1):
+        m = sel & (cache["d"] == doenca)
+        mapas.append(np.bincount(cache["flat"][m], minlength=size * size).reshape(size, size).astype(float))
+    return mapas[0], mapas[1]
+
+
 class World:
     """
     Initialize random but concentrated distribution of dengue and Chikungunya cases
@@ -203,13 +230,17 @@ class World:
         """
         self.casedf = pd.DataFrame.from_records([c for c in chain(*self.case_series)])
         self.case_dict = self.casedf.to_dict(orient="index")
+        self._cache_mapas = {}
 
     def get_series_up_to_t(self, t):
         """
         Get a list of cases up to time t as a dataframe
         """
-        # if t > self.casedf['t'].max():
-        self.build_case_dataframe()
+        # O mundo não muda depois de gerado: a tabela é montada uma vez (antes
+        # era remontada a cada dia, ~6 s por episódio). Indexar por máscara
+        # devolve cópia, então quem recebe pode alterá-la sem afetar o mundo.
+        if self.casedf is None:
+            self.build_case_dataframe()
         casedf = self.casedf
         casedf = casedf[casedf.t <= t]
         return casedf
@@ -220,21 +251,9 @@ class World:
         """
         if self.casedf is None:
             self.build_case_dataframe()
-        casedf = self.casedf
-        casedf = casedf[casedf.t <= t]
-        dengue_map = np.histogram2d(
-            casedf[casedf.disease == 0].x,
-            casedf[casedf.disease == 0].y,
-            bins=self.size,
-            range=[[0, self.size], [0, self.size]],
-        )[0]
-        chik_map = np.histogram2d(
-            casedf[casedf.disease == 1].x,
-            casedf[casedf.disease == 1].y,
-            bins=self.size,
-            range=[[0, self.size], [0, self.size]],
-        )[0]
-        return dengue_map, chik_map
+        if not hasattr(self, "_cache_mapas"):
+            self._cache_mapas = {}
+        return contagens_ate(self.casedf, t, self.size, self._cache_mapas)
 
     def get_maps_at_t(self, t):
         """

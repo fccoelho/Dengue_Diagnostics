@@ -713,28 +713,20 @@ class KrigingWorld:
     def build_case_dataframe(self) -> None:
         self.casedf = pd.DataFrame.from_records([c for c in chain(*self.case_series)])
         self.case_dict = self.casedf.to_dict(orient="index")
+        self._cache_mapas = {}
 
     def get_series_up_to_t(self, t):
-        self.build_case_dataframe()
+        # Mundo estático depois de gerado: a tabela é montada uma vez (ver `World`).
+        if self.casedf is None:
+            self.build_case_dataframe()
         return self.casedf[self.casedf.t <= t]
 
     def get_maps_up_to_t(self, t):
+        from dengue_envs.data.generator import contagens_ate
+
         if self.casedf is None:
             self.build_case_dataframe()
-        casedf = self.casedf[self.casedf.t <= t]
-        dengue_map = np.histogram2d(
-            casedf[casedf.disease == 0].x,
-            casedf[casedf.disease == 0].y,
-            bins=self.size,
-            range=[[0, self.size], [0, self.size]],
-        )[0]
-        chik_map = np.histogram2d(
-            casedf[casedf.disease == 1].x,
-            casedf[casedf.disease == 1].y,
-            bins=self.size,
-            range=[[0, self.size], [0, self.size]],
-        )[0]
-        return dengue_map, chik_map
+        return contagens_ate(self.casedf, t, self.size, self._cache_mapas)
 
     def get_maps_at_t(self, t):
         if self.casedf is None:

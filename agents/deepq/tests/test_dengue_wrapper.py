@@ -47,6 +47,8 @@ class TestDengueWrapper(unittest.TestCase):
             return (0, 0)
 
         self.base_env_mock.unwrapped.get_case_xy = mock_get_case_xy
+        # O wrapper busca as posições em lote (vetorizado).
+        self.base_env_mock.unwrapped.get_cases_xy = lambda ids: np.array([mock_get_case_xy(i) for i in ids])
 
         mock_df = pd.DataFrame([
             {'t': 0, 'x': 8, 'y': 8},

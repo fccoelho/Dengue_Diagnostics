@@ -364,9 +364,14 @@ class DengueDiagnosticsEnv(gym.Env):
         if df is not None and not df.empty and {"x", "y"}.issubset(df.columns):
             self._case_x = df["x"].to_dict()
             self._case_y = df["y"].to_dict()
+            # Versão vetorizada, para `get_cases_xy`.
+            self._case_index = df.index
+            self._case_xy = df[["x", "y"]].to_numpy()
         else:
             self._case_x = {}
             self._case_y = {}
+            self._case_index = pd.Index([])
+            self._case_xy = np.zeros((0, 2))
 
     def get_case_id(self, case):
         x = case[0]
@@ -376,11 +381,18 @@ class DengueDiagnosticsEnv(gym.Env):
     def get_case_xy(self, case_id):
         return np.array([self._case_x[case_id], self._case_y[case_id]])
 
+    def get_cases_xy(self, case_ids) -> np.ndarray:
+        """`get_case_xy` para vários casos de uma vez: array (n, 2)."""
+        pos = self._case_index.get_indexer(np.asarray(case_ids))
+        if (pos < 0).any():
+            raise KeyError(f"casos fora de real_cases: {np.asarray(case_ids)[pos < 0][:5]}")
+        return self._case_xy[pos]
+
     def _cases_at_t(self, t: int) -> Tuple:
         if self.obs_cases.empty:
             return tuple()
         day_cases = self.obs_cases[self.obs_cases.t == t]
-        return tuple((c.x, c.y, c.disease) for c in day_cases.itertuples())
+        return tuple(zip(day_cases["x"].to_numpy(), day_cases["y"].to_numpy(), day_cases["disease"].to_numpy()))
 
     def _load_episode_state(self, t: int):
         """Load true/observed cases and maps consistently for timestep t.
@@ -420,12 +432,17 @@ class DengueDiagnosticsEnv(gym.Env):
         """
         Returns the current observation.
         """
+        # Colunas como arrays e `zip`, em vez de cinco `itertuples` (~5 s por
+        # episódio); mesmos valores e mesma ordem.
+        oc = self.obs_cases
+        idx = oc.index.to_numpy()
+        col = {c: oc[c].to_numpy() for c in ("x", "y", "disease", "testd", "testc", "epiconf", "t")}
         return {
-            "clinical_diagnostic": tuple((c.x, c.y, c.disease) for c in self.obs_cases.itertuples()),
-            "testd": tuple((c.Index, c.testd) for c in self.obs_cases.itertuples()),
-            "testc": tuple((c.Index, c.testc) for c in self.obs_cases.itertuples()),
-            "epiconf": tuple((c.Index, c.epiconf) for c in self.obs_cases.itertuples()),
-            "tnot": tuple((c.Index, c.t) for c in self.obs_cases.itertuples()),
+            "clinical_diagnostic": tuple(zip(col["x"], col["y"], col["disease"])),
+            "testd": tuple(zip(idx, col["testd"])),
+            "testc": tuple(zip(idx, col["testc"])),
+            "epiconf": tuple(zip(idx, col["epiconf"])),
+            "tnot": tuple(zip(idx, col["t"])),
         }
 
     def _apply_clinical_uncertainty(self, cases_df: pd.DataFrame) -> pd.DataFrame:
@@ -1252,10 +1269,10 @@ class DengueDiagnosticsEnv(gym.Env):
         else:
             self._apply_matured_lab_results(self.t)
 
-        estimated_for_accuracy = tuple(
-            (c.x, c.y, c.agent_diagnosis)
-            for c in self.obs_cases.itertuples()
-        )
+        estimated_for_accuracy = tuple(zip(
+            self.obs_cases["x"].to_numpy(), self.obs_cases["y"].to_numpy(),
+            self.obs_cases["agent_diagnosis"].to_numpy(),
+        ))
 
         # `to_dict` é caro (percorre o DataFrame em Python); calcula uma vez só
         # e reusa nos dois consumidores em vez de recomputar idêntico.
