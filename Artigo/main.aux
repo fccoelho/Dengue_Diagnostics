@@ -7,11 +7,11 @@
 \citation{govbr_arboviroses}
 \citation{donateli_visualizacao_2023,ministério2024boletim}
 \citation{junior_epidemiology_2022}
+\babel@aux{english}{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
 \citation{govbr_chick}
 \citation{arrubla-hoyos_methodology_2024}
 \citation{junior_epidemiology_2022}
-\babel@aux{english}{}
-\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
 \citation{yu_deep_2023,yaesoubi_generalized_2011}
 \citation{yaesoubi_generalized_2011,sutton2018reinforcement}
 \citation{noauthor_gymnasium_nodate,lapan2020deep}
@@ -69,6 +69,8 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Case mix: suspects that are neither disease}{6}{subsection.3.3}\protected@file@percent }
 \newlabel{subsec:casemix}{{3.3}{6}{Case mix: suspects that are neither disease}{subsection.3.3}{}}
 \@writefile{toc}{\contentsline {paragraph}{Two-disease variant.}{6}{section*.12}\protected@file@percent }
+\citation{santiago2013cdc}
+\citation{waggoner2016multiplex}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Clinicians}{7}{subsection.3.4}\protected@file@percent }
 \newlabel{subsec:clinician}{{3.4}{7}{Clinicians}{subsection.3.4}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.5}Laboratory tests and epidemiological confirmation}{7}{subsection.3.5}\protected@file@percent }
@@ -115,18 +117,21 @@
 \@writefile{toc}{\contentsline {paragraph}{Hierarchical, paired bootstrap.}{11}{section*.22}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Metrics.}{11}{section*.23}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Training geographies and cross-geography evaluation.}{11}{section*.24}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{The correction, and the experiments that led to it.}{11}{section*.25}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Sensitivity to simulated parameters.}{12}{section*.26}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Confirmation set.}{12}{section*.27}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {6}Results}{12}{section.6}\protected@file@percent }
 \newlabel{sec:results}{{6}{12}{Results}{section.6}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.1}In real data, location barely reveals the disease}{12}{subsection.6.1}\protected@file@percent }
 \newlabel{sec:res_spatial}{{6.1}{12}{In real data, location barely reveals the disease}{subsection.6.1}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Recife, 2015--2025. Left: notifications of residents by final classification. Right: accuracy of a Bayes classifier that sees only the location of a case, per year, against the Rio de Janeiro surface used for training (dotted) and the no-information level (dashed).}}{12}{figure.4}\protected@file@percent }
-\newlabel{fig:recife}{{4}{12}{Recife, 2015--2025. Left: notifications of residents by final classification. Right: accuracy of a Bayes classifier that sees only the location of a case, per year, against the Rio de Janeiro surface used for training (dotted) and the no-information level (dashed)}{figure.4}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Standard deep RL does not learn to investigate; per-case credit does}{12}{subsection.6.2}\protected@file@percent }
 \newlabel{sec:res_credit}{{6.2}{12}{Standard deep RL does not learn to investigate; per-case credit does}{subsection.6.2}{}}
-\@writefile{toc}{\contentsline {paragraph}{DQN and standard PPO.}{12}{section*.25}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{DQN and standard PPO.}{12}{section*.28}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Per-case credit.}{12}{section*.29}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Recife, 2015--2025. Left: notifications of residents by final classification. Right: accuracy of a Bayes classifier that sees only the location of a case, per year, against the Rio de Janeiro surface used for training (dotted) and the no-information level (dashed).}}{13}{figure.4}\protected@file@percent }
+\newlabel{fig:recife}{{4}{13}{Recife, 2015--2025. Left: notifications of residents by final classification. Right: accuracy of a Bayes classifier that sees only the location of a case, per year, against the Rio de Janeiro surface used for training (dotted) and the no-information level (dashed)}{figure.4}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Where each disease dominates in Recife, year by year: $\log _2(P(\text  {cell}\mid \text  {dengue})/P(\text  {cell}\mid \text  {chik}))$ from kriging surfaces, clipped at $\pm 2$. The map changes between years, but the contrast remains weak.}}{13}{figure.5}\protected@file@percent }
 \newlabel{fig:recife_years}{{5}{13}{Where each disease dominates in Recife, year by year: $\log _2(P(\text {cell}\mid \text {dengue})/P(\text {cell}\mid \text {chik}))$ from kriging surfaces, clipped at $\pm 2$. The map changes between years, but the contrast remains weak}{figure.5}{}}
-\@writefile{toc}{\contentsline {paragraph}{Per-case credit.}{14}{section*.26}\protected@file@percent }
 \@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Two-disease variant (Rio de Janeiro surfaces), 10 paired outbreaks; final checkpoints; hierarchical, paired bootstrap. Paired contrasts: C $\times $ A $= +2009$ [$+1197$, $+2882$], $P = 1.00$; B $\times $ C $= -43$ [$-196$, $+85$], $P = 0.47$; C $\times $ test-once $= -90$ [$-250$, $+67$], $P = 0.38$.}}{14}{table.3}\protected@file@percent }
 \newlabel{tab:twodisease}{{3}{14}{Two-disease variant (Rio de Janeiro surfaces), 10 paired outbreaks; final checkpoints; hierarchical, paired bootstrap. Paired contrasts: C $\times $ A $= +2009$ [$+1197$, $+2882$], $P = 1.00$; B $\times $ C $= -43$ [$-196$, $+85$], $P = 0.47$; C $\times $ test-once $= -90$ [$-250$, $+67$], $P = 0.38$}{table.3}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces The three PPO arms in the two-disease variant. Left: mean episode reward (dots are training seeds). Right: laboratory tests per episode. Dashed lines: test-once; dotted: clinical only.}}{14}{figure.6}\protected@file@percent }
@@ -135,41 +140,50 @@
 \newlabel{sec:res_full}{{6.3}{14}{With non-arboviral suspects: the case mix decides the best rule}{subsection.6.3}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Fixed policies with SEIR dynamics on the 10 benchmark outbreaks. Removing non-arboviral suspects (two-disease variant) is what makes a single test sufficient; the idealized generator, which has them, orders the policies as the full environment does.}}{15}{table.4}\protected@file@percent }
 \newlabel{tab:baselines}{{4}{15}{Fixed policies with SEIR dynamics on the 10 benchmark outbreaks. Removing non-arboviral suspects (two-disease variant) is what makes a single test sufficient; the idealized generator, which has them, orders the policies as the full environment does}{table.4}{}}
-\@writefile{toc}{\contentsline {paragraph}{The per-case agent matches the best expert rule with fewer tests.}{15}{section*.27}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{The standard agent collapses.}{15}{section*.28}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Full environment, agents trained and evaluated on Rio de Janeiro: 30 paired outbreaks never seen before, three training seeds per arm, hierarchical and paired bootstrap. Paired contrasts: C $\times $ clinician-guided sequential $= +27$ [$-119$, $+157$], $P = 0.54$, tests $-53$ [$-71$, $-39$]; C $\times $ A $= +3780$ [$+3217$, $+4386$], $P = 1.00$. $^\dagger $Rule written after inspecting the learned agent (Section~\ref {sec:res_cases}); C $\times $ this rule $= -29$ [$-166$, $+90$].}}{15}{table.5}\protected@file@percent }
-\newlabel{tab:full}{{5}{15}{Full environment, agents trained and evaluated on Rio de Janeiro: 30 paired outbreaks never seen before, three training seeds per arm, hierarchical and paired bootstrap. Paired contrasts: C $\times $ clinician-guided sequential $= +27$ [$-119$, $+157$], $P = 0.54$, tests $-53$ [$-71$, $-39$]; C $\times $ A $= +3780$ [$+3217$, $+4386$], $P = 1.00$. $^\dagger $Rule written after inspecting the learned agent (Section~\ref {sec:res_cases}); C $\times $ this rule $= -29$ [$-166$, $+90$]}{table.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{The per-case agent matches the best expert rule with fewer tests.}{15}{section*.30}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{The standard agent collapses.}{15}{section*.31}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Full environment, agents trained and evaluated on Rio de Janeiro: 30 paired outbreaks never seen before, five training seeds per arm, hierarchical and paired bootstrap. Paired contrasts: C $\times $ clinician-guided sequential $= +19$ [$-89$, $+121$], $P = 0.53$, tests $-49$ [$-62$, $-39$]; C $\times $ A $= +3911$ [$+3395$, $+4438$], $P = 1.00$. $^\dagger $Rule written after inspecting the learned agent (Section~\ref {sec:res_cases}); C $\times $ this rule $= -37$ [$-138$, $+56$].}}{15}{table.5}\protected@file@percent }
+\newlabel{tab:full}{{5}{15}{Full environment, agents trained and evaluated on Rio de Janeiro: 30 paired outbreaks never seen before, five training seeds per arm, hierarchical and paired bootstrap. Paired contrasts: C $\times $ clinician-guided sequential $= +19$ [$-89$, $+121$], $P = 0.53$, tests $-49$ [$-62$, $-39$]; C $\times $ A $= +3911$ [$+3395$, $+4438$], $P = 1.00$. $^\dagger $Rule written after inspecting the learned agent (Section~\ref {sec:res_cases}); C $\times $ this rule $= -37$ [$-138$, $+56$]}{table.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.4}What the agent learned}{15}{subsection.6.4}\protected@file@percent }
 \newlabel{sec:res_cases}{{6.4}{15}{What the agent learned}{subsection.6.4}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Reward against tests per episode in the full environment on Rio de Janeiro (means with 95\% intervals over three training seeds and 30 paired outbreaks). The per-case agent sits next to the best expert rule, with fewer tests; the standard agent collapses near inaction.}}{16}{figure.7}\protected@file@percent }
-\newlabel{fig:policies}{{7}{16}{Reward against tests per episode in the full environment on Rio de Janeiro (means with 95\% intervals over three training seeds and 30 paired outbreaks). The per-case agent sits next to the best expert rule, with fewer tests; the standard agent collapses near inaction}{figure.7}{}}
-\@writefile{toc}{\contentsline {paragraph}{In real cities the agent is the rule plus one refinement.}{16}{section*.29}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Always ordering the second test is optimal here.}{16}{section*.30}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Written down, the refinement is the best fixed rule.}{17}{section*.31}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Reward against tests per episode in the full environment on Rio de Janeiro (means with 95\% intervals over five training seeds and 30 paired outbreaks). The per-case agent sits next to the best expert rule and the rule derived from it (green), with fewer tests; the standard agent collapses near inaction.}}{16}{figure.7}\protected@file@percent }
+\newlabel{fig:policies}{{7}{16}{Reward against tests per episode in the full environment on Rio de Janeiro (means with 95\% intervals over five training seeds and 30 paired outbreaks). The per-case agent sits next to the best expert rule and the rule derived from it (green), with fewer tests; the standard agent collapses near inaction}{figure.7}{}}
+\@writefile{toc}{\contentsline {paragraph}{In real cities the agent is the rule plus one refinement.}{16}{section*.32}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Always ordering the second test is optimal here.}{16}{section*.33}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Written down, the refinement is a frugal rule.}{17}{section*.34}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces What the per-case agent does, case by case (30 outbreaks; three training seeds for each agent). Left and center: tests per case and accuracy by the clinician's label. The Rio-trained agent (blue) behaves like the clinician-guided rule (gray) for suspects labeled dengue or chikungunya and concludes suspects labeled non-arboviral without testing. Right: probability of a second test after a negative first result, for suspects labeled dengue or chikungunya. The idealized-geography agent (green), for which location is informative, tests far less and skips most second tests.}}{17}{figure.8}\protected@file@percent }
 \newlabel{fig:cases}{{8}{17}{What the per-case agent does, case by case (30 outbreaks; three training seeds for each agent). Left and center: tests per case and accuracy by the clinician's label. The Rio-trained agent (blue) behaves like the clinician-guided rule (gray) for suspects labeled dengue or chikungunya and concludes suspects labeled non-arboviral without testing. Right: probability of a second test after a negative first result, for suspects labeled dengue or chikungunya. The idealized-geography agent (green), for which location is informative, tests far less and skips most second tests}{figure.8}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.5}Transfer across geographies}{17}{subsection.6.5}\protected@file@percent }
 \newlabel{sec:res_transfer}{{6.5}{17}{Transfer across geographies}{subsection.6.5}{}}
-\@writefile{toc}{\contentsline {paragraph}{Per-case credit wins everywhere.}{17}{section*.32}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Per-case agent minus the clinician-guided sequential rule, by training geography (rows) and test geography (columns). Cells show the paired difference in episode reward with its 95\% interval (three training seeds $\times $ 30 paired outbreaks); bold marks intervals that exclude zero. Recife 2016 and 2021 are held out from Recife training. The rule does not use location, so it is the same yardstick in every column (about $+2150$).}}{18}{figure.9}\protected@file@percent }
-\newlabel{fig:transfer}{{9}{18}{Per-case agent minus the clinician-guided sequential rule, by training geography (rows) and test geography (columns). Cells show the paired difference in episode reward with its 95\% interval (three training seeds $\times $ 30 paired outbreaks); bold marks intervals that exclude zero. Recife 2016 and 2021 are held out from Recife training. The rule does not use location, so it is the same yardstick in every column (about $+2150$)}{figure.9}{}}
-\@writefile{toc}{\contentsline {paragraph}{A policy learned in Rio de Janeiro transfers to another city.}{18}{section*.33}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{When location is informative, learning beats the rule---but does not transfer.}{18}{section*.34}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{A transfer failure traced to a simulator artifact.}{18}{section*.35}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Removing the artifact restores transfer in both directions.}{19}{section*.36}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{A common physical scale is not enough by itself.}{19}{section*.37}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Transfer between Rio de Janeiro and Recife after correcting the simulator. Left: non-arboviral suspects only in the inhabited area (the Rio environment is unchanged, since its surface fills the grid); agents trained on either city tie the clinician-guided rule in both. Right: additionally, both cities at 200\,m per cell in their real extent; the smaller city becomes denser because each episode has the same number of cases, and the Rio-trained agent fails there. Paired differences with 95\% intervals, three training seeds $\times $ 30 outbreaks; bold marks intervals that exclude zero.}}{19}{figure.10}\protected@file@percent }
-\newlabel{fig:transfer_corrected}{{10}{19}{Transfer between Rio de Janeiro and Recife after correcting the simulator. Left: non-arboviral suspects only in the inhabited area (the Rio environment is unchanged, since its surface fills the grid); agents trained on either city tie the clinician-guided rule in both. Right: additionally, both cities at 200\,m per cell in their real extent; the smaller city becomes denser because each episode has the same number of cases, and the Rio-trained agent fails there. Paired differences with 95\% intervals, three training seeds $\times $ 30 outbreaks; bold marks intervals that exclude zero}{figure.10}{}}
-\@writefile{toc}{\contentsline {paragraph}{Mixing geographies needs more training.}{19}{section*.38}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.6}Robustness in the two-disease variant}{20}{subsection.6.6}\protected@file@percent }
-\newlabel{sec:res_robust}{{6.6}{20}{Robustness in the two-disease variant}{subsection.6.6}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces Zero-shot evaluation as spatial informativeness varies (two-disease variant; 95\% intervals over training seeds and outbreaks). The green band is the range observed in Rio de Janeiro and Recife; the gray band requires sharpening beyond any observed city.}}{20}{figure.11}\protected@file@percent }
-\newlabel{fig:temperature}{{11}{20}{Zero-shot evaluation as spatial informativeness varies (two-disease variant; 95\% intervals over training seeds and outbreaks). The green band is the range observed in Rio de Janeiro and Recife; the gray band requires sharpening beyond any observed city}{figure.11}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {7}Discussion}{20}{section.7}\protected@file@percent }
-\newlabel{sec:discussion}{{7}{20}{Discussion}{section.7}{}}
+\@writefile{toc}{\contentsline {paragraph}{Per-case credit wins everywhere.}{17}{section*.35}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Per-case agent minus the clinician-guided sequential rule, by training geography (rows) and test geography (columns). Cells show the paired difference in episode reward with its 95\% interval (five training seeds $\times $ 30 paired outbreaks; corrected environment); bold marks intervals that exclude zero. Recife 2016 and 2021 are held out from Recife training. The rule does not use location, so it is the same yardstick in every column (about $+2150$).}}{18}{figure.9}\protected@file@percent }
+\newlabel{fig:transfer}{{9}{18}{Per-case agent minus the clinician-guided sequential rule, by training geography (rows) and test geography (columns). Cells show the paired difference in episode reward with its 95\% interval (five training seeds $\times $ 30 paired outbreaks; corrected environment); bold marks intervals that exclude zero. Recife 2016 and 2021 are held out from Recife training. The rule does not use location, so it is the same yardstick in every column (about $+2150$)}{figure.9}{}}
+\@writefile{toc}{\contentsline {paragraph}{Policies learned in either real city transfer to the other.}{18}{section*.36}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{When location is informative, learning beats the rule---but does not transfer.}{18}{section*.37}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{A transfer failure traced to a simulator artifact.}{18}{section*.38}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Removing the artifact restores transfer in both directions.}{19}{section*.39}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{A common physical scale is not enough by itself.}{19}{section*.40}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Diagnosing the transfer failure (first round, three training seeds $\times $ 30 outbreaks). Left: the original simulator, with non-arboviral suspects anywhere on the grid; the Recife-trained agent fails even in its own held-out years and collapses in Rio. Right: corrected, and with both cities at 200\,m per cell in their real extent; the smaller city becomes denser because each episode has the same number of cases, and the Rio-trained agent fails there. Paired differences with the clinician-guided rule, 95\% intervals; bold marks intervals that exclude zero. Compare with the corrected environment in Figure~\ref {fig:transfer}.}}{19}{figure.10}\protected@file@percent }
+\newlabel{fig:transfer_corrected}{{10}{19}{Diagnosing the transfer failure (first round, three training seeds $\times $ 30 outbreaks). Left: the original simulator, with non-arboviral suspects anywhere on the grid; the Recife-trained agent fails even in its own held-out years and collapses in Rio. Right: corrected, and with both cities at 200\,m per cell in their real extent; the smaller city becomes denser because each episode has the same number of cases, and the Rio-trained agent fails there. Paired differences with the clinician-guided rule, 95\% intervals; bold marks intervals that exclude zero. Compare with the corrected environment in Figure~\ref {fig:transfer}}{figure.10}{}}
+\@writefile{toc}{\contentsline {paragraph}{Mixing geographies does not pay.}{19}{section*.41}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.6}Sensitivity to simulated parameters}{19}{subsection.6.6}\protected@file@percent }
+\newlabel{sec:res_sens}{{6.6}{19}{Sensitivity to simulated parameters}{subsection.6.6}{}}
+\@writefile{toc}{\contentsline {paragraph}{Test sensitivity and clinician accuracy.}{20}{section*.42}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Test cost.}{20}{section*.43}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces Sensitivity to simulated parameters on the Rio de Janeiro test outbreaks: reward of the Rio-trained per-case agent (blue; trained at cost 4, five seeds), of the derived rule (green) and of an agent retrained at cost 2 (gray), minus the clinician-guided rule, with paired 95\% intervals. Left: test cost; center: RT-PCR sensitivity; right: clinician accuracy, fixed for the whole episode.}}{20}{figure.11}\protected@file@percent }
+\newlabel{fig:sensitivity}{{11}{20}{Sensitivity to simulated parameters on the Rio de Janeiro test outbreaks: reward of the Rio-trained per-case agent (blue; trained at cost 4, five seeds), of the derived rule (green) and of an agent retrained at cost 2 (gray), minus the clinician-guided rule, with paired 95\% intervals. Left: test cost; center: RT-PCR sensitivity; right: clinician accuracy, fixed for the whole episode}{figure.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.7}Confirmation on fresh outbreaks}{20}{subsection.6.7}\protected@file@percent }
+\newlabel{sec:res_confirm}{{6.7}{20}{Confirmation on fresh outbreaks}{subsection.6.7}{}}
+\@writefile{toc}{\contentsline {paragraph}{Reproduced.}{20}{section*.44}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Qualified.}{20}{section*.45}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.8}Robustness in the two-disease variant}{21}{subsection.6.8}\protected@file@percent }
+\newlabel{sec:res_robust}{{6.8}{21}{Robustness in the two-disease variant}{subsection.6.8}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {12}{\ignorespaces Zero-shot evaluation as spatial informativeness varies (two-disease variant; 95\% intervals over training seeds and outbreaks). The green band is the range observed in Rio de Janeiro and Recife; the gray band requires sharpening beyond any observed city.}}{21}{figure.12}\protected@file@percent }
+\newlabel{fig:temperature}{{12}{21}{Zero-shot evaluation as spatial informativeness varies (two-disease variant; 95\% intervals over training seeds and outbreaks). The green band is the range observed in Rio de Janeiro and Recife; the gray band requires sharpening beyond any observed city}{figure.12}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Discussion}{21}{section.7}\protected@file@percent }
+\newlabel{sec:discussion}{{7}{21}{Discussion}{section.7}{}}
 \citation{syntheticpop}
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Limitations}{21}{subsection.7.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Future work}{21}{subsection.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Limitations}{22}{subsection.7.1}\protected@file@percent }
 \bibstyle{unsrtnat}
 \bibdata{refs}
 \bibcite{govbr_arboviroses}{{1}{}{{Ministério da Saúde do Brasil}}{{}}}
@@ -178,9 +192,10 @@
 \bibcite{junior_epidemiology_2022}{{4}{2022}{{Junior et~al.}}{{Junior, Massad, Lobao-Neto, Kastner, Oliver, and Gallagher}}}
 \bibcite{govbr_chick}{{5}{}{{Ministério da Saúde do Brasil}}{{}}}
 \bibcite{arrubla-hoyos_methodology_2024}{{6}{2024}{{Arrubla-Hoyos et~al.}}{{Arrubla-Hoyos, Gómez, and De-La-Hoz-Franco}}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Future work}{23}{subsection.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{23}{section.8}\protected@file@percent }
 \bibcite{yu_deep_2023}{{7}{2023}{{Yu et~al.}}{{Yu, Li, Kim, Huang, Luo, and Wang}}}
 \bibcite{yaesoubi_generalized_2011}{{8}{2011}{{Yaesoubi and Cohen}}{{}}}
-\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{22}{section.8}\protected@file@percent }
 \bibcite{sutton2018reinforcement}{{9}{2018}{{Sutton and Barto}}{{}}}
 \bibcite{noauthor_gymnasium_nodate}{{10}{}{{noa}}{{}}}
 \bibcite{lapan2020deep}{{11}{2020}{{Lapan}}{{}}}
@@ -211,15 +226,17 @@
 \bibcite{moreira2023chikungunya}{{36}{2023}{{Moreira et~al.}}{{Moreira, de~Menezes, Salgado-Benvindo, et~al.}}}
 \bibcite{recife_dados}{{37}{2026{}}{{Prefeitura do Recife}}{{}}}
 \bibcite{recife_area_urbana}{{38}{2026{}}{{Prefeitura do Recife}}{{}}}
-\bibcite{mnih2015human}{{39}{2015}{{Mnih et~al.}}{{Mnih, Kavukcuoglu, Silver, et~al.}}}
-\bibcite{schulman2017ppo}{{40}{2017}{{Schulman et~al.}}{{Schulman, Wolski, Dhariwal, Radford, and Klimov}}}
-\bibcite{schulman2016gae}{{41}{2016}{{Schulman et~al.}}{{Schulman, Moritz, Levine, Jordan, and Abbeel}}}
-\bibcite{ng1999policy}{{42}{1999}{{Ng et~al.}}{{Ng, Harada, and Russell}}}
-\bibcite{frommeyer_reinforcement_2025}{{43}{2025}{{Frommeyer et~al.}}{{Frommeyer, Gilbert, Fursmidt, Park, Khouzam, Brittain, Frommeyer, Bett, and Bihl}}}
-\bibcite{weng2021tianshou}{{44}{2021}{{Weng et~al.}}{{Weng, Chen, Yan, You, Duburcq, der Wang, Su, and Zhu}}}
-\bibcite{saravanan2020hierarchical}{{45}{2020}{{Saravanan et~al.}}{{Saravanan, Berman, and Sober}}}
-\bibcite{agarwal2021precipice}{{46}{2021}{{Agarwal et~al.}}{{Agarwal, Schwarzer, Castro, Courville, and Bellemare}}}
-\bibcite{syntheticpop}{{47}{}{{Mosqlimate Project}}{{}}}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Work in progress (internal; remove before submission)}{26}{appendix.A}\protected@file@percent }
-\newlabel{app:todo}{{A}{26}{Work in progress (internal; remove before submission)}{appendix.A}{}}
-\gdef \@abspage@last{26}
+\bibcite{santiago2013cdc}{{39}{2013}{{Santiago et~al.}}{{Santiago, Vergne, Quiles, Cosme, Vazquez, Medina, et~al.}}}
+\bibcite{waggoner2016multiplex}{{40}{2016}{{Waggoner et~al.}}{{Waggoner, Gresh, Mohamed-Hadley, Ballesteros, Davila, Tellez, Sahoo, Balmaseda, Harris, and Pinsky}}}
+\bibcite{mnih2015human}{{41}{2015}{{Mnih et~al.}}{{Mnih, Kavukcuoglu, Silver, et~al.}}}
+\bibcite{schulman2017ppo}{{42}{2017}{{Schulman et~al.}}{{Schulman, Wolski, Dhariwal, Radford, and Klimov}}}
+\bibcite{schulman2016gae}{{43}{2016}{{Schulman et~al.}}{{Schulman, Moritz, Levine, Jordan, and Abbeel}}}
+\bibcite{ng1999policy}{{44}{1999}{{Ng et~al.}}{{Ng, Harada, and Russell}}}
+\bibcite{frommeyer_reinforcement_2025}{{45}{2025}{{Frommeyer et~al.}}{{Frommeyer, Gilbert, Fursmidt, Park, Khouzam, Brittain, Frommeyer, Bett, and Bihl}}}
+\bibcite{weng2021tianshou}{{46}{2021}{{Weng et~al.}}{{Weng, Chen, Yan, You, Duburcq, der Wang, Su, and Zhu}}}
+\bibcite{saravanan2020hierarchical}{{47}{2020}{{Saravanan et~al.}}{{Saravanan, Berman, and Sober}}}
+\bibcite{agarwal2021precipice}{{48}{2021}{{Agarwal et~al.}}{{Agarwal, Schwarzer, Castro, Courville, and Bellemare}}}
+\bibcite{syntheticpop}{{49}{}{{Mosqlimate Project}}{{}}}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Work in progress (internal; remove before submission)}{27}{appendix.A}\protected@file@percent }
+\newlabel{app:todo}{{A}{27}{Work in progress (internal; remove before submission)}{appendix.A}{}}
+\gdef \@abspage@last{27}

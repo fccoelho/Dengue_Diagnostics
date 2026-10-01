@@ -217,15 +217,17 @@ def politicas_v9() -> None:
 
 
 def politicas_v6() -> None:
-    """Recompensa × exames no Rio de Janeiro (v6: 3 seeds × 30 surtos inéditos), agentes treinados no Rio."""
-    b = pd.read_csv(RES / "v6_avaliacao" / "bracos_teste_rio.csv")
+    """Recompensa × exames no Rio de Janeiro (v7: 5 seeds × 30 surtos inéditos), agentes treinados no Rio."""
+    b = pd.read_csv(RES / "v6_avaliacao" / "v7" / "bracos_teste_rio.csv")
     t = b[b.metrica == "recompensa"].set_index("braco").join(
         b[b.metrica == "exames"].set_index("braco"), rsuffix="_ex")
     nomes = {"C|rio": ("C: per-case credit (learned)", AZUL), "A|rio": ("A: standard GAE (learned)", LARANJA),
              "sequencial_clinico": ("sequential, clinician-guided", CINZA_ESCURO),
+             "sequencial_confia_outro": ("derived rule (trusts 'not arboviral')", VERDE),
              "sequencial": ("sequential, dengue first", CINZA_ESCURO), "testtwice": ("test-twice", CINZA_ESCURO),
              "testonce": ("test-once", CINZA_ESCURO), "clinical": ("clinical only", CINZA_ESCURO)}
     desloc = {"C|rio": (-12, -16, "right"), "sequencial_clinico": (10, 10, "left"),
+              "sequencial_confia_outro": (-12, 12, "right"),
               "testtwice": (-12, 8, "right"), "A|rio": (14, -4, "left")}
     fig, ax = plt.subplots(figsize=(8.5, 5), constrained_layout=True)
     for braco, (nome, cor) in nomes.items():
@@ -239,7 +241,7 @@ def politicas_v6() -> None:
         ax.annotate(nome, (r.media_ex, r.media), xytext=(dx, dy), textcoords="offset points", ha=ha,
                     fontsize=9, color=TEXTO, fontweight="bold" if aprendido else "normal")
     ax.set_xlabel("laboratory tests per episode"); ax.set_ylabel("episode reward")
-    ax.set_title("Rio de Janeiro, full environment (3 training seeds × 30 paired outbreaks, 95% CI)")
+    ax.set_title("Rio de Janeiro, full environment (5 training seeds × 30 paired outbreaks, 95% CI)")
     _salva(fig, "fig_policies_full.png")
 
 
@@ -265,12 +267,12 @@ def temperatura() -> None:
 
 
 def transferencia() -> None:
-    """Matriz treino × teste: diferença pareada do agente C para a melhor regra fixa, com IC."""
-    base = RES / "v6_avaliacao"
-    testes = [("teste_rio", "Rio de Janeiro"), ("teste_recife_2016", "Recife 2016*"),
-              ("teste_recife_2021", "Recife 2021*"), ("teste_sintetico", "Idealized")]
-    treinos = [("rio", "Rio de Janeiro"), ("recife", "Recife"), ("sintetico", "Idealized"),
-               ("misto", "Mixture"), ("mistolongo", "Mixture, 2× training")]
+    """Matriz treino × teste (v7: ambiente corrigido, 5 seeds): agente C menos a regra clínica, com IC."""
+    base = RES / "v6_avaliacao" / "v7"
+    testes = [("teste_rio", "Rio de Janeiro"), ("teste_recife_2016_sup", "Recife 2016*"),
+              ("teste_recife_2021_sup", "Recife 2021*"), ("teste_sintetico", "Idealized")]
+    treinos = [("rio", "Rio de Janeiro"), ("recifesup", "Recife"), ("sintetico", "Idealized"),
+               ("mistosup", "Mixture (2× training)")]
     dif, lo, hi = {}, {}, {}
     for t, _ in testes:
         c = pd.read_csv(base / f"comparacoes_{t}.csv")
@@ -333,14 +335,14 @@ def casos() -> None:
 
 
 def transferencia_corrigida() -> None:
-    """Rio <-> Recife depois de corrigir o artefato dos casos "outro", e em escala física."""
+    """Diagnóstico do artefato: Rio <-> Recife no simulador ORIGINAL (v6, 3 seeds) e em escala física."""
     base = RES / "v6_avaliacao"
     paineis = [
-        ("Non-arboviral suspects only where people live",
-         [("teste_rio", "Rio de Janeiro"), ("teste_recife_2016_sup", "Recife 2016*"),
-          ("teste_recife_2021_sup", "Recife 2021*")],
-         [("rio", "Rio de Janeiro"), ("recifesup", "Recife")]),
-        ("... and both cities at 200 m per cell",
+        ("Original simulator: non-arboviral suspects anywhere on the grid",
+         [("teste_rio", "Rio de Janeiro"), ("teste_recife_2016", "Recife 2016*"),
+          ("teste_recife_2021", "Recife 2021*")],
+         [("rio", "Rio de Janeiro"), ("recife", "Recife")]),
+        ("Corrected, and both cities at 200 m per cell",
          [("teste_rio_fis", "Rio de Janeiro"), ("teste_recife_2016_fis", "Recife 2016*"),
           ("teste_recife_2021_fis", "Recife 2021*")],
          [("riofis", "Rio de Janeiro"), ("recifefis", "Recife")]),
@@ -354,7 +356,8 @@ def transferencia_corrigida() -> None:
             c = pd.read_csv(base / f"comparacoes_{t}.csv")
             c = c[(c.metrica == "recompensa") & (c.y == "sequencial_clinico") & c.x.str.startswith("C|")]
             for _, r in c.iterrows():
-                dif[(r.x.split("|")[1], t)] = (r.diferenca, r.dif_lo, r.dif_hi)
+                if r.x.split("|")[1] in dict(treinos):
+                    dif[(r.x.split("|")[1], t)] = (r.diferenca, r.dif_lo, r.dif_hi)
         m = np.array([[dif.get((k, t), (np.nan,))[0] for t, _ in testes] for k, _ in treinos])
         im = ax.imshow(m, cmap=cmap, norm=norm, aspect="auto")
         for i, (k, _) in enumerate(treinos):
@@ -374,7 +377,54 @@ def transferencia_corrigida() -> None:
     _salva(fig, "fig_transfer_corrected.png")
 
 
+def sensibilidade() -> None:
+    """Varreduras no Rio (v7): agente C do Rio e regra derivada, menos a regra clínica, por parâmetro."""
+    base = RES / "v6_avaliacao" / "v7"
+
+    def dif(cond, x):
+        c = pd.read_csv(base / f"comparacoes_{cond}.csv")
+        r = c[(c.metrica == "recompensa") & (c.x == x) & (c.y == "sequencial_clinico")]
+        return (r.diferenca.iloc[0], r.dif_lo.iloc[0], r.dif_hi.iloc[0]) if len(r) else None
+
+    paineis = [
+        ("Test cost", "cost per test (training: 4)",
+         [(2, "teste_rio__custo2"), (3, "teste_rio__custo3"), (4, "teste_rio"), (6, "teste_rio__custo6"),
+          (8, "teste_rio__custo8")]),
+        ("RT-PCR sensitivity", "laboratory sensitivity (training: 0.95)",
+         [(0.80, "teste_rio__sens0.80"), (0.90, "teste_rio__sens0.90"), (0.95, "teste_rio"),
+          (0.99, "teste_rio__sens0.99")]),
+        ("Clinician accuracy", "clinician accuracy, fixed (training: 0.5-0.95)",
+         [(0.55, "teste_rio__medico0.55"), (0.70, "teste_rio__medico0.70"), (0.85, "teste_rio__medico0.85"),
+          (0.95, "teste_rio__medico0.95")]),
+    ]
+    series = [("C|rio", "C trained on Rio (cost 4)", AZUL, "o"),
+              ("sequencial_confia_outro", "derived rule", VERDE, "s"),
+              ("C|riocusto2", "C retrained at cost 2", CINZA_ESCURO, "^")]
+    fig, axs = plt.subplots(1, 3, figsize=(12, 3.8), constrained_layout=True, sharey=True)
+    for ax, (titulo, xlab, pontos) in zip(axs, paineis):
+        larg = (pontos[-1][0] - pontos[0][0]) * 0.025
+        for k, (x, nome, cor, mk) in enumerate(series):
+            if x == "C|riocusto2" and titulo != "Test cost":
+                continue
+            vals = [(v, dif(cond, x)) for v, cond in pontos]
+            vals = [(v, d) for v, d in vals if d is not None]
+            if not vals:
+                continue
+            xs = np.array([v for v, _ in vals]) + (k - 1) * larg
+            ys = np.array([d[0] for _, d in vals])
+            err = np.array([[d[0] - d[1] for _, d in vals], [d[2] - d[0] for _, d in vals]])
+            ax.errorbar(xs, ys, yerr=err, fmt=mk, ms=7, color=cor, ecolor=cor, elinewidth=1.2, capsize=0,
+                        label=nome, ls="-" if x != "C|riocusto2" else "none", lw=1)
+        ax.axhline(0, color=CINZA, lw=1, ls=":")
+        ax.set_title(titulo)
+        ax.set_xlabel(xlab)
+    axs[0].set_ylabel("reward minus clinician-guided rule\n(paired, 95% CI)")
+    axs[0].legend(fontsize=8, loc="upper left")
+    _salva(fig, "fig_sensitivity.png")
+
+
 FIGURAS = {
+    "sensibilidade": sensibilidade,
     "transferencia_corrigida": transferencia_corrigida,
     "casos": casos,
     "transferencia": transferencia,

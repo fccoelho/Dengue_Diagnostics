@@ -10,45 +10,45 @@ Warning--empty year in govbr_chick
 Warning--empty year in noauthor_gymnasium_nodate
 Warning--empty title in moreira2023chikungunya
 Warning--empty year in syntheticpop
-You've used 47 entries,
+You've used 49 entries,
             2481 wiz_defined-function locations,
-            842 strings with 15874 characters,
-and the built_in function-call counts, 20582 in all, are:
-= -- 1604
-> -- 1354
+            854 strings with 16579 characters,
+and the built_in function-call counts, 21705 in all, are:
+= -- 1678
+> -- 1462
 < -- 32
-+ -- 506
-- -- 410
-* -- 1717
-:= -- 3341
-add.period$ -- 180
-call.type$ -- 47
-change.case$ -- 93
-chr.to.int$ -- 45
-cite$ -- 53
-duplicate$ -- 957
-empty$ -- 1756
-format.name$ -- 473
-if$ -- 4338
++ -- 544
+- -- 444
+* -- 1836
+:= -- 3542
+add.period$ -- 188
+call.type$ -- 49
+change.case$ -- 97
+chr.to.int$ -- 47
+cite$ -- 55
+duplicate$ -- 995
+empty$ -- 1832
+format.name$ -- 509
+if$ -- 4558
 int.to.chr$ -- 3
-int.to.str$ -- 48
-missing$ -- 39
-newline$ -- 281
-num.names$ -- 138
-pop$ -- 432
+int.to.str$ -- 50
+missing$ -- 41
+newline$ -- 293
+num.names$ -- 144
+pop$ -- 444
 preamble$ -- 1
-purify$ -- 47
+purify$ -- 49
 quote$ -- 0
-skip$ -- 576
+skip$ -- 596
 stack$ -- 0
-substring$ -- 745
-swap$ -- 196
+substring$ -- 795
+swap$ -- 200
 text.length$ -- 16
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 323
+type$ -- 337
 warning$ -- 5
-while$ -- 143
+while$ -- 150
 width$ -- 0
-write$ -- 683
+write$ -- 713
 (There were 5 warnings)
