@@ -160,6 +160,23 @@ A regra derivada e a correção do simulador foram desenhadas olhando os surtos 
 
 O artigo ganhou uma seção ("Confirmation on fresh outbreaks") que diz exatamente isso. Abstract, transferência, sensibilidade e limitações foram ajustados às duas ressalvas.
 
+### 3.8 Casos proporcionais à população (08/10)
+
+Na escala física comum (200 m por célula) o Recife, 5× menor, ficava 5× mais denso, porque o número de casos por surto era o mesmo. Agora cada cidade recebe `episize × população / população do Rio` (Censo 2022: Rio 6.211.423, Recife 1.488.920), o que dá 72 para o Recife. O Rio não muda.
+
+- **Densidade medida** (casos por 1000 células habitadas): Rio 17,2; Recife 89,5 antes e **18,5** depois.
+- **O agente do Rio deixa de falhar no Recife:**
+
+| Agente do Rio (5 sementes) − regra | Recife 2016 | Recife 2021 |
+|---|---|---|
+| densidade original | −525 [−958, −128] | −576 [−1031, −176] |
+| proporcional à população | **−38** [−84, +2] | **−26** [−70, +11] |
+
+  A perda cai de 24–26% para 6–9% da recompensa da regra, com as 5 sementes entre 376 e 440 (regra: 446). A densidade, e não a geografia, explicava a falha.
+- **Resultado negativo:** o agente treinado nos surtos pequenos do Recife (5 sementes) não melhora em casa (−41 [−103, +18]; −49 [−105, +6]), pede menos exames (71–91 contra 132) e erra mais (acurácia 0,84–0,88 contra 0,94). Também **não transfere para surtos maiores**: −2330 [−2679, −2006] no Rio. O agente treinado no Recife denso (3 sementes) empata no Recife nas duas densidades e perde 143 no Rio. Hipótese não testada: a recompensa por episódio é 5× menor, enquanto os hiperparâmetros foram ajustados na escala do Rio.
+- **Ressalva:** feito nos surtos 3001–3030 (já olhados); não repetido em 4001–4030.
+- Reproduzir: `python -m experiments.fila --pop` e `python -m experiments.avaliacao_v7 --conjunto pop --workers 10` (e `--analisa`, que grava em `results/v6_avaliacao/v7_pop/`). Código: `scaled_popsize` em `dengue_envs/wrappers/factory.py`; cenários `cenario_recifefispop` e `teste_recife_{2016,2021}_fispop`.
+
 ## 4. Mudanças no artigo (`Artigo/main.tex`)
 
 - **Resumo e contribuições:**
@@ -211,8 +228,8 @@ O artigo ganhou uma seção ("Confirmation on fresh outbreaks") que diz exatamen
 1. ~~Conjunto de confirmação em surtos novos~~ **feito** (seção 3.7).
 2. **Anos novos do Rio (Fiocruz)** como teste fora do treino.
 3. **Calibração com o Recife:** acerto real do médico, sensibilidade do RT-PCR por dia de coleta, sintomas.
-4. **Número de casos proporcional à população**, para a escala física comum.
-5. **Conferir as referências** marcadas em `refs.bib`: 14 das referências de trabalhos relacionados entraram de memória, e o Santiago et al. 2013 está só com os seis primeiros autores.
+4. ~~Número de casos proporcional à população~~ **feito** (seção 3.8).
+5. ~~Conferir as referências~~ **feito** (08/10): as 7 marcadas foram corrigidas (Moreira 2023 ganhou título e os 26 autores; Santiago, 10 autores; Aldstadt, 11; volumes e páginas de Agarwal e Saravanan) e as 17 de trabalhos relacionados conferem com as fontes. Só as páginas do Agarwal et al. (NeurIPS 34) não foram confirmadas e ficaram de fora.
 
 ## 7. Onde está cada coisa
 

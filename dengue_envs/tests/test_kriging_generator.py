@@ -374,3 +374,62 @@ class TestPlaceRandomly(unittest.TestCase):
             xs, ys = np.nonzero(d2)
             lugares.add((xs.min(), ys.min(), xs.max(), ys.max()))
         self.assertGreater(len(lugares), 3)
+
+
+class TestCasosProporcionaisAPopulacao(unittest.TestCase):
+    """`surface_population`/`population_ref`: o surto escala com a população da cidade."""
+
+    def _mundo(self, **extra):
+        self.tmp = tempfile.TemporaryDirectory()
+        path = _write_tiny_npz(Path(self.tmp.name) / "s.npz")
+        base = {"generator": "kriging", "surfaces_path": str(path), "size": 50,
+                "episize": 400, "epilength": 120, "start_day": 1, "reward_delay_days": 0,
+                "lab_delay_days": 0, "randomize_outbreak": False, "epi_model": "seir",
+                "other_prevalence": 0.25, "kriging_other_cases": True}
+        env = make_raw_env({"env": {**base, **extra}})
+        env.reset(seed=5)
+        return env.world
+
+    def tearDown(self):
+        if hasattr(self, "tmp"):
+            self.tmp.cleanup()
+
+    def test_scaled_popsize(self):
+        from dengue_envs.wrappers.factory import scaled_popsize
+
+        self.assertEqual(scaled_popsize(300, None, None), 300)
+        self.assertEqual(scaled_popsize(300, 6_211_423, 6_211_423), 300)
+        self.assertEqual(scaled_popsize(300, 1_488_920, 6_211_423), 72)
+        self.assertEqual(scaled_popsize(10, 1, 1_000_000), 1)  # nunca zera
+        with self.assertRaises(ValueError):
+            scaled_popsize(300, 0, 1_000)
+
+    def test_populacao_menor_gera_surto_proporcionalmente_menor(self):
+        ref = self._mundo()
+        self.assertEqual(ref.popsize, 400)
+        pequeno = self._mundo(surface_population=250_000, population_ref=1_000_000)
+        self.assertEqual(pequeno.popsize, 100)
+        arbo_ref = ref.dengue_total + ref.chik_total
+        arbo_peq = pequeno.dengue_total + pequeno.chik_total
+        # O SEIR é determinístico e linear na população: a razão dos casos é a razão das populações.
+        self.assertAlmostEqual(arbo_peq / arbo_ref, 0.25, delta=0.05)
+
+    def test_referencia_nao_muda_o_mundo(self):
+        a = self._mundo()
+        b = self._mundo(surface_population=1_000_000, population_ref=1_000_000)
+        self.assertEqual(len(a.casedf), len(b.casedf))
+        self.assertTrue((a.casedf[["t", "x", "y", "disease"]].values == b.casedf[["t", "x", "y", "disease"]].values).all())
+
+    def test_valores_so_de_um_lado_levantam_erro(self):
+        with self.assertRaises(ValueError):
+            self._mundo(surface_population=1_000)
+        with self.assertRaises(ValueError):
+            self._mundo(population_ref=1_000)
+
+    def test_densidade_de_casos_por_celula_na_escala_fisica(self):
+        """Com o mesmo `cell_m`, casos por célula habitada ficam comparáveis entre cidades de mesma densidade demográfica."""
+        # 'Cidade' grande e pequena = a mesma máscara em áreas diferentes não é construível aqui;
+        # basta verificar que o número de arbovirais cai com a população na mesma geografia.
+        grande = self._mundo(surface_population=1_000_000, population_ref=1_000_000)
+        pequena = self._mundo(surface_population=100_000, population_ref=1_000_000)
+        self.assertLess(pequena.dengue_total + pequena.chik_total, 0.2 * (grande.dengue_total + grande.chik_total))

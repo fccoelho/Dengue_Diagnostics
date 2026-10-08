@@ -165,25 +165,29 @@
 \@writefile{toc}{\contentsline {paragraph}{A common physical scale is not enough by itself.}{19}{section*.40}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Diagnosing the transfer failure (first round, three training seeds $\times $ 30 outbreaks). Left: the original simulator, with non-arboviral suspects anywhere on the grid; the Recife-trained agent fails even in its own held-out years and collapses in Rio. Right: corrected, and with both cities at 200\,m per cell in their real extent; the smaller city becomes denser because each episode has the same number of cases, and the Rio-trained agent fails there. Paired differences with the clinician-guided rule, 95\% intervals; bold marks intervals that exclude zero. Compare with the corrected environment in Figure~\ref {fig:transfer}.}}{19}{figure.10}\protected@file@percent }
 \newlabel{fig:transfer_corrected}{{10}{19}{Diagnosing the transfer failure (first round, three training seeds $\times $ 30 outbreaks). Left: the original simulator, with non-arboviral suspects anywhere on the grid; the Recife-trained agent fails even in its own held-out years and collapses in Rio. Right: corrected, and with both cities at 200\,m per cell in their real extent; the smaller city becomes denser because each episode has the same number of cases, and the Rio-trained agent fails there. Paired differences with the clinician-guided rule, 95\% intervals; bold marks intervals that exclude zero. Compare with the corrected environment in Figure~\ref {fig:transfer}}{figure.10}{}}
-\@writefile{toc}{\contentsline {paragraph}{Mixing geographies does not pay.}{19}{section*.41}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.6}Sensitivity to simulated parameters}{19}{subsection.6.6}\protected@file@percent }
-\newlabel{sec:res_sens}{{6.6}{19}{Sensitivity to simulated parameters}{subsection.6.6}{}}
-\@writefile{toc}{\contentsline {paragraph}{Test sensitivity and clinician accuracy.}{20}{section*.42}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Test cost.}{20}{section*.43}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces Sensitivity to simulated parameters on the Rio de Janeiro test outbreaks: reward of the Rio-trained per-case agent (blue; trained at cost 4, five seeds), of the derived rule (green) and of an agent retrained at cost 2 (gray), minus the clinician-guided rule, with paired 95\% intervals. Left: test cost; center: RT-PCR sensitivity; right: clinician accuracy, fixed for the whole episode.}}{20}{figure.11}\protected@file@percent }
-\newlabel{fig:sensitivity}{{11}{20}{Sensitivity to simulated parameters on the Rio de Janeiro test outbreaks: reward of the Rio-trained per-case agent (blue; trained at cost 4, five seeds), of the derived rule (green) and of an agent retrained at cost 2 (gray), minus the clinician-guided rule, with paired 95\% intervals. Left: test cost; center: RT-PCR sensitivity; right: clinician accuracy, fixed for the whole episode}{figure.11}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.7}Confirmation on fresh outbreaks}{20}{subsection.6.7}\protected@file@percent }
-\newlabel{sec:res_confirm}{{6.7}{20}{Confirmation on fresh outbreaks}{subsection.6.7}{}}
-\@writefile{toc}{\contentsline {paragraph}{Reproduced.}{20}{section*.44}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Qualified.}{20}{section*.45}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Scaling the cases with the population removes that shift.}{19}{section*.41}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Case counts proportional to the population (common physical scale of 200\,m per cell; 30 paired outbreaks; hierarchical, paired bootstrap). Entries are the agent's reward minus that of the clinician-guided sequential rule, with 95\% intervals; the rule's reward is $+2178$ at the original density (Rio, and Recife with Rio's number of cases) and $+446$ on the scaled outbreaks. The agent trained on the original density has three seeds; the others, five.}}{20}{table.6}\protected@file@percent }
+\newlabel{tab:popscale}{{6}{20}{Case counts proportional to the population (common physical scale of 200\,m per cell; 30 paired outbreaks; hierarchical, paired bootstrap). Entries are the agent's reward minus that of the clinician-guided sequential rule, with 95\% intervals; the rule's reward is $+2178$ at the original density (Rio, and Recife with Rio's number of cases) and $+446$ on the scaled outbreaks. The agent trained on the original density has three seeds; the others, five}{table.6}{}}
+\@writefile{toc}{\contentsline {paragraph}{Mixing geographies does not pay.}{20}{section*.42}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.6}Sensitivity to simulated parameters}{20}{subsection.6.6}\protected@file@percent }
+\newlabel{sec:res_sens}{{6.6}{20}{Sensitivity to simulated parameters}{subsection.6.6}{}}
+\@writefile{toc}{\contentsline {paragraph}{Test sensitivity and clinician accuracy.}{20}{section*.43}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Test cost.}{20}{section*.44}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces Sensitivity to simulated parameters on the Rio de Janeiro test outbreaks: reward of the Rio-trained per-case agent (blue; trained at cost 4, five seeds), of the derived rule (green) and of an agent retrained at cost 2 (gray), minus the clinician-guided rule, with paired 95\% intervals. Left: test cost; center: RT-PCR sensitivity; right: clinician accuracy, fixed for the whole episode.}}{21}{figure.11}\protected@file@percent }
+\newlabel{fig:sensitivity}{{11}{21}{Sensitivity to simulated parameters on the Rio de Janeiro test outbreaks: reward of the Rio-trained per-case agent (blue; trained at cost 4, five seeds), of the derived rule (green) and of an agent retrained at cost 2 (gray), minus the clinician-guided rule, with paired 95\% intervals. Left: test cost; center: RT-PCR sensitivity; right: clinician accuracy, fixed for the whole episode}{figure.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.7}Confirmation on fresh outbreaks}{21}{subsection.6.7}\protected@file@percent }
+\newlabel{sec:res_confirm}{{6.7}{21}{Confirmation on fresh outbreaks}{subsection.6.7}{}}
+\@writefile{toc}{\contentsline {paragraph}{Reproduced.}{21}{section*.45}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Qualified.}{21}{section*.46}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.8}Robustness in the two-disease variant}{21}{subsection.6.8}\protected@file@percent }
 \newlabel{sec:res_robust}{{6.8}{21}{Robustness in the two-disease variant}{subsection.6.8}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {12}{\ignorespaces Zero-shot evaluation as spatial informativeness varies (two-disease variant; 95\% intervals over training seeds and outbreaks). The green band is the range observed in Rio de Janeiro and Recife; the gray band requires sharpening beyond any observed city.}}{21}{figure.12}\protected@file@percent }
-\newlabel{fig:temperature}{{12}{21}{Zero-shot evaluation as spatial informativeness varies (two-disease variant; 95\% intervals over training seeds and outbreaks). The green band is the range observed in Rio de Janeiro and Recife; the gray band requires sharpening beyond any observed city}{figure.12}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {7}Discussion}{21}{section.7}\protected@file@percent }
 \newlabel{sec:discussion}{{7}{21}{Discussion}{section.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {12}{\ignorespaces Zero-shot evaluation as spatial informativeness varies (two-disease variant; 95\% intervals over training seeds and outbreaks). The green band is the range observed in Rio de Janeiro and Recife; the gray band requires sharpening beyond any observed city.}}{22}{figure.12}\protected@file@percent }
+\newlabel{fig:temperature}{{12}{22}{Zero-shot evaluation as spatial informativeness varies (two-disease variant; 95\% intervals over training seeds and outbreaks). The green band is the range observed in Rio de Janeiro and Recife; the gray band requires sharpening beyond any observed city}{figure.12}{}}
 \citation{syntheticpop}
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Limitations}{22}{subsection.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Limitations}{23}{subsection.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Future work}{23}{subsection.7.2}\protected@file@percent }
 \bibstyle{unsrtnat}
 \bibdata{refs}
 \bibcite{govbr_arboviroses}{{1}{}{{Ministério da Saúde do Brasil}}{{}}}
@@ -192,11 +196,10 @@
 \bibcite{junior_epidemiology_2022}{{4}{2022}{{Junior et~al.}}{{Junior, Massad, Lobao-Neto, Kastner, Oliver, and Gallagher}}}
 \bibcite{govbr_chick}{{5}{}{{Ministério da Saúde do Brasil}}{{}}}
 \bibcite{arrubla-hoyos_methodology_2024}{{6}{2024}{{Arrubla-Hoyos et~al.}}{{Arrubla-Hoyos, Gómez, and De-La-Hoz-Franco}}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Future work}{23}{subsection.7.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{23}{section.8}\protected@file@percent }
 \bibcite{yu_deep_2023}{{7}{2023}{{Yu et~al.}}{{Yu, Li, Kim, Huang, Luo, and Wang}}}
 \bibcite{yaesoubi_generalized_2011}{{8}{2011}{{Yaesoubi and Cohen}}{{}}}
 \bibcite{sutton2018reinforcement}{{9}{2018}{{Sutton and Barto}}{{}}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{24}{section.8}\protected@file@percent }
 \bibcite{noauthor_gymnasium_nodate}{{10}{}{{noa}}{{}}}
 \bibcite{lapan2020deep}{{11}{2020}{{Lapan}}{{}}}
 \bibcite{bastani2021eva}{{12}{2021}{{Bastani et~al.}}{{Bastani, Drakopoulos, Gupta, Vlachogiannis, Hadjichristodoulou, Lagiou, Magiorkinis, Paraskevis, and Tsiodras}}}
@@ -216,17 +219,17 @@
 \bibcite{geirhos2020shortcut}{{26}{2020}{{Geirhos et~al.}}{{Geirhos, Jacobsen, Michaelis, Zemel, Brendel, Bethge, and Wichmann}}}
 \bibcite{tobin2017domain}{{27}{2017}{{Tobin et~al.}}{{Tobin, Fong, Ray, Schneider, Zaremba, and Abbeel}}}
 \bibcite{diggle1998mbg}{{28}{1998}{{Diggle et~al.}}{{Diggle, Tawn, and Moyeed}}}
-\bibcite{aldstadt2012spacetime}{{29}{2012}{{Aldstadt et~al.}}{{}}}
+\bibcite{aldstadt2012spacetime}{{29}{2012}{{Aldstadt et~al.}}{{Aldstadt, Yoon, Tannitisupawong, Jarman, Thomas, Gibbons, Uppapong, Iamsirithaworn, Rothman, Scott, and Endy}}}
 \bibcite{towers_gymnasium_2023}{{30}{2023}{{Towers et~al.}}{{Towers, Terry, Kwiatkowski, Balis, Cola, Deleu, Goulão, Kallinteris, KG, Krimmel, et~al.}}}
 \bibcite{side2015sir}{{31}{2015}{{Side and Noorani}}{{}}}
 \bibcite{derouich_model_2003}{{32}{2003}{{Derouich et~al.}}{{Derouich, Boutayeb, and Twizell}}}
 \bibcite{chan2012incubation}{{33}{2012}{{Chan and Johansson}}{{}}}
 \bibcite{carrington2014human}{{34}{2014}{{Carrington and Simmons}}{{}}}
 \bibcite{villela2017zika}{{35}{2017}{{Villela et~al.}}{{Villela, Bastos, de~Carvalho, Cruz, Gomes, Durovni, Lemos, Saraceni, Coelho, and Code{\c {c}}o}}}
-\bibcite{moreira2023chikungunya}{{36}{2023}{{Moreira et~al.}}{{Moreira, de~Menezes, Salgado-Benvindo, et~al.}}}
+\bibcite{moreira2023chikungunya}{{36}{2023}{{Moreira et~al.}}{{Moreira, de~Menezes, Salgado-Benvindo, Whittaker, Cox, Chandradeva, de~Paula, Martins, das Chagas, Brasil, C{\^a}ndido, Herlinger, Ribeiro, Arruda, Alvarez, T{\^o}rres, Dorigatti, Brady, Voloch, Tanuri, Iani, de~Souza, Cardozo, Faria, and Aguiar}}}
 \bibcite{recife_dados}{{37}{2026{}}{{Prefeitura do Recife}}{{}}}
 \bibcite{recife_area_urbana}{{38}{2026{}}{{Prefeitura do Recife}}{{}}}
-\bibcite{santiago2013cdc}{{39}{2013}{{Santiago et~al.}}{{Santiago, Vergne, Quiles, Cosme, Vazquez, Medina, et~al.}}}
+\bibcite{santiago2013cdc}{{39}{2013}{{Santiago et~al.}}{{Santiago, Vergne, Quiles, Cosme, Vazquez, Medina, Medina, Col{\'o}n, Margolis, and Mu{\~n}oz-Jord{\'a}n}}}
 \bibcite{waggoner2016multiplex}{{40}{2016}{{Waggoner et~al.}}{{Waggoner, Gresh, Mohamed-Hadley, Ballesteros, Davila, Tellez, Sahoo, Balmaseda, Harris, and Pinsky}}}
 \bibcite{mnih2015human}{{41}{2015}{{Mnih et~al.}}{{Mnih, Kavukcuoglu, Silver, et~al.}}}
 \bibcite{schulman2017ppo}{{42}{2017}{{Schulman et~al.}}{{Schulman, Wolski, Dhariwal, Radford, and Klimov}}}
@@ -237,6 +240,6 @@
 \bibcite{saravanan2020hierarchical}{{47}{2020}{{Saravanan et~al.}}{{Saravanan, Berman, and Sober}}}
 \bibcite{agarwal2021precipice}{{48}{2021}{{Agarwal et~al.}}{{Agarwal, Schwarzer, Castro, Courville, and Bellemare}}}
 \bibcite{syntheticpop}{{49}{}{{Mosqlimate Project}}{{}}}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Work in progress (internal; remove before submission)}{27}{appendix.A}\protected@file@percent }
-\newlabel{app:todo}{{A}{27}{Work in progress (internal; remove before submission)}{appendix.A}{}}
-\gdef \@abspage@last{27}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Work in progress (internal; remove before submission)}{28}{appendix.A}\protected@file@percent }
+\newlabel{app:todo}{{A}{28}{Work in progress (internal; remove before submission)}{appendix.A}{}}
+\gdef \@abspage@last{28}

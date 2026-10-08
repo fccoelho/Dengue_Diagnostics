@@ -52,7 +52,15 @@ CONDICOES.update({f"teste_rio__sens{s:.2f}": ("teste_rio", {"lab_sensitivity": s
 CONDICOES.update({f"teste_rio__medico{a:.2f}": ("teste_rio", {"clinical_specificity": [a, a]})
                   for a in (0.55, 0.70, 0.85, 0.95)})
 
+# Escala física com casos proporcionais à população (ver `cenarios._fispop`):
+# o mesmo agente do Rio é testado no Recife com a densidade antiga (`_fis`, 5x mais
+# densa que o Rio) e com a nova (`_fispop`).
+POP_TESTES = ("teste_rio_fis", "teste_recife_2016_fis", "teste_recife_2021_fis",
+              "teste_recife_2016_fispop", "teste_recife_2021_fispop")
+CONDICOES.update({t: (t, {}) for t in POP_TESTES})
+
 GRUPOS = ("sintetico", "rio", "recifesup", "mistosup")
+GRUPOS_POP = ("riofis", "recifefispop")
 FIXAS = ("sequencial_clinico", "sequencial_confia_outro", "sequencial", "testtwice", "testonce", "clinical")
 FIXAS_VARREDURA = ("sequencial_clinico", "sequencial_confia_outro", "testtwice", "testonce")
 
@@ -61,16 +69,21 @@ FIXAS_VARREDURA = ("sequencial_clinico", "sequencial_confia_outro", "testtwice",
 # usado e serve para confirmar as comparações principais sem esse viés de
 # seleção: a matriz e os custos 6 e 8 (onde a regra derivada parecia vencer).
 CONJUNTOS = {
-    "principal": (SEEDS, SAIDA, tuple(CONDICOES)),
+    "principal": (SEEDS, SAIDA, tuple(c for c in CONDICOES if c not in POP_TESTES)),
     "confirmacao": (tuple(range(4001, 4031)), SAIDA / "confirmacao",
                     MATRIZ + ("teste_rio__custo6", "teste_rio__custo8")),
+    "pop": (SEEDS, SAIDA / "pop", POP_TESTES),
 }
 
 
 def unidades(conjunto: str = "principal") -> List[Tuple[str, str]]:
     un = []
     for cond in CONJUNTOS[conjunto][2]:
-        if cond in MATRIZ:
+        if conjunto == "pop":
+            agentes = list(FIXAS) + [f"{g}_C_s{s}" for s in SEEDS_TREINO for g in GRUPOS_POP]
+            # Referência de antes: o Recife treinado com 500 casos por surto (3 sementes do v6).
+            agentes += [f"recifefis_C_s{s}" for s in (45, 46, 47)]
+        elif cond in MATRIZ:
             agentes = list(FIXAS) + [f"{g}_{b}_s{s}" for s in SEEDS_TREINO for g in GRUPOS for b in "CA"]
         else:
             agentes = list(FIXAS_VARREDURA) + [f"rio_C_s{s}" for s in SEEDS_TREINO]
@@ -207,7 +220,7 @@ def analisa(n_replicas: int = 10_000, conjunto: str = "principal") -> None:
         tab = _tabela(cond, conjunto)
         presentes = set(tab.braco)
         comps = [("sequencial_confia_outro", "sequencial_clinico")]
-        for g in GRUPOS + ("riocusto2", "riocusto8"):
+        for g in GRUPOS + GRUPOS_POP + ("recifefis", "riocusto2", "riocusto8"):
             comps += [(f"C|{g}", f"A|{g}"), (f"C|{g}", "sequencial_clinico"), (f"C|{g}", "sequencial_confia_outro")]
         comps = [c for c in comps if c[0] in presentes and c[1] in presentes]
         bracos, cmp_ = B.analisa(tab, comparacoes=comps, n_replicas=n_replicas)

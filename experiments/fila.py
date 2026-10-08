@@ -91,12 +91,21 @@ V7 = [  # (nome do grupo, cenário de ambiente, épocas, braços, sementes)
 ]
 
 
-def gera_configs_v7() -> List[Path]:
+# Casos do surto proporcionais à população, na escala física (200 m/célula): o Recife
+# ganha surtos 4,2x menores. O Rio é a referência (não muda), então as sementes
+# 45-47 do `riofis` do v6 valem e só 48-49 são novas.
+V_POP = [
+    ("recifefispop", "recifefispop", 10, "C", SEEDS_V7),
+    ("riofis", "riofis", 10, "C", (48, 49)),
+]
+
+
+def gera_configs_v7(grupos=None) -> List[Path]:
     """Uma config por treino do v7, na ordem: semente primeiro (a 1ª leva cobre tudo)."""
     TREINO.mkdir(parents=True, exist_ok=True)
     caminhos = []
     for seed in SEEDS_V7:
-        for grupo, cenario, epocas, bracos, seeds in V7:
+        for grupo, cenario, epocas, bracos, seeds in (V7 if grupos is None else grupos):
             if seed not in seeds:
                 continue
             for braco in bracos:
@@ -173,6 +182,7 @@ def main(argv=None) -> None:
     ap.add_argument("--tentativas", type=int, default=3)
     ap.add_argument("--longo", action="store_true", help="atalho para --grupo mistolongo")
     ap.add_argument("--v7", action="store_true", help="matriz v7 (ambiente corrigido, 5 sementes) e varredura de custo")
+    ap.add_argument("--pop", action="store_true", help="casos proporcionais à população (recifefispop, riofis 48-49)")
     ap.add_argument("--grupo", choices=tuple(EXTRAS), nargs="+", default=None,
                     help="roda só grupos extras (braço C), na ordem dada")
     args = ap.parse_args(argv)
@@ -180,6 +190,8 @@ def main(argv=None) -> None:
     grupos = ["mistolongo"] if args.longo else args.grupo
     if args.v7:
         fila = gera_configs_v7()
+    elif args.pop:
+        fila = gera_configs_v7(V_POP)
     else:
         fila = [c for g in grupos for c in gera_configs_extra(g)] if grupos else gera_configs()
     LOGS.mkdir(parents=True, exist_ok=True)

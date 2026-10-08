@@ -8,47 +8,46 @@ Database file #1: refs.bib
 Warning--empty year in govbr_arboviroses
 Warning--empty year in govbr_chick
 Warning--empty year in noauthor_gymnasium_nodate
-Warning--empty title in moreira2023chikungunya
 Warning--empty year in syntheticpop
 You've used 49 entries,
             2481 wiz_defined-function locations,
-            854 strings with 16579 characters,
-and the built_in function-call counts, 21705 in all, are:
-= -- 1678
-> -- 1462
+            857 strings with 17609 characters,
+and the built_in function-call counts, 22647 in all, are:
+= -- 1689
+> -- 1660
 < -- 32
-+ -- 544
-- -- 444
-* -- 1836
-:= -- 3542
-add.period$ -- 188
++ -- 610
+- -- 510
+* -- 1988
+:= -- 3750
+add.period$ -- 189
 call.type$ -- 49
-change.case$ -- 97
+change.case$ -- 98
 chr.to.int$ -- 47
-cite$ -- 55
-duplicate$ -- 995
-empty$ -- 1832
-format.name$ -- 509
-if$ -- 4558
+cite$ -- 54
+duplicate$ -- 996
+empty$ -- 1839
+format.name$ -- 574
+if$ -- 4706
 int.to.chr$ -- 3
 int.to.str$ -- 50
 missing$ -- 41
-newline$ -- 293
+newline$ -- 294
 num.names$ -- 144
-pop$ -- 444
+pop$ -- 440
 preamble$ -- 1
 purify$ -- 49
 quote$ -- 0
-skip$ -- 596
+skip$ -- 595
 stack$ -- 0
-substring$ -- 795
-swap$ -- 200
-text.length$ -- 16
+substring$ -- 811
+swap$ -- 201
+text.length$ -- 17
 text.prefix$ -- 0
 top$ -- 0
 type$ -- 337
-warning$ -- 5
-while$ -- 150
+warning$ -- 4
+while$ -- 152
 width$ -- 0
-write$ -- 713
-(There were 5 warnings)
+write$ -- 717
+(There were 4 warnings)

@@ -74,7 +74,25 @@ _GENERATOR_KEYS = {
     "surface_temperature", "surface_clamp", "surface_mix_uniform",
     "kriging_other_cases", "surface_random_placement",
     "surface_cell_m", "surface_translate", "surface_mask_path", "kriging_other_on_support",
+    "surface_population", "population_ref",
 }
+
+
+def scaled_popsize(episize: int, population: Optional[float], population_ref: Optional[float]) -> int:
+    """Casos do surto proporcionais à população da cidade.
+
+    `episize` vale para a cidade de referência (`population_ref`); uma cidade de
+    população `population` recebe `episize * population / population_ref`. Sem
+    os dois valores, devolve `episize` (comportamento histórico). Na escala
+    física comum (mesmos metros por célula), isso mantém a densidade de casos
+    por célula comparável entre cidades, o que o raio de confirmação e as
+    features de vizinhança do agente exigem.
+    """
+    if population is None or population_ref is None:
+        return int(episize)
+    if population <= 0 or population_ref <= 0:
+        raise ValueError(f"população deve ser > 0; recebido {population} (ref. {population_ref})")
+    return max(1, int(round(episize * float(population) / float(population_ref))))
 
 _WRAPPER_BUILDERS = {
     "map_tensor": DengueWrapper,
@@ -213,12 +231,17 @@ def _make_world_builder(env_cfg: dict) -> Optional[Callable]:
         cell_m = float(cell_m) if cell_m is not None else None
         transladar = bool(env_cfg.get("surface_translate", True))
         outro_no_suporte = bool(env_cfg.get("kriging_other_on_support", False))
+        # Casos do surto proporcionais à população da cidade (ver `scaled_popsize`).
+        populacao = env_cfg.get("surface_population")
+        populacao_ref = env_cfg.get("population_ref")
+        if (populacao is None) != (populacao_ref is None):
+            raise ValueError("`surface_population` e `population_ref` devem ser dados juntos")
 
         def builder(env: DengueDiagnosticsEnv):
             sup = augment_surfaces(surfaces, env.np_random) if augment else surfaces
             gen = KrigingDensityGenerator(
                 size=env.size,
-                episize=env.episize,
+                episize=scaled_popsize(env.episize, populacao, populacao_ref),
                 epilength=env.epilength,
                 surfaces=sup,
             )

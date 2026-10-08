@@ -237,8 +237,12 @@ Peter~J. Diggle, Jonathan~A. Tawn, and R.~A. Moyeed.
 \newblock \emph{Journal of the Royal Statistical Society: Series C (Applied
   Statistics)}, 47\penalty0 (3):\penalty0 299--350, 1998.
 
-\bibitem[Aldstadt et~al.(2012)]{aldstadt2012spacetime}
-Jared Aldstadt et~al.
+\bibitem[Aldstadt et~al.(2012)Aldstadt, Yoon, Tannitisupawong, Jarman, Thomas,
+  Gibbons, Uppapong, Iamsirithaworn, Rothman, Scott, and
+  Endy]{aldstadt2012spacetime}
+Jared Aldstadt, In-Kyu Yoon, Darunee Tannitisupawong, Richard~G. Jarman,
+  Stephen~J. Thomas, Robert~V. Gibbons, Angkana Uppapong, Sopon Iamsirithaworn,
+  Alan~L. Rothman, Thomas~W. Scott, and Timothy Endy.
 \newblock Space-time analysis of hospitalised dengue patients in rural
   {Thailand} reveals important temporal intervals in the pattern of dengue
   virus transmission.
@@ -292,9 +296,21 @@ Daniel A.~M. Villela, Leonardo~S. Bastos, Lucas~M. de~Carvalho, Oswaldo~G.
   1649--1657, 2017.
 \newblock \doi{10.1017/S0950268817000358}.
 
-\bibitem[Moreira et~al.(2023)Moreira, de~Menezes, Salgado-Benvindo,
-  et~al.]{moreira2023chikungunya}
-Filipe R.~R. Moreira, Mariane~T. de~Menezes, Clarisse Salgado-Benvindo, et~al.
+\bibitem[Moreira et~al.(2023)Moreira, de~Menezes, Salgado-Benvindo, Whittaker,
+  Cox, Chandradeva, de~Paula, Martins, das Chagas, Brasil, C{\^a}ndido,
+  Herlinger, Ribeiro, Arruda, Alvarez, T{\^o}rres, Dorigatti, Brady, Voloch,
+  Tanuri, Iani, de~Souza, Cardozo, Faria, and Aguiar]{moreira2023chikungunya}
+Filipe Romero~Rebello Moreira, Mariane~Talon de~Menezes, Clarisse
+  Salgado-Benvindo, Charles Whittaker, Victoria Cox, Nilani Chandradeva, Hury
+  Hellen~Souza de~Paula, Andr{\'e}~Frederico Martins, Raphael~Rangel das
+  Chagas, Rodrigo Decembrino~Vargas Brasil, Darlan da~Silva C{\^a}ndido,
+  Alice~Laschuk Herlinger, Marisa de~Oliveira Ribeiro, Monica~Barcellos Arruda,
+  Patricia Alvarez, Marcelo Calado de~Paula T{\^o}rres, Ilaria Dorigatti,
+  Oliver Brady, Carolina~Moreira Voloch, Amilcar Tanuri, Felipe Iani,
+  William~Marciel de~Souza, Sergian~Vianna Cardozo, Nuno~Rodrigues Faria, and
+  Renato~Santana Aguiar.
+\newblock Epidemiological and genomic investigation of chikungunya virus in
+  {Rio de Janeiro} state, {Brazil}, between 2015 and 2018.
 \newblock \emph{PLoS Neglected Tropical Diseases}, 17\penalty0 (9):\penalty0
   e0011536, 2023.
 \newblock \doi{10.1371/journal.pntd.0011536}.
@@ -316,9 +332,10 @@ Filipe R.~R. Moreira, Mariane~T. de~Menezes, Clarisse Salgado-Benvindo, et~al.
 \newblock Accessed 24 Sep 2026.
 
 \bibitem[Santiago et~al.(2013)Santiago, Vergne, Quiles, Cosme, Vazquez, Medina,
-  et~al.]{santiago2013cdc}
+  Medina, Col{\'o}n, Margolis, and Mu{\~n}oz-Jord{\'a}n]{santiago2013cdc}
 Gilberto~A. Santiago, Edgardo Vergne, Yashira Quiles, Joan Cosme, Jesus
-  Vazquez, Juan~F. Medina, et~al.
+  Vazquez, Juan~F. Medina, Freddy Medina, Candimar Col{\'o}n, Harold Margolis,
+  and Jorge~L. Mu{\~n}oz-Jord{\'a}n.
 \newblock Analytical and clinical performance of the {CDC} real time {RT-PCR}
   assay for detection and typing of dengue virus.
 \newblock \emph{PLoS Neglected Tropical Diseases}, 7\penalty0 (7):\penalty0
@@ -392,14 +409,16 @@ Jiayi Weng, Huoran Chen, Dong Yan, Kaichao You, Alexis Duburcq, Ming der Wang,
 Varun Saravanan, Gordon~J. Berman, and Samuel~J. Sober.
 \newblock Application of the hierarchical bootstrap to multi-level data in
   neuroscience.
-\newblock \emph{Neurons, Behavior, Data analysis, and Theory}, 2020.
+\newblock \emph{Neurons, Behavior, Data analysis, and Theory}, 3\penalty0
+  (5):\penalty0 1--25, 2020.
 
 \bibitem[Agarwal et~al.(2021)Agarwal, Schwarzer, Castro, Courville, and
   Bellemare]{agarwal2021precipice}
 Rishabh Agarwal, Max Schwarzer, Pablo~Samuel Castro, Aaron Courville, and
   Marc~G. Bellemare.
 \newblock Deep reinforcement learning at the edge of the statistical precipice.
-\newblock In \emph{Advances in Neural Information Processing Systems}, 2021.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~34, 2021.
 \newblock URL \url{https://arxiv.org/abs/2108.13264}.
 
 \bibitem[{Mosqlimate Project}()]{syntheticpop}
